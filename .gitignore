@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+dist/
+build/
+.vite/
+
+# env / secrets — API 키는 절대 커밋하지 않는다
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# cloudflare workers
+.wrangler/
+
+# test / coverage
+coverage/
+*.tsbuildinfo
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# claude code local settings
+.claude/settings.local.json
