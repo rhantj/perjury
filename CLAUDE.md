@@ -110,21 +110,66 @@ tsconfig가 이미 엄격하다. 아래는 그로부터 따라오는 실제 제�
 - 커밋·푸시는 명시적 요청이 있을 때만 한다.
 - `dist/`는 커밋하지 않는다(CI가 빌드한다).
 
+### 브랜치
+
+작업은 각자 브랜치에서 한다. `main`은 **배포 브랜치**이므로 직접 커밋하지 않는다
+(`main`에 올라간 것은 곧바로 심사용 링크에 반영된다).
+
+```
+<type>/<scope>-<요약>
+```
+
+- `<type>` — 커밋 타입과 같은 목록: `feat` `fix` `refactor` `docs` `test` `chore` `perf` `ci`
+- `<scope>` — 분업 경계와 맞춘다. 브랜치 이름만 보고 누구 작업인지 알 수 있어야 한다.
+
+  | scope | 범위 | 담당 |
+  |---|---|---|
+  | `engine` | 룰 엔진 (제안·반증·승패) | A |
+  | `agent` | 에이전트 상태·프롬프트·신뢰도 | A |
+  | `proxy` | Cloudflare Workers | A |
+  | `fallback` | 사전생성 대사 풀 | A |
+  | `ui` | React 화면·상태 연결 | B |
+  | `content` | 시나리오·캐릭터·밸런싱 데이터 | B |
+  | `docs` | 문서·제출물 | B |
+  | `infra` | 빌드·CI·배포 설정 | 공동 |
+
+- `<요약>` — 영어 소문자 kebab-case, **2~3단어**. 한글은 쓰지 않는다(원격·CI 경로에서 인코딩 문제가 난다).
+
+```
+feat/engine-refutation-order
+feat/ui-table-view
+fix/proxy-cors-origin
+docs/ai-tech-doc
+```
+
+- 한 브랜치는 **한 가지 일**만 한다. 범위가 늘어나면 새 브랜치로 쪼갠다.
+- 브랜치는 **하루 이상 묵히지 않는다.** 길어지면 매일 `git pull --rebase origin main`으로 최신화한다.
+- 병합된 브랜치는 바로 지운다: `git branch -d <name> && git push origin --delete <name>`
+
 ### 푸시 전 절차
 
-2인이 같은 `main`에 올리고, **푸시가 곧 배포**다. 푸시 전에 반드시 최신을 받아 확인한다.
+`main`으로 합치기 전에 반드시 최신을 받아 확인한다. **푸시가 곧 배포**이기 때문이다.
 
 ```bash
+# 1) 작업 브랜치에서 — 최신 main 위로 올리고 검증
 git fetch origin
 git log --oneline HEAD..origin/main   # 팀원이 올린 것 확인 — 없으면 출력 없음
 git pull --rebase origin main         # 머지 커밋 없이 내 커밋을 최신 위로 올림
 npm run build                         # 합쳐진 상태에서 빌드 통과 확인
+
+# 2) main으로 통합
+git switch main && git pull origin main
+git merge --no-ff <branch>            # 작업 단위가 기록에 남게
+npm run build
 git push origin main
 ```
 
-- **`--rebase`를 쓴다.** 2인 프로젝트에서 머지 커밋이 쌓이면 커밋 기록(제출 요건)이 읽기 어려워진다.
+- **최신화는 `--rebase`, main 통합은 `--no-ff`.** 앞은 머지 커밋 노이즈를 없애고,
+  뒤는 "이 브랜치가 한 일"을 기록에 남긴다. 커밋 기록 유지가 제출 요건이므로 squash로 뭉개지 않는다.
 - **`git pull` 후에 반드시 빌드를 다시 돌린다.** 각자 브랜치에서는 통과해도 합친 상태에서 깨질 수 있고,
   그대로 푸시하면 배포가 실패해 라이브 링크가 이전 버전에 멈춘다.
+- 작업 브랜치를 푸시해도 배포되지 않는다(`deploy.yml`은 `main` 푸시에만 반응한다).
+  브랜치 상태 확인은 로컬 `npm run preview`로 한다.
 - 충돌이 나면 임의로 해결하지 않는다. 충돌 파일과 양쪽 의도를 먼저 보고한다.
 - `git push --force`는 금지다. 팀원의 커밋을 지우고 제출 요건인 커밋 기록을 훼손한다.
 
