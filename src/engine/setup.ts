@@ -70,5 +70,6 @@ export function createGame({
     players,
     solution,
     rounds: [],
+    outcome: null,
   }
 }

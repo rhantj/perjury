@@ -78,6 +78,12 @@ export interface RoundRecord {
   readonly challenge: ChallengeRecord | null
 }
 
+export interface Outcome {
+  readonly accusation: Suggestion
+  readonly correct: boolean
+  readonly winner: Faction
+}
+
 /**
  * 판 전체의 상태. 모든 전이 함수는 이것을 받아 새 것을 반환한다.
  *
@@ -95,4 +101,6 @@ export interface GameState {
   readonly solution: Solution
   /** 지난 라운드 기록. 위증 모순 검출의 근거가 된다. */
   readonly rounds: readonly RoundRecord[]
+  /** 최종 고발 결과. 판이 끝나기 전에는 null이다. */
+  readonly outcome: Outcome | null
 }
