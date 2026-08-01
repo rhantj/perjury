@@ -1,0 +1,241 @@
+import { useState } from 'react'
+import { cardName } from '../engine/cards'
+import type { CardId, CardKind, Suggestion } from '../engine/types'
+import type { GameView } from '../engine/view'
+import { useGame } from '../store/game'
+import Log from './Log'
+import Notebook from './Notebook'
+import Table from './Table'
+import '../styles/game.css'
+
+type Picked = Partial<Record<CardKind, CardId>>
+
+function toSuggestion(picked: Picked): Suggestion | null {
+  const { suspect, weapon, place } = picked
+  return suspect && weapon && place ? { suspect, weapon, place } : null
+}
+
+export default function GameScreen() {
+  const store = useGame()
+  const [picked, setPicked] = useState<Picked>({})
+  const [seed, setSeed] = useState('nan2026')
+
+  if (!store.state) return <StartScreen seed={seed} onSeed={setSeed} onStart={store.start} />
+
+  const view = store.view()
+  const picking = view.phase === 'suggest' || view.phase === 'accuse'
+
+  const submit = (action: (s: Suggestion) => void) => {
+    const suggestion = toSuggestion(picked)
+    if (!suggestion) return
+    action(suggestion)
+    setPicked({})
+  }
+
+  return (
+    <div className="screen">
+      <header className="bar">
+        <span className="bar__round">
+          라운드 <b>{view.round}</b> / {view.totalRounds}
+        </span>
+        <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
+        <span className="bar__side">
+          {view.solution ? '범인 진영' : '시민 진영'} ·{' '}
+          {(view.players.find((p) => p.isMe)?.hand ?? []).map((c) => cardName(c)).join(' · ')}
+        </span>
+      </header>
+
+      <main className="board">
+        <Table view={view} />
+        <Notebook
+          view={view}
+          picking={picking}
+          picked={picked}
+          onPick={(kind, cardId) => setPicked((p) => ({ ...p, [kind]: cardId }))}
+        />
+      </main>
+
+      <aside className="side">
+        <h2 className="side__title">기록</h2>
+        <Log view={view} />
+      </aside>
+
+      <footer className="actions">
+        {store.error && <p className="actions__error">{store.error}</p>}
+        {view.outcome ? (
+          <Result view={view} onRestart={() => store.start(seed + '-next')} />
+        ) : view.phase === 'suggest' ? (
+          <button
+            type="button"
+            className="btn btn--go"
+            disabled={!toSuggestion(picked)}
+            onClick={() => submit(store.suggest)}
+          >
+            제안 확정
+          </button>
+        ) : view.phase === 'refute' ? (
+          <RefuteBar view={view} onRefute={store.declare} />
+        ) : view.phase === 'challenge' ? (
+          <ChallengeBar view={view} onChallenge={store.challenge} onPass={store.passChallenge} />
+        ) : view.phase === 'accuse' ? (
+          <button
+            type="button"
+            className="btn btn--danger"
+            disabled={!toSuggestion(picked)}
+            onClick={() => submit(store.accuse)}
+          >
+            최종 고발
+          </button>
+        ) : null}
+      </footer>
+    </div>
+  )
+}
+
+const PHASE_LABEL: Record<GameView['phase'], string> = {
+  suggest: '제안',
+  refute: '반증 선언',
+  challenge: '이의제기',
+  whisper: '밀담',
+  accuse: '최종 고발',
+  over: '종료',
+}
+
+function StartScreen({
+  seed,
+  onSeed,
+  onStart,
+}: {
+  seed: string
+  onSeed: (v: string) => void
+  onStart: (seed: string) => void
+}) {
+  return (
+    <main className="start">
+      <p className="start__kicker">NAN 2026 · 사전 과제</p>
+      <h1 className="start__title">
+        위증<span>PERJURY</span>
+      </h1>
+      <p className="start__line">
+        AI 에이전트 5명과 같은 테이블에 앉는다. 반증은 공개 선언이고, 거짓말이 허용된다.
+        <br />
+        들통나면 손패를 잃는다.
+      </p>
+      <form
+        className="start__form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          onStart(seed)
+        }}
+      >
+        <label className="start__label">
+          시드
+          <input className="start__input" value={seed} onChange={(e) => onSeed(e.target.value)} />
+        </label>
+        <button type="submit" className="btn btn--go">
+          시작
+        </button>
+      </form>
+      <p className="start__note">같은 시드는 항상 같은 판이 된다.</p>
+    </main>
+  )
+}
+
+/** 반증 선언. 갖고 있지 않은 카드도 고를 수 있다 — 그것이 위증이다. */
+function RefuteBar({
+  view,
+  onRefute,
+}: {
+  view: GameView
+  onRefute: (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => void
+}) {
+  const record = view.rounds[view.rounds.length - 1]
+  if (!record) return null
+
+  const hand = view.players.find((p) => p.isMe)?.hand ?? []
+  const cards = [record.suggestion.suspect, record.suggestion.weapon, record.suggestion.place]
+
+  return (
+    <div className="actions__row">
+      {cards.map((cardId) => (
+        <button
+          key={cardId}
+          type="button"
+          className={`btn${hand.includes(cardId) ? ' btn--held' : ''}`}
+          onClick={() => onRefute({ kind: 'refute', cardId })}
+        >
+          {cardName(cardId)}로 반증
+          {hand.includes(cardId) && <small>보유</small>}
+        </button>
+      ))}
+      <button type="button" className="btn btn--ghost" onClick={() => onRefute({ kind: 'pass' })}>
+        없습니다
+      </button>
+    </div>
+  )
+}
+
+/** 이의제기. 증명할 수 없으면 내 카드만 잃는다. */
+function ChallengeBar({
+  view,
+  onChallenge,
+  onPass,
+}: {
+  view: GameView
+  onChallenge: (targetId: string) => void
+  onPass: () => void
+}) {
+  const record = view.rounds[view.rounds.length - 1]
+  const hand = view.players.find((p) => p.isMe)?.hand ?? []
+
+  const targets = (record?.declarations ?? []).filter(
+    (d) => d.claim.kind === 'refute' && d.playerId !== view.viewerId,
+  )
+
+  return (
+    <div className="actions__row">
+      {targets.map((d) => {
+        const cardId = d.claim.kind === 'refute' ? d.claim.cardId : ''
+        const provable = hand.includes(cardId)
+        return (
+          <button
+            key={d.playerId}
+            type="button"
+            className={`btn${provable ? ' btn--held' : ''}`}
+            onClick={() => onChallenge(d.playerId)}
+          >
+            {view.players.find((p) => p.id === d.playerId)?.name} 위증
+            {provable && <small>증명 가능</small>}
+          </button>
+        )
+      })}
+      <button type="button" className="btn btn--go" onClick={onPass}>
+        넘어가기
+      </button>
+    </div>
+  )
+}
+
+function Result({ view, onRestart }: { view: GameView; onRestart: () => void }) {
+  const outcome = view.outcome
+  if (!outcome) return null
+
+  return (
+    <div className="result">
+      <span className={`result__verdict result__verdict--${outcome.viewerWon ? 'win' : 'lose'}`}>
+        {outcome.viewerWon ? '승리' : '패배'}
+      </span>
+      <span className="result__detail">
+        정답 {cardName(outcome.solution.suspect)} · {cardName(outcome.solution.weapon)} ·{' '}
+        {cardName(outcome.solution.place)}
+        {' — 고발 '}
+        {cardName(outcome.accusation.suspect)} · {cardName(outcome.accusation.weapon)} ·{' '}
+        {cardName(outcome.accusation.place)}
+        {outcome.accuser.kind === 'council' && ' (AI 합의)'}
+      </span>
+      <button type="button" className="btn btn--go" onClick={onRestart}>
+        새 판
+      </button>
+    </div>
+  )
+}

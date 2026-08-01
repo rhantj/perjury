@@ -1,5 +1,5 @@
-import MockScreen from './mock/MockScreen'
+import GameScreen from './components/GameScreen'
 
 export default function App() {
-  return <MockScreen />
+  return <GameScreen />
 }
