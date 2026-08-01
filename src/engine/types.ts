@@ -31,6 +31,38 @@ export interface Solution {
 
 export type Phase = 'suggest' | 'refute' | 'challenge' | 'whisper' | 'accuse' | 'over'
 
+/** 제안된 3요소. 종류별 1장씩이다. */
+export interface Suggestion {
+  readonly suspect: CardId
+  readonly weapon: CardId
+  readonly place: CardId
+}
+
+/**
+ * 반증 선언. 동시형이므로 제안자를 제외한 전원이 하나씩 낸다.
+ * refute는 제안된 3장 중 하나만 지목할 수 있다.
+ */
+export type Claim =
+  | { readonly kind: 'refute'; readonly cardId: CardId }
+  | { readonly kind: 'pass' }
+
+export interface Declaration {
+  readonly playerId: PlayerId
+  readonly claim: Claim
+  /**
+   * 선언이 거짓인가. 엔진이 손패와 대조해 결정론적으로 계산한다.
+   * UI와 AI 프롬프트에 노출하면 안 된다 — 그러면 이의제기가 무의미해진다.
+   */
+  readonly isPerjury: boolean
+}
+
+export interface RoundRecord {
+  readonly round: number
+  readonly suggesterId: PlayerId
+  readonly suggestion: Suggestion
+  readonly declarations: readonly Declaration[]
+}
+
 /**
  * 판 전체의 상태. 모든 전이 함수는 이것을 받아 새 것을 반환한다.
  *
@@ -46,4 +78,6 @@ export interface GameState {
   readonly turnIndex: number
   readonly players: readonly Player[]
   readonly solution: Solution
+  /** 지난 라운드 기록. 위증 모순 검출의 근거가 된다. */
+  readonly rounds: readonly RoundRecord[]
 }

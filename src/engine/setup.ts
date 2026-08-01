@@ -69,5 +69,6 @@ export function createGame({
     turnIndex: 0,
     players,
     solution,
+    rounds: [],
   }
 }
