@@ -1,16 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGame } from './game'
-import type { Claim, PlayerId, Suggestion } from '../engine/types'
+import type { Suggestion } from '../engine/types'
 
 const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
 
-function passAll(suggesterId: PlayerId): Map<PlayerId, Claim> {
-  const ids = useGame
-    .getState()
-    .state!.players.filter((p) => p.id !== suggesterId)
-    .map((p) => p.id)
-  return new Map(ids.map((id) => [id, { kind: 'pass' } as Claim]))
-}
+const game = () => useGame.getState()
 
 describe('useGame', () => {
   beforeEach(() => {
@@ -18,56 +12,86 @@ describe('useGame', () => {
   })
 
   it('시작하기 전에는 시야를 만들 수 없다', () => {
-    expect(() => useGame.getState().view()).toThrow()
+    expect(() => game().view()).toThrow()
+    expect(game().awaitingHuman()).toBe(false)
   })
 
   it('같은 시드로 시작하면 같은 판이 된다', () => {
-    useGame.getState().start('same')
-    const first = useGame.getState().state
-    useGame.getState().start('same')
+    game().start('same')
+    const first = game().state
+    game().start('same')
 
-    expect(useGame.getState().state).toEqual(first)
+    expect(game().state).toEqual(first)
   })
 
   it('시야는 사람 플레이어 기준으로 만들어진다', () => {
-    useGame.getState().start('seat', 2)
-    const view = useGame.getState().view()
+    game().start('seat', 2)
+    const view = game().view()
 
     expect(view.viewerId).toBe('p2')
     expect(view.players.find((p) => p.id === 'p2')?.isMe).toBe(true)
   })
 
+  it('시작하면 사람 개입 지점까지 AI가 밀고 간다', () => {
+    game().start('push', 3)
+
+    expect(game().awaitingHuman()).toBe(true)
+    expect(game().view().rounds.length).toBeGreaterThan(0)
+  })
+
   it('룰 위반은 상태를 바꾸지 않고 메시지만 남긴다', () => {
-    useGame.getState().start('guard')
-    const before = useGame.getState().state
+    game().start('guard', 3) // 사람 차례가 아니므로 제안 페이즈가 아니다
+    const before = game().state
 
-    useGame.getState().suggest('p3', SUGGESTION) // p3은 차례가 아니다
+    game().suggest(SUGGESTION)
 
-    expect(useGame.getState().state).toBe(before)
-    expect(useGame.getState().error).toContain('차례')
+    expect(game().state).toBe(before)
+    expect(game().error).not.toBeNull()
   })
 
-  it('정상 전이는 이전 메시지를 지운다', () => {
-    useGame.getState().start('clear')
-    useGame.getState().suggest('p3', SUGGESTION)
-    expect(useGame.getState().error).not.toBeNull()
+  it('사람이 제안하면 AI 선언까지 자동으로 진행된다', () => {
+    game().start('flow', 0)
+    expect(game().view().phase).toBe('suggest')
 
-    useGame.getState().suggest('p0', SUGGESTION)
+    game().suggest(SUGGESTION)
 
-    expect(useGame.getState().error).toBeNull()
-    expect(useGame.getState().view().phase).toBe('refute')
+    // 제안자가 사람이므로 반증 선언은 AI만 하고, 이의제기 지점에서 멈춘다
+    expect(game().view().phase).toBe('challenge')
+    expect(game().view().rounds[0]?.declarations).toHaveLength(5)
+    expect(game().error).toBeNull()
   })
 
-  it('한 라운드를 굴리면 라운드가 올라간다', () => {
-    useGame.getState().start('round')
-    const game = useGame.getState()
+  it('사람이 이의제기를 넘기면 라운드가 넘어간다', () => {
+    game().start('pass', 0)
+    game().suggest(SUGGESTION)
+    game().passChallenge()
 
-    game.suggest('p0', SUGGESTION)
-    game.declareAll(passAll('p0'))
-    game.skipChallenge()
-    game.nextRound()
+    expect(game().view().round).toBe(2)
+  })
 
-    expect(useGame.getState().view().round).toBe(2)
-    expect(useGame.getState().view().turnIndex).toBe(1)
+  it('사람이 제안자가 아니면 반증 선언을 사람이 한다', () => {
+    game().start('declare', 3)
+    expect(game().view().phase).toBe('refute')
+
+    game().declare({ kind: 'pass' })
+
+    expect(game().view().rounds[0]?.declarations).toHaveLength(5)
+    expect(game().error).toBeNull()
+  })
+
+  it('한 판을 끝까지 굴릴 수 있다', () => {
+    game().start('finish', 0)
+
+    for (let i = 0; i < 100 && game().view().phase !== 'over'; i += 1) {
+      const view = game().view()
+      if (view.phase === 'suggest') game().suggest(SUGGESTION)
+      else if (view.phase === 'refute') game().declare({ kind: 'pass' })
+      else if (view.phase === 'challenge') game().passChallenge()
+      else if (view.phase === 'accuse') game().accuse(SUGGESTION)
+      else break
+    }
+
+    expect(game().view().phase).toBe('over')
+    expect(game().view().outcome).not.toBeNull()
   })
 })
