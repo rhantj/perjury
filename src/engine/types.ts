@@ -78,8 +78,25 @@ export interface RoundRecord {
   readonly challenge: ChallengeRecord | null
 }
 
+export interface Vote {
+  readonly playerId: PlayerId
+  readonly accusation: Suggestion
+}
+
+/**
+ * 최종 고발의 주체. 플레이어의 진영에 따라 달라진다.
+ *
+ * 플레이어가 시민이면 플레이어가 고발한다.
+ * 플레이어가 범인이면 AI 시민들이 합의로 고발하고, 플레이어는 그것을 틀리게 유도한다.
+ * 범인이 스스로 고발하면 일부러 오답을 내서 무조건 이기므로 게임이 성립하지 않는다.
+ */
+export type Accuser =
+  | { readonly kind: 'player'; readonly playerId: PlayerId }
+  | { readonly kind: 'council'; readonly votes: readonly Vote[] }
+
 export interface Outcome {
   readonly accusation: Suggestion
+  readonly accuser: Accuser
   readonly correct: boolean
   readonly winner: Faction
 }
