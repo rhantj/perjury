@@ -82,8 +82,6 @@ export function autoPlay(initial: GameState): GameState {
       case 'accuse':
         state = finalAccusation(state)
         break
-      case 'over':
-        break
     }
   }
 
