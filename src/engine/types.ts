@@ -56,11 +56,26 @@ export interface Declaration {
   readonly isPerjury: boolean
 }
 
+export interface Reveal {
+  readonly playerId: PlayerId
+  readonly cardId: CardId
+}
+
+export interface ChallengeRecord {
+  readonly challengerId: PlayerId
+  readonly targetId: PlayerId
+  /** 대상이 반증에 썼다고 선언한 카드. 고발자가 이걸 쥐고 있으면 위증이 증명된다. */
+  readonly cardId: CardId
+  readonly success: boolean
+  readonly reveals: readonly Reveal[]
+}
+
 export interface RoundRecord {
   readonly round: number
   readonly suggesterId: PlayerId
   readonly suggestion: Suggestion
   readonly declarations: readonly Declaration[]
+  readonly challenge: ChallengeRecord | null
 }
 
 /**

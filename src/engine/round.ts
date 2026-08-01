@@ -72,7 +72,7 @@ export function suggest(
     phase: 'refute',
     rounds: [
       ...state.rounds,
-      { round: state.round, suggesterId, suggestion, declarations: [] },
+      { round: state.round, suggesterId, suggestion, declarations: [], challenge: null },
     ],
   }
 }
