@@ -29,3 +29,6 @@ coverage/
 
 # claude code local settings
 .claude/settings.local.json
+
+# 개인 작업 공간 — 확인 질문지, 메모, 임시 스크립트
+local/
