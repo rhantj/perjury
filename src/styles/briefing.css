@@ -538,6 +538,138 @@
   animation: brief-rise var(--duration-normal) var(--ease-out-expo) 900ms forwards;
 }
 
+/*
+ * 직업패. 진영이 «어느 편»이라면 이건 «무엇을 할 수 있는가»다.
+ * 손패보다 위에 두고 테두리를 세게 줘서, 진영 다음으로 눈이 여기 멈추게 한다.
+ */
+.duty {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  max-width: 34rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid oklch(46% 0.02 70 / 0.7);
+  border-radius: 0.2rem;
+  background: linear-gradient(120deg, oklch(25% 0.02 66 / 0.75), oklch(18% 0.014 250 / 0.6));
+  opacity: 0;
+  cursor: default;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 980ms forwards;
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+.duty:hover,
+.duty:focus-within {
+  border-color: var(--color-lantern);
+  outline: none;
+}
+.duty--culprit:hover,
+.duty--culprit:focus-within {
+  border-color: var(--color-seal);
+}
+.duty--culprit {
+  border-color: oklch(50% 0.14 27 / 0.75);
+  background: linear-gradient(120deg, oklch(27% 0.05 28 / 0.7), oklch(16% 0.02 250 / 0.6));
+}
+
+/* 일러스트 카드. 금박 액자와 명패가 그림 안에 이미 있으므로 여기서 테두리를 더 두르지 않는다. */
+.duty__card {
+  position: relative;
+  display: block;
+  width: clamp(4.6rem, 3.4rem + 3vw, 6.4rem);
+  aspect-ratio: 340 / 482;
+  overflow: hidden;
+  border-radius: 0.12rem;
+  box-shadow: 0 8px 22px oklch(6% 0.02 250 / 0.6);
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.duty__art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 갓등 하나짜리 방에 놓인 카드다 — 원본 그대로면 화면에서 이것만 밝게 뜬다. */
+  filter: brightness(0.86) saturate(0.92);
+  transition: filter var(--duration-normal) var(--ease-in-out);
+}
+
+.duty:hover .duty__card,
+.duty:focus-within .duty__card {
+  transform: translateY(-3px) scale(1.03);
+}
+.duty:hover .duty__art,
+.duty:focus-within .duty__art {
+  filter: brightness(1.04) saturate(1);
+}
+
+.duty__body {
+  display: grid;
+  gap: 0.16rem;
+}
+.duty__kicker {
+  font-family: var(--font-display);
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  color: oklch(54% 0.012 80);
+}
+.duty__name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: oklch(94% 0.008 84);
+}
+.duty__hanja {
+  font-size: 0.66em;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--color-lantern);
+}
+.duty--culprit .duty__hanja {
+  color: oklch(70% 0.15 27);
+}
+.duty__power {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: oklch(84% 0.008 80);
+}
+/*
+ * 이야기. 능력과 나란히 늘 떠 있으면 둘 다 안 읽혀서, 카드에 손이 닿을 때만 나온다.
+ * 높이를 미리 잡아 두었으므로 나타나도 아래가 밀리지 않는다.
+ */
+.duty__flavor {
+  min-height: 1.15rem;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: oklch(62% 0.03 60);
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity var(--duration-normal) var(--ease-in-out),
+    transform var(--duration-normal) var(--ease-out-expo);
+}
+.duty:hover .duty__flavor,
+.duty:focus-within .duty__flavor {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 1회용이라는 게 이 직업의 유일한 제약이라, 세로 각인으로 못 박아 둔다. */
+.duty__once {
+  align-self: start;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  color: var(--color-accent);
+  border: 1px solid oklch(46% 0.09 50 / 0.6);
+  border-radius: 0.1rem;
+  padding: 0.22rem 0.1rem;
+  writing-mode: vertical-rl;
+}
+
 .slip {
   display: grid;
   gap: 0.5rem;
@@ -547,12 +679,12 @@
   border-left: 2px solid oklch(42% 0.018 70);
   background: linear-gradient(90deg, oklch(24% 0.018 62 / 0.5), transparent 85%);
   opacity: 0;
-  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 1060ms forwards;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 1140ms forwards;
 }
 .slip--sealed {
   border-left-color: var(--color-seal);
   background: linear-gradient(90deg, oklch(28% 0.05 27 / 0.34), transparent 85%);
-  animation-delay: 1240ms;
+  animation-delay: 1300ms;
 }
 
 .slip__title {
@@ -748,6 +880,10 @@
   .role__faction,
   .role__desc,
   .slip,
+  .duty,
+  .duty__card,
+  .duty__art,
+  .duty__flavor,
   .record,
   .briefing__foot,
   .typed__ch {
