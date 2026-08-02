@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { CARDS, cardName } from '../engine/cards'
+import { cardLabel } from '../content/labels'
+import type { Scenario } from '../content/scenarios'
+import { CARDS } from '../engine/cards'
 import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
 
+/* 코드상 kind는 weapon이지만 살인이 아닌 사건도 있어 화면에는 «수단»으로 적는다. */
 const KIND_LABEL: Record<CardKind, string> = {
   suspect: '범인',
-  weapon: '흉기',
+  weapon: '수단',
   place: '장소',
 }
 
@@ -14,6 +17,7 @@ const NEXT_MARK: Record<Mark, Mark> = { '': 'o', o: 'x', x: '?', '?': '' }
 
 interface Props {
   view: GameView
+  scenario: Scenario
   /** 제안·고발처럼 카드를 골라야 하는 상황인가. */
   picking: boolean
   picked: Partial<Record<CardKind, CardId>>
@@ -26,8 +30,9 @@ interface Props {
  * 제안과 고발도 여기서 한다. 별도 패널을 띄우면 고를 때 정작 표가 가려진다 —
  * 목업에서 실제로 그랬다.
  */
-export default function Notebook({ view, picking, picked, onPick }: Props) {
+export default function Notebook({ view, scenario, picking, picked, onPick }: Props) {
   const [marks, setMarks] = useState<Record<string, Mark>>({})
+  const label = (id: CardId) => cardLabel(scenario, id)
 
   const self = view.players.find((p) => p.isMe)
   const myHand = self?.hand ?? []
@@ -68,10 +73,10 @@ export default function Notebook({ view, picking, picked, onPick }: Props) {
                       className={`nb__pick${isPicked ? ' nb__pick--on' : ''}`}
                       onClick={() => onPick(card.kind, card.id)}
                     >
-                      {card.name}
+                      {label(card.id)}
                     </button>
                   ) : (
-                    card.name
+                    label(card.id)
                   )}
                 </th>
                 {view.players.map((player) => {
@@ -86,7 +91,7 @@ export default function Notebook({ view, picking, picked, onPick }: Props) {
                         className={`nb__cell nb__cell--${mark || 'blank'}${known ? ' nb__cell--fixed' : ''}`}
                         disabled={known}
                         onClick={() => toggle(card.id, player.id)}
-                        aria-label={`${cardName(card.id)} / ${player.name}`}
+                        aria-label={`${label(card.id)} / ${player.name}`}
                       >
                         {mark === 'o' ? '●' : mark === 'x' ? '×' : mark}
                       </button>
@@ -100,7 +105,7 @@ export default function Notebook({ view, picking, picked, onPick }: Props) {
       </table>
       <p className="nb__hint">
         {picking
-          ? '카드 이름을 눌러 범인·흉기·장소를 하나씩 고른다.'
+          ? '카드 이름을 눌러 범인·수단·장소를 하나씩 고른다.'
           : '칸을 눌러 ● 있음 → × 없음 → ? 의심 순으로 바꾼다. 확정된 칸은 잠긴다.'}
       </p>
     </div>

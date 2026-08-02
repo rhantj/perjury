@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { cardName } from '../engine/cards'
+import { cardLabel } from '../content/labels'
+import type { Scenario } from '../content/scenarios'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { useGame } from '../store/game'
+import Briefing from './Briefing'
 import Landing from './Landing'
 import Log from './Log'
 import Notebook from './Notebook'
@@ -10,6 +12,9 @@ import Table from './Table'
 import '../styles/game.css'
 
 type Picked = Partial<Record<CardKind, CardId>>
+
+/** 판은 하나지만 화면은 둘이다 — 브리핑을 거친 뒤에 게임판이 열린다. */
+type Stage = 'briefing' | 'play'
 
 function toSuggestion(picked: Picked): Suggestion | null {
   const { suspect, weapon, place } = picked
@@ -20,10 +25,35 @@ export default function GameScreen() {
   const store = useGame()
   const [picked, setPicked] = useState<Picked>({})
   const [seed, setSeed] = useState('nan2026')
+  const [stage, setStage] = useState<Stage>('briefing')
+  /** 브리핑에서 고른 사건. 카드 표시 이름과 좌석 직함이 여기서 나온다. */
+  const [scenario, setScenario] = useState<Scenario | null>(null)
 
-  if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={store.start} />
+  /**
+   * 브리핑이 손패·진영을 보여주므로 판을 «먼저» 만들고 브리핑을 띄운다.
+   * 순서를 뒤집으면 3막에서 보여줄 신분이 아직 없다.
+   */
+  const open = (next: string) => {
+    setSeed(next)
+    store.start(next)
+    setStage('briefing')
+  }
+
+  if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={open} />
 
   const view = store.view()
+  if (stage === 'briefing' || !scenario)
+    return (
+      <Briefing
+        seed={seed}
+        view={view}
+        onEnter={(chosen) => {
+          setScenario(chosen)
+          setStage('play')
+        }}
+      />
+    )
+
   const picking = view.phase === 'suggest' || view.phase === 'accuse'
 
   const submit = (action: (s: Suggestion) => void) => {
@@ -42,14 +72,17 @@ export default function GameScreen() {
         <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
         <span className="bar__side">
           {view.solution ? '범인 진영' : '시민 진영'} ·{' '}
-          {(view.players.find((p) => p.isMe)?.hand ?? []).map((c) => cardName(c)).join(' · ')}
+          {(view.players.find((p) => p.isMe)?.hand ?? [])
+            .map((c) => cardLabel(scenario, c))
+            .join(' · ')}
         </span>
       </header>
 
       <main className="board">
-        <Table view={view} />
+        <Table view={view} scenario={scenario} />
         <Notebook
           view={view}
+          scenario={scenario}
           picking={picking}
           picked={picked}
           onPick={(kind, cardId) => setPicked((p) => ({ ...p, [kind]: cardId }))}
@@ -58,13 +91,13 @@ export default function GameScreen() {
 
       <aside className="side">
         <h2 className="side__title">기록</h2>
-        <Log view={view} />
+        <Log view={view} scenario={scenario} />
       </aside>
 
       <footer className="actions">
         {store.error && <p className="actions__error">{store.error}</p>}
         {view.outcome ? (
-          <Result view={view} onRestart={() => store.start(seed + '-next')} />
+          <Result view={view} scenario={scenario} onRestart={() => open(seed + '-next')} />
         ) : view.phase === 'suggest' ? (
           <button
             type="button"
@@ -75,7 +108,7 @@ export default function GameScreen() {
             제안 확정
           </button>
         ) : view.phase === 'refute' ? (
-          <RefuteBar view={view} onRefute={store.declare} />
+          <RefuteBar view={view} scenario={scenario} onRefute={store.declare} />
         ) : view.phase === 'challenge' ? (
           <ChallengeBar view={view} onChallenge={store.challenge} onPass={store.passChallenge} />
         ) : view.phase === 'accuse' ? (
@@ -105,9 +138,11 @@ const PHASE_LABEL: Record<GameView['phase'], string> = {
 /** 반증 선언. 갖고 있지 않은 카드도 고를 수 있다 — 그것이 위증이다. */
 function RefuteBar({
   view,
+  scenario,
   onRefute,
 }: {
   view: GameView
+  scenario: Scenario
   onRefute: (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => void
 }) {
   const record = view.rounds[view.rounds.length - 1]
@@ -125,7 +160,7 @@ function RefuteBar({
           className={`btn${hand.includes(cardId) ? ' btn--held' : ''}`}
           onClick={() => onRefute({ kind: 'refute', cardId })}
         >
-          {cardName(cardId)}로 반증
+          {cardLabel(scenario, cardId)}로 반증
           {hand.includes(cardId) && <small>보유</small>}
         </button>
       ))}
@@ -177,9 +212,19 @@ function ChallengeBar({
   )
 }
 
-function Result({ view, onRestart }: { view: GameView; onRestart: () => void }) {
+function Result({
+  view,
+  scenario,
+  onRestart,
+}: {
+  view: GameView
+  scenario: Scenario
+  onRestart: () => void
+}) {
   const outcome = view.outcome
   if (!outcome) return null
+
+  const label = (id: CardId) => cardLabel(scenario, id)
 
   return (
     <div className="result">
@@ -187,11 +232,11 @@ function Result({ view, onRestart }: { view: GameView; onRestart: () => void }) 
         {outcome.viewerWon ? '승리' : '패배'}
       </span>
       <span className="result__detail">
-        정답 {cardName(outcome.solution.suspect)} · {cardName(outcome.solution.weapon)} ·{' '}
-        {cardName(outcome.solution.place)}
+        정답 {label(outcome.solution.suspect)} · {label(outcome.solution.weapon)} ·{' '}
+        {label(outcome.solution.place)}
         {' — 고발 '}
-        {cardName(outcome.accusation.suspect)} · {cardName(outcome.accusation.weapon)} ·{' '}
-        {cardName(outcome.accusation.place)}
+        {label(outcome.accusation.suspect)} · {label(outcome.accusation.weapon)} ·{' '}
+        {label(outcome.accusation.place)}
         {outcome.accuser.kind === 'council' && ' (AI 합의)'}
       </span>
       <button type="button" className="btn btn--go" onClick={onRestart}>

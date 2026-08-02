@@ -301,47 +301,119 @@
   font-size: 0.78rem;
   color: oklch(72% 0.15 25);
 }
+/*
+ * 버튼. 표지·브리핑과 같은 «차오르는 남포등» 규칙을 쓴다 —
+ * 화면마다 누르는 감각이 다르면 같은 게임으로 안 읽힌다.
+ * 모서리도 둥근 0.4rem에서 종이 각으로 낮췄다.
+ */
 .btn {
+  position: relative;
+  /*
+   * 불(::before)을 글자 «뒤»로 보내야 하는데 버튼 내용이 텍스트 노드라 z-index를 줄 수 없다.
+   * isolate로 쌓임 맥락을 가두면 ::before의 z-index:-1이 버튼 배경 위·글자 아래에 머문다.
+   */
+  isolation: isolate;
+  overflow: hidden;
   border: 1px solid var(--color-line);
   background: transparent;
   color: var(--color-text);
   font: inherit;
   font-size: 0.88rem;
-  padding: 0.55rem 1rem;
-  border-radius: 0.4rem;
+  letter-spacing: 0.02em;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.15rem;
   cursor: pointer;
-  transition: border-color 150ms, background 150ms;
+  transition:
+    color var(--duration-normal) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
 }
-.btn:hover:not(:disabled) {
-  border-color: var(--color-accent);
+
+/* 불은 아래에서 차오른다. 배경색을 바로 바꾸면 «깜빡»이고, 차오르면 «켜진다». */
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-lantern);
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.btn:hover:not(:disabled),
+.btn:focus-visible:not(:disabled) {
+  border-color: var(--color-lantern);
+  color: oklch(15% 0.03 45);
+  box-shadow: 0 8px 24px oklch(62% 0.15 55 / 0.22);
+  outline: none;
+}
+.btn:hover:not(:disabled)::before,
+.btn:focus-visible:not(:disabled)::before {
+  transform: scaleY(1);
+}
+/* 누르는 순간 1px 내려앉는다. 이 한 프레임이 «눌렸다»는 유일한 신호다. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
+
 .btn small {
   color: var(--color-accent);
   font-size: 0.68rem;
   margin-left: 0.35rem;
 }
-.btn--go {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: oklch(15% 0.02 40);
-  font-weight: 600;
-}
-.btn--go small {
+.btn:hover:not(:disabled) small,
+.btn:focus-visible:not(:disabled) small {
   color: inherit;
 }
+
+/* 주 행동. 평소에도 불이 들어와 있어 시선이 여기서 멈춘다. */
+.btn--go {
+  border-color: var(--color-lantern);
+  color: oklch(15% 0.03 45);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.btn--go::before {
+  transform: scaleY(1);
+}
+.btn--go:hover:not(:disabled) {
+  box-shadow: 0 10px 30px oklch(62% 0.15 55 / 0.34);
+}
+.btn--go:disabled {
+  color: var(--color-text);
+}
+.btn--go:disabled::before {
+  transform: scaleY(0);
+}
+
+/* 이미 쥔 카드. 테두리만 데워 «쓸 수 있다»를 알린다. */
 .btn--held {
   border-color: oklch(45% 0.09 40);
 }
 .btn--ghost {
   color: var(--color-muted);
 }
+
+/* 최종 고발. 이 화면에서 유일한 붉은색이라 되돌릴 수 없는 행동임이 색으로 읽힌다. */
 .btn--danger {
   border-color: oklch(45% 0.1 25);
   color: oklch(74% 0.14 25);
+}
+.btn--danger::before {
+  background: var(--color-seal);
+}
+.btn--danger:hover:not(:disabled),
+.btn--danger:focus-visible:not(:disabled) {
+  border-color: var(--color-seal);
+  color: oklch(96% 0.02 30);
+  box-shadow: 0 8px 24px oklch(54% 0.2 27 / 0.32);
 }
 
 /* ---- 결과 ---- */
@@ -382,6 +454,42 @@
   }
   .side {
     max-height: 22rem;
+  }
+}
+
+/*
+ * 브리핑이 물러난 자리로 게임판이 들어온다. 이게 없으면 판이 «툭» 하고 나타나
+ * 세 막을 거쳐 온 흐름이 마지막에 끊긴다.
+ */
+.screen {
+  animation: screen-in var(--duration-slow) var(--ease-out-expo);
+}
+
+/* 좌석 직함. 이름 아래 한 줄 — 사건이 바뀐 것을 게임판에서 알아볼 수 있는 유일한 자리다. */
+.seat__title {
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: scale(0.994);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen {
+    animation: none;
+  }
+  .btn,
+  .btn::before {
+    transition-duration: 0.01ms;
   }
 }
 

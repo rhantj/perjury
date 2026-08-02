@@ -1,15 +1,23 @@
-import { cardName } from '../engine/cards'
+import { cardLabel } from '../content/labels'
+import type { Scenario } from '../content/scenarios'
 import type { GameView, RoundView } from '../engine/view'
 
 interface Props {
   view: GameView
+  scenario: Scenario
 }
 
 function nameOf(view: GameView, id: string): string {
   return view.players.find((p) => p.id === id)?.name ?? id
 }
 
-function lines(view: GameView, round: RoundView): { text: string; tone: string }[] {
+function lines(
+  view: GameView,
+  scenario: Scenario,
+  round: RoundView,
+): { text: string; tone: string }[] {
+  const cardName = (id: string) => cardLabel(scenario, id)
+
   const out: { text: string; tone: string }[] = [
     {
       tone: 'suggest',
@@ -49,7 +57,7 @@ function lines(view: GameView, round: RoundView): { text: string; tone: string }
   return out
 }
 
-export default function Log({ view }: Props) {
+export default function Log({ view, scenario }: Props) {
   const rounds = [...view.rounds].reverse()
 
   return (
@@ -58,7 +66,7 @@ export default function Log({ view }: Props) {
         <li key={round.round} className="log__round">
           <span className="log__num">라운드 {round.round}</span>
           <ul className="log__items">
-            {lines(view, round).map((line, i) => (
+            {lines(view, scenario, round).map((line, i) => (
               <li key={i} className={`log__item log__item--${line.tone}`}>
                 {line.text}
               </li>

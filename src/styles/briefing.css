@@ -1,0 +1,512 @@
+/*
+ * 사건 브리핑. 표지가 «골목»이었다면 여기는 «책상» — 조서를 펼쳐 놓은 실내다.
+ * 장면이 바뀌어야 표지에서 들어왔다는 감각이 생기므로 배경 골목을 재사용하지 않는다.
+ *
+ * 조판은 표지와 같은 좌측 정렬을 유지한다. 여기서 가운데로 모으면 두 화면이 딴 게임이 된다.
+ */
+
+.briefing {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  overflow-x: hidden;
+  color: var(--color-text);
+  /* 한국어는 어절로 끊어야 읽힌다. 없으면 «살인사/건»처럼 낱글자에서 잘린다. */
+  word-break: keep-all;
+  /* 위에서 떨어지는 갓등 하나. 광원이 하나여야 «취조»로 읽힌다. */
+  background:
+    radial-gradient(ellipse 70% 50% at 22% 0%, oklch(26% 0.03 62 / 0.55), transparent 62%),
+    linear-gradient(180deg, oklch(14% 0.018 250), var(--color-night-deep));
+}
+
+/* 종이 결. 단색 배경이면 책상이 아니라 웹페이지로 보인다. */
+.briefing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    97deg,
+    oklch(70% 0.02 80 / 0.016) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.briefing__stage {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  justify-self: start;
+  display: grid;
+  gap: clamp(0.9rem, 0.6rem + 1.1vw, 1.5rem);
+  /* 조서 여섯 장이 한 줄에 들어가는 폭. 좁히면 5+1로 접혀 «여섯»이 안 읽힌다. */
+  width: min(76rem, 100%);
+  padding: clamp(2rem, 1rem + 4vw, 3.6rem) clamp(1.5rem, 0.8rem + 4vw, 5rem);
+  transition:
+    opacity 320ms var(--ease-in-out),
+    transform 320ms var(--ease-in-out);
+}
+
+/*
+ * 막을 넘기는 동안. 다음 막을 바로 갈아끼우면 «띡» 하고 튀므로 한 번 물러났다 들어온다.
+ * 이 320ms는 Briefing.tsx의 FADE_MS와 같아야 한다 — 어긋나면 빈 화면이 보이거나 잘린다.
+ */
+.briefing--out .briefing__stage {
+  opacity: 0;
+  transform: translateY(-0.5rem) scale(0.99);
+}
+
+/* ---- 머리 ---- */
+.briefing__head {
+  display: grid;
+  grid-template-columns: 2.5rem auto;
+  align-items: center;
+  gap: 0.85rem;
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 80ms forwards;
+}
+
+.briefing__rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-lantern));
+}
+
+.briefing__kicker {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.36em;
+  text-indent: 0.36em;
+  color: var(--color-lantern);
+  text-shadow: 0 0 18px oklch(70% 0.14 60 / 0.4);
+}
+
+.briefing__lede {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1rem + 2.2vw, 2.9rem);
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  color: oklch(95% 0.006 90);
+  opacity: 0;
+  animation: brief-rise var(--duration-slow) var(--ease-out-expo) 220ms forwards;
+}
+
+.briefing__note {
+  margin: 0;
+  max-width: 34rem;
+  font-size: clamp(0.78rem, 0.74rem + 0.2vw, 0.9rem);
+  line-height: 1.8;
+  color: oklch(64% 0.012 80);
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 380ms forwards;
+}
+
+/* ---- 1막: 사건 선택 ---- */
+.picker {
+  display: grid;
+  /* 넷이므로 2×2. 3열이 되면 마지막 하나가 홀로 떨어져 «남은 것»처럼 보인다. */
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: clamp(0.6rem, 0.4rem + 0.6vw, 1rem);
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.picker__item {
+  opacity: 0;
+  /* 서류가 한 장씩 놓인다. --i는 순번. */
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) forwards;
+  animation-delay: calc(420ms + var(--i) * 90ms);
+}
+
+.case {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: start;
+  gap: 0.15rem 0.9rem;
+  width: 100%;
+  height: 100%;
+  padding: 1rem 1.1rem 0.85rem;
+  border: 1px solid oklch(40% 0.016 70 / 0.7);
+  border-radius: 0.2rem;
+  background: linear-gradient(168deg, oklch(23% 0.018 62 / 0.7), oklch(17% 0.014 250 / 0.7));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--duration-normal) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-in-out),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+.case:hover,
+.case:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--color-lantern);
+  box-shadow: 0 16px 34px oklch(6% 0.02 250 / 0.6);
+  outline: none;
+}
+
+.case__hanja {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 1rem + 1vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: oklch(60% 0.03 80);
+  writing-mode: vertical-rl;
+  border-right: 1px solid oklch(38% 0.02 70);
+  padding-right: 0.6rem;
+  transition: color var(--duration-fast) var(--ease-in-out);
+}
+.case:hover .case__hanja,
+.case:focus-visible .case__hanja {
+  color: var(--color-lantern);
+}
+
+.case__body {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.case__title {
+  font-family: var(--font-display);
+  font-size: clamp(0.98rem, 0.9rem + 0.4vw, 1.2rem);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.case__intro {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: oklch(62% 0.012 80);
+}
+
+.case__meta {
+  grid-column: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-top: 0.7rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: oklch(48% 0.012 80);
+}
+
+/* 「열람」은 평소 숨어 있다 — 카드마다 붙어 있으면 넷 다 소리를 지른다. */
+.case__go {
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--color-lantern);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-normal) var(--ease-out-expo);
+}
+.case:hover .case__go,
+.case:focus-visible .case__go {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.briefing__ghost {
+  justify-self: start;
+  padding: 0.4rem 0;
+  border: none;
+  border-bottom: 1px solid oklch(40% 0.016 70);
+  background: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  color: oklch(58% 0.012 80);
+  cursor: pointer;
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 840ms forwards;
+  transition:
+    color var(--duration-fast) var(--ease-in-out),
+    border-color var(--duration-fast) var(--ease-in-out);
+}
+.briefing__ghost:hover,
+.briefing__ghost:focus-visible {
+  color: var(--color-lantern);
+  border-bottom-color: var(--color-lantern);
+  outline: none;
+}
+
+/* ---- 2막: 용의자 여섯 ---- */
+.dossiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(0.5rem, 0.3rem + 0.7vw, 1.1rem);
+  margin: 0.3rem 0 0;
+  padding: 0.2rem 0;
+  list-style: none;
+}
+
+.dossiers__item {
+  opacity: 0;
+  animation: brief-deal var(--duration-slow) var(--ease-out-expo) forwards;
+  animation-delay: calc(520ms + var(--i) * 110ms);
+}
+
+/* ---- 3막: 신분 ---- */
+.role__label {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.3em;
+  color: oklch(58% 0.012 80);
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 200ms forwards;
+}
+
+.role__faction {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 1.6rem + 5.5vw, 6rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  opacity: 0;
+  /* 도장처럼 «찍힌다». 이 화면에서 가장 큰 사건이라 다른 등장과 리듬을 달리한다. */
+  animation: brief-stamp var(--duration-slow) var(--ease-out-expo) 420ms forwards;
+}
+
+.briefing--citizen .role__faction {
+  color: oklch(94% 0.006 90);
+  text-shadow: 0 0 52px oklch(60% 0.1 250 / 0.5);
+}
+.briefing--culprit .role__faction {
+  color: var(--color-seal);
+  text-shadow: 0 0 52px oklch(54% 0.2 27 / 0.45);
+}
+
+/* 범인 판에서만 화면 가장자리가 붉게 죈다. 진영이 바뀐 걸 글자 말고도 알아야 한다. */
+.briefing--culprit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 22vmin oklch(40% 0.16 27 / 0.28);
+  opacity: 0;
+  animation: brief-fade var(--duration-slow) var(--ease-in-out) 420ms forwards;
+}
+
+.role__desc {
+  margin: 0;
+  max-width: 38rem;
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 0.86rem + 0.4vw, 1.2rem);
+  line-height: 1.7;
+  color: oklch(84% 0.008 80);
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 900ms forwards;
+}
+
+.slip {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  max-width: 32rem;
+  padding: 0.9rem 1.1rem;
+  border-left: 2px solid oklch(42% 0.018 70);
+  background: linear-gradient(90deg, oklch(24% 0.018 62 / 0.5), transparent 85%);
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 1060ms forwards;
+}
+.slip--sealed {
+  border-left-color: var(--color-seal);
+  background: linear-gradient(90deg, oklch(28% 0.05 27 / 0.34), transparent 85%);
+  animation-delay: 1240ms;
+}
+
+.slip__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  color: oklch(60% 0.012 80);
+}
+.slip--sealed .slip__title {
+  color: oklch(66% 0.14 27);
+}
+
+.slip__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: 0.38rem 0.85rem;
+  border: 1px solid oklch(44% 0.018 70);
+  border-radius: 0.15rem;
+  background: oklch(22% 0.016 62 / 0.8);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.chip--sealed {
+  border-color: oklch(50% 0.14 27 / 0.8);
+  color: oklch(88% 0.05 30);
+}
+
+.slip__note {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.7;
+  color: oklch(56% 0.012 80);
+}
+
+/* ---- 발치 ---- */
+.briefing__foot {
+  display: flex;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 1200ms forwards;
+}
+
+.briefing__go {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-lantern);
+  background: transparent;
+  color: var(--color-lantern);
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  padding: 0.7rem 2.4rem;
+  cursor: pointer;
+  transition:
+    color var(--duration-normal) var(--ease-out-expo),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+/* 표지 버튼과 같은 «차오르는 불». 두 화면의 상호작용 규칙을 하나로 유지한다. */
+.briefing__go::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-lantern);
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+}
+.briefing__go span {
+  position: relative;
+}
+.briefing__go:hover,
+.briefing__go:focus-visible {
+  color: oklch(15% 0.03 45);
+  box-shadow: 0 10px 30px oklch(62% 0.15 55 / 0.3);
+  outline: none;
+}
+.briefing__go:hover::before,
+.briefing__go:focus-visible::before {
+  transform: scaleY(1);
+}
+
+/* 신분 화면은 봉인 쪽지까지 다 앉은 뒤에 열린다. */
+.briefing--citizen .briefing__foot,
+.briefing--culprit .briefing__foot {
+  animation-delay: 1460ms;
+}
+
+/* ---- 타자 ---- */
+.typed__ch {
+  display: inline-block;
+  white-space: pre;
+  opacity: 0;
+  animation: brief-type 1ms linear forwards;
+  animation-delay: calc(420ms + var(--i) * 55ms);
+}
+
+/* ---- 등장 ---- */
+@keyframes brief-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 조서는 «놓인다» — 살짝 비껴 들어와 제자리에 앉는다. */
+@keyframes brief-deal {
+  from {
+    opacity: 0;
+    transform: translate(-1.4rem, -0.9rem) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes brief-stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes brief-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+/* 글자는 페이드가 아니라 «찍힌다». 그래서 지속시간이 1ms다. */
+@keyframes brief-type {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .briefing__head,
+  .briefing__lede,
+  .briefing__note,
+  .picker__item,
+  .dossiers__item,
+  .briefing__ghost,
+  .role__label,
+  .role__faction,
+  .role__desc,
+  .slip,
+  .briefing__foot,
+  .typed__ch {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+    opacity: 1;
+  }
+  .briefing--culprit::before {
+    animation: none;
+    opacity: 1;
+  }
+  .briefing__stage,
+  .case,
+  .case__go,
+  .briefing__go,
+  .briefing__go::before {
+    transition-duration: 0.01ms;
+  }
+}
