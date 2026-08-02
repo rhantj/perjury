@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
+import { assignRoles } from '../content/roles'
+import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
 import { accuse } from '../engine/progress'
 import { suggest } from '../engine/round'
@@ -25,6 +27,11 @@ interface GameStore {
   /** 판을 버리고 표지로 돌아간다. 브리핑에서 되돌아 나오는 경로가 이것뿐이다. */
   reset: () => void
   view: () => GameView
+  /**
+   * **내** 직업. 남의 직업은 내보내지 않는다 —
+   * 범인 전용 2종(협잡꾼·밀정)이 섞여 있어서 알면 곧바로 범인이 드러난다.
+   */
+  role: () => Role
   /** 사람이 지금 결정해야 하는가. 화면은 이 값으로 조작 가능 여부를 정한다. */
   awaitingHuman: () => boolean
 
@@ -73,6 +80,13 @@ export const useGame = create<GameStore>((set, get) => {
     view: () => {
       const state = requireState(get().state)
       return viewFor(state, humanId(state))
+    },
+
+    role: () => {
+      const state = requireState(get().state)
+      const mine = assignRoles(state.seed, state.players)[humanId(state)]
+      if (!mine) throw new Error('직업이 배정되지 않았다')
+      return mine
     },
 
     awaitingHuman: () => {
