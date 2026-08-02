@@ -354,8 +354,20 @@
   font-weight: 700;
   color: oklch(94% 0.008 84);
 }
+/* 직함은 이름에 딸린 것이라 «—»로 매달아 한 급 낮춘다. */
+.record__title {
+  font-size: 0.78em;
+  font-weight: 600;
+  color: oklch(76% 0.012 80);
+}
+.record__title::before {
+  content: '—';
+  margin-right: 0.5rem;
+  color: oklch(46% 0.014 70);
+}
+
 .record__hanja {
-  font-size: 0.72em;
+  font-size: 0.66em;
   font-weight: 500;
   letter-spacing: 0.14em;
   color: var(--color-lantern);

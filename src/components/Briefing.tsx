@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
-import { cardLabel } from '../content/labels'
+import { cardLabel, suspectNameAt } from '../content/labels'
 import { cardKind } from '../engine/cards'
 import type { CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -210,8 +210,10 @@ function SuspectsAct({
           <span className="record__no">第{NUMERALS[active] ?? active + 1}號</span>
         </header>
 
+        {/* 이름이 여기서 열린다 — 2막 안내문이 «조서를 짚으면 신원이 열린다»고 약속한 자리다. */}
         <p className="record__name">
-          {shown.ko}
+          {suspectNameAt(active) ?? shown.ko}
+          <span className="record__title">{shown.ko}</span>
           <span className="record__hanja">{shown.hanja}</span>
         </p>
         <p className="record__who">{shown.who}</p>
