@@ -3,11 +3,13 @@ import type { Title } from '../content/scenarios'
 import '../styles/suspect-card.css'
 
 /** 용의자 번호. 6장을 넘으면 아라비아 숫자로 떨어진다. */
-const NUMERALS = ['壹', '貳', '參', '肆', '伍', '陸'] as const
+export const NUMERALS = ['壹', '貳', '參', '肆', '伍', '陸'] as const
 
 interface Props {
   title: Title
   index: number
+  /** 지금 조서가 펼쳐진 인물인가. 강조는 hover와 같지만 키보드·터치로도 켜진다. */
+  active?: boolean
 }
 
 /**
@@ -17,11 +19,15 @@ interface Props {
  * 기울기는 안쪽 .dossier가 맡고 등장 연출은 바깥 <li>가 맡는다.
  * 한 요소에 transform을 둘 다 걸면 서로 덮어쓴다.
  */
-export default function SuspectCard({ title, index }: Props) {
+export default function SuspectCard({ title, index, active = false }: Props) {
   const numeral = NUMERALS[index] ?? String(index + 1)
 
   return (
-    <article className="dossier" style={{ '--i': index } as CSSProperties}>
+    <article
+      className={`dossier${active ? ' dossier--active' : ''}`}
+      style={{ '--i': index } as CSSProperties}
+      tabIndex={0}
+    >
       <span className="dossier__tick dossier__tick--tl" />
       <span className="dossier__tick dossier__tick--br" />
 

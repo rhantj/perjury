@@ -27,12 +27,20 @@
     box-shadow var(--duration-normal) var(--ease-out-expo);
 }
 
-.dossier:hover {
+.dossier:hover ,
+.dossier:focus-visible ,
+.dossier--active  {
   transform: rotate(0deg) translateY(-7px) scale(1.035);
   border-color: var(--color-accent);
   box-shadow:
     0 1px 0 oklch(80% 0.02 80 / 0.1) inset,
     0 20px 38px oklch(6% 0.02 250 / 0.68);
+}
+
+/* 조서는 키보드로도 넘길 수 있다 — 카드가 곧 조서를 여는 손잡이다. */
+.dossier:focus-visible {
+  outline: 1px solid var(--color-lantern);
+  outline-offset: 3px;
 }
 
 /* ---- 모서리 괄호 (사건 파일 표식) ---- */
@@ -55,7 +63,9 @@
   border-right: 1px solid var(--color-accent);
   border-bottom: 1px solid var(--color-accent);
 }
-.dossier:hover .dossier__tick {
+.dossier:hover .dossier__tick ,
+.dossier:focus-visible .dossier__tick ,
+.dossier--active .dossier__tick  {
   opacity: 1;
 }
 
@@ -105,7 +115,11 @@
   transition: fill var(--duration-normal) var(--ease-in-out);
 }
 .dossier:hover .dossier__head-shape,
-.dossier:hover .dossier__body-shape {
+.dossier:focus-visible .dossier__head-shape,
+.dossier--active .dossier__head-shape ,
+.dossier:hover .dossier__body-shape ,
+.dossier:focus-visible .dossier__body-shape ,
+.dossier--active .dossier__body-shape  {
   fill: oklch(10% 0.02 255);
 }
 
@@ -123,7 +137,9 @@
     color var(--duration-fast) var(--ease-in-out),
     text-shadow var(--duration-normal) var(--ease-in-out);
 }
-.dossier:hover .dossier__hanja {
+.dossier:hover .dossier__hanja ,
+.dossier:focus-visible .dossier__hanja ,
+.dossier--active .dossier__hanja  {
   color: var(--color-lantern);
   text-shadow: 0 0 26px oklch(76% 0.14 64 / 0.75);
 }
@@ -146,7 +162,9 @@
   opacity: 0.75;
   transition: opacity var(--duration-normal) var(--ease-in-out);
 }
-.dossier:hover .dossier__lattice {
+.dossier:hover .dossier__lattice ,
+.dossier:focus-visible .dossier__lattice ,
+.dossier--active .dossier__lattice  {
   opacity: 0.35;
 }
 
@@ -164,7 +182,9 @@
   transform: translateX(-42%);
   transition: opacity var(--duration-fast) var(--ease-in-out);
 }
-.dossier:hover .dossier__scan {
+.dossier:hover .dossier__scan ,
+.dossier:focus-visible .dossier__scan ,
+.dossier--active .dossier__scan  {
   opacity: 1;
   animation: dossier-scan 1.4s var(--ease-in-out) infinite;
 }
@@ -207,7 +227,9 @@
     opacity var(--duration-fast) var(--ease-out-expo),
     transform var(--duration-normal) var(--ease-out-expo);
 }
-.dossier:hover .dossier__stamp {
+.dossier:hover .dossier__stamp ,
+.dossier:focus-visible .dossier__stamp ,
+.dossier--active .dossier__stamp  {
   opacity: 0.92;
   transform: rotate(-13deg) scale(1);
 }

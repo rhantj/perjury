@@ -3,8 +3,10 @@ import type { CSSProperties } from 'react'
 import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { cardLabel } from '../content/labels'
+import { cardKind } from '../engine/cards'
+import type { CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
-import SuspectCard from './SuspectCard'
+import SuspectCard, { NUMERALS } from './SuspectCard'
 import '../styles/briefing.css'
 
 interface Props {
@@ -20,6 +22,16 @@ type Act = 'pick' | 'suspects' | 'role'
 
 /** 막이 물러나는 시간. briefing.css의 .briefing--out 트랜지션과 같아야 한다. */
 const FADE_MS = 320
+
+/**
+ * 손패 한 장이 «무슨 뜻인가». 이름만 띄우면 처음 보는 사람은 마차고가 뭔지 알 수 없다.
+ * 쥔 카드는 봉인될 수 없으므로 종류마다 지워지는 칸이 정해져 있다.
+ */
+const KIND: Record<CardKind, { label: string; fact: string }> = {
+  suspect: { label: '용의자', fact: '범인이 아니다' },
+  weapon: { label: '수단', fact: '쓰이지 않았다' },
+  place: { label: '장소', fact: '현장이 아니다' },
+}
 
 /**
  * 표지와 게임판 사이. 세 막으로 끊어 «판이 시작되는 절차»를 만든다.
@@ -156,6 +168,10 @@ function SuspectsAct({
   onNext: () => void
   onBack: () => void
 }) {
+  /** 지금 펼쳐 놓은 조서. 기본은 첫 장 — 빈 패널로 시작하면 여기에 뭐가 오는지 알 수 없다. */
+  const [active, setActive] = useState(0)
+  const shown = scenario.titles[active] ?? scenario.titles[0]
+
   return (
     <>
       <header className="briefing__head">
@@ -167,15 +183,49 @@ function SuspectsAct({
       <h1 className="briefing__lede">
         <Typed text={scenario.intro} />
       </h1>
-      <p className="briefing__note">그 자리에 있던 여섯. 이름은 아직 조서에 오르지 않았다.</p>
+      <p className="briefing__note">
+        그 자리에 있던 여섯. <b>이들이 곧 당신과 함께 앉을 사람들이다.</b> 조서를 짚으면 신원이 열린다.
+      </p>
 
       <ul className="dossiers">
         {scenario.titles.map((title, i) => (
-          <li key={title.hanja} className="dossiers__item" style={{ '--i': i } as CSSProperties}>
-            <SuspectCard title={title} index={i} />
+          <li
+            key={title.hanja}
+            className="dossiers__item"
+            style={{ '--i': i } as CSSProperties}
+            /* 셋 다 받는다 — 마우스·터치·키보드에서 조서를 넘기는 방법이 각각 다르다. */
+            onMouseMove={() => setActive(i)}
+            onClick={() => setActive(i)}
+            onFocus={() => setActive(i)}
+          >
+            <SuspectCard title={title} index={i} active={i === active} />
           </li>
         ))}
       </ul>
+
+      {/* key가 바뀌어야 조서를 «갈아 끼우는» 연출이 매번 돈다. */}
+      <section className="record" key={active} aria-live="polite">
+        <header className="record__head">
+          <span className="record__file">訊問調書</span>
+          <span className="record__no">第{NUMERALS[active] ?? active + 1}號</span>
+        </header>
+
+        <p className="record__name">
+          {shown.ko}
+          <span className="record__hanja">{shown.hanja}</span>
+        </p>
+        <p className="record__who">{shown.who}</p>
+        <p className="record__doubt">
+          <span className="record__mark">疑</span>
+          {shown.doubt}
+        </p>
+
+        {/* 검열 먹칠. 이 시대 조서에서 지워진 줄이 곧 «건드리면 안 되는 것»이다. */}
+        <span className="record__redact" aria-hidden="true" />
+        <span className="record__seal" aria-hidden="true">
+          秘
+        </span>
+      </section>
 
       <div className="briefing__foot">
         <button type="button" className="briefing__back" onClick={onBack}>
@@ -222,15 +272,19 @@ function RoleAct({
       </p>
 
       <section className="slip">
-        <h2 className="slip__title">손패</h2>
+        <h2 className="slip__title">손패 — 당신만 아는 사실</h2>
         <ul className="slip__cards">
           {hand.map((id) => (
             <li key={id} className="chip">
-              {cardLabel(scenario, id)}
+              <span className="chip__kind">{KIND[cardKind(id)].label}</span>
+              <span className="chip__name">{cardLabel(scenario, id)}</span>
+              <span className="chip__fact">{KIND[cardKind(id)].fact}</span>
             </li>
           ))}
         </ul>
-        <p className="slip__note">이 두 장은 정답이 아니다. 반증에 쓸 수도, 없다고 잡아뗄 수도 있다.</p>
+        <p className="slip__note">
+          쥐고 있으니 봉인될 수 없다 — 확정이다. 반증에 꺼내 쓸 수도, 없다고 잡아뗄 수도 있다.
+        </p>
       </section>
 
       {solution && (
@@ -239,7 +293,8 @@ function RoleAct({
           <ul className="slip__cards">
             {[solution.suspect, solution.weapon, solution.place].map((id) => (
               <li key={id} className="chip chip--sealed">
-                {cardLabel(scenario, id)}
+                <span className="chip__kind">{KIND[cardKind(id)].label}</span>
+                <span className="chip__name">{cardLabel(scenario, id)}</span>
               </li>
             ))}
           </ul>
