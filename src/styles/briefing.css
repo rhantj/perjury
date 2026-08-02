@@ -449,6 +449,29 @@
 }
 
 /* ---- 3막: 신분 ---- */
+/*
+ * 두 단. 왼쪽은 통보, 오른쪽은 내가 쥐는 것.
+ * 좁아지면 한 단으로 접히고, 그때는 카드가 아래로 내려간다.
+ */
+.role {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(24rem, 32rem);
+  gap: clamp(1.5rem, 1rem + 3vw, 4rem);
+  align-items: start;
+}
+.role__say,
+.role__hold {
+  display: grid;
+  gap: clamp(0.9rem, 0.6rem + 1.1vw, 1.5rem);
+  align-content: start;
+}
+
+@media (max-width: 68rem) {
+  .role {
+    grid-template-columns: 1fr;
+  }
+}
+
 .role__label {
   margin: 0;
   font-family: var(--font-display);
@@ -547,8 +570,7 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.9rem;
-  max-width: 34rem;
-  padding: 0.7rem 0.9rem;
+  padding: 0.9rem 1.1rem;
   border: 1px solid oklch(46% 0.02 70 / 0.7);
   border-radius: 0.2rem;
   background: linear-gradient(120deg, oklch(25% 0.02 66 / 0.75), oklch(18% 0.014 250 / 0.6));
@@ -575,7 +597,7 @@
 .duty__card {
   position: relative;
   display: block;
-  width: clamp(4.6rem, 3.4rem + 3vw, 6.4rem);
+  width: clamp(6.4rem, 4.6rem + 5vw, 9.5rem);
   aspect-ratio: 340 / 482;
   overflow: hidden;
   border-radius: 0.12rem;
@@ -617,7 +639,7 @@
   align-items: baseline;
   gap: 0.45rem;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.45rem;
   font-weight: 700;
   color: oklch(94% 0.008 84);
 }
@@ -632,7 +654,7 @@
   color: oklch(70% 0.15 27);
 }
 .duty__power {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   line-height: 1.6;
   color: oklch(84% 0.008 80);
 }
@@ -641,8 +663,8 @@
  * 높이를 미리 잡아 두었으므로 나타나도 아래가 밀리지 않는다.
  */
 .duty__flavor {
-  min-height: 1.15rem;
-  font-size: 0.72rem;
+  min-height: 1.3rem;
+  font-size: 0.82rem;
   line-height: 1.6;
   color: oklch(62% 0.03 60);
   opacity: 0;
@@ -672,9 +694,8 @@
 
 .slip {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.6rem;
   justify-items: start;
-  max-width: 32rem;
   padding: 0.9rem 1.1rem;
   border-left: 2px solid oklch(42% 0.018 70);
   background: linear-gradient(90deg, oklch(24% 0.018 62 / 0.5), transparent 85%);
@@ -690,7 +711,7 @@
 .slip__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.26em;
   color: oklch(60% 0.012 80);
@@ -717,9 +738,9 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   justify-items: center;
-  width: clamp(5.2rem, 4rem + 2.6vw, 6.8rem);
+  width: clamp(6.6rem, 5rem + 4.4vw, 9.2rem);
   aspect-ratio: 3 / 4;
-  padding: 0.5rem 0.4rem 0.42rem;
+  padding: 0.7rem 0.55rem 0.6rem;
   border: 1px solid oklch(52% 0.05 78 / 0.55);
   border-radius: 0.16rem;
   overflow: hidden;
@@ -755,9 +776,9 @@
 .handcard__kind {
   display: grid;
   justify-items: center;
-  gap: 0.06rem;
+  gap: 0.08rem;
   font-family: var(--font-display);
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.16em;
   color: var(--color-accent);
 }
@@ -771,7 +792,7 @@
 .handcard__name {
   align-self: center;
   font-family: var(--font-display);
-  font-size: clamp(0.92rem, 0.82rem + 0.4vw, 1.15rem);
+  font-size: clamp(1.05rem, 0.9rem + 0.7vw, 1.4rem);
   font-weight: 700;
   line-height: 1.25;
   text-align: center;
@@ -782,9 +803,9 @@
 /* 명패. 이 카드가 «무엇을 확정하는가»가 여기 박힌다. */
 .handcard__plate {
   width: 100%;
-  padding: 0.2rem 0.1rem;
+  padding: 0.28rem 0.1rem 0.05rem;
   border-top: 1px solid oklch(52% 0.05 78 / 0.35);
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   letter-spacing: 0.02em;
   text-align: center;
   color: oklch(62% 0.03 70);
@@ -817,7 +838,7 @@
 
 .slip__note {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.84rem;
   line-height: 1.7;
   color: oklch(56% 0.012 80);
 }
