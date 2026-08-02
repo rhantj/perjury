@@ -30,6 +30,15 @@ export function cardLabel(scenario: Scenario, id: CardId): string {
  * 용의자의 직함. 이름은 고정이고 직함만 사건을 따라간다 —
  * 같은 «강도윤»이 저택에서는 장남이고 극장에서는 주연이다.
  */
+/**
+ * 조서 순번(0~5)의 용의자 «이름». 이름은 시나리오와 무관하게 고정이라 사건을 받지 않는다.
+ * 카드 앞면은 身元 未詳로 두고, 펼친 조서에서만 이 이름이 열린다.
+ */
+export function suspectNameAt(index: number): string | null {
+  const id = SUSPECTS[index]
+  return id ? cardName(id) : null
+}
+
 export function suspectTitle(scenario: Scenario, characterId: CardId): string | null {
   const index = SUSPECTS.indexOf(characterId)
   if (index < 0) return null
