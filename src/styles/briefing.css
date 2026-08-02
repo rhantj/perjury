@@ -19,17 +19,45 @@
     linear-gradient(180deg, oklch(14% 0.018 250), var(--color-night-deep));
 }
 
-/* 종이 결. 단색 배경이면 책상이 아니라 웹페이지로 보인다. */
+/*
+ * 종이 결 + 갓등 그늘. 단색 배경이면 책상이 아니라 웹페이지로 보인다.
+ * 이 한 겹의 밝기가 흔들리는 것이 곧 «전기가 나갔다 들어오는» 연출이다.
+ */
 .briefing::after {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    97deg,
-    oklch(70% 0.02 80 / 0.016) 0 2px,
-    transparent 2px 6px
-  );
+  background:
+    repeating-linear-gradient(97deg, oklch(70% 0.02 80 / 0.016) 0 2px, transparent 2px 6px),
+    radial-gradient(ellipse 120% 86% at 40% 46%, transparent 38%, oklch(5% 0.012 250 / 0.72) 100%);
+  opacity: 0.8;
+  /*
+   * 규칙적으로 깜빡이면 조명 «연출»이 되고, 드물어야 «불안»이 된다.
+   * steps로 끊어야 페이드가 아니라 «툭» 나갔다 들어온다.
+   */
+  animation: brief-blackout 13s steps(1, end) infinite;
+}
+
+@keyframes brief-blackout {
+  0%,
+  91%,
+  100% {
+    opacity: 0.8;
+  }
+  92% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 0.8;
+  }
+  94.5% {
+    opacity: 0.97;
+  }
+  95.5% {
+    opacity: 0.8;
+  }
 }
 
 .briefing__stage {
@@ -282,6 +310,132 @@
   animation-delay: calc(520ms + var(--i) * 110ms);
 }
 
+/*
+ * 訊問調書. 짚고 있는 조서 한 장이 여기 펼쳐진다.
+ * 종이 한 장을 «갈아 끼우는» 것이므로 카드마다 패널을 띄우지 않고 자리를 하나만 둔다.
+ */
+.record {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 0.42rem;
+  max-width: 42rem;
+  margin-top: 0.2rem;
+  padding: 0.9rem 3.4rem 1rem 1.2rem;
+  border-top: 1px solid oklch(44% 0.02 70 / 0.55);
+  border-bottom: 1px solid oklch(44% 0.02 70 / 0.55);
+  /* 등사 원지. 가로 괘선이 흐릿하게 비쳐야 «양식 있는 서류»가 된다. */
+  background:
+    repeating-linear-gradient(0deg, transparent 0 1.7rem, oklch(60% 0.02 80 / 0.05) 1.7rem 1.72rem),
+    linear-gradient(100deg, oklch(24% 0.02 66 / 0.6), oklch(17% 0.014 250 / 0.45));
+  animation: record-swap 420ms var(--ease-out-expo);
+}
+
+.record__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  color: oklch(52% 0.012 80);
+}
+.record__no {
+  color: var(--color-accent);
+}
+
+.record__name {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem);
+  font-weight: 700;
+  color: oklch(94% 0.008 84);
+}
+.record__hanja {
+  font-size: 0.72em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--color-lantern);
+}
+
+.record__who {
+  margin: 0;
+  font-size: clamp(0.82rem, 0.78rem + 0.2vw, 0.94rem);
+  line-height: 1.75;
+  color: oklch(80% 0.008 80);
+}
+
+/* 의심 항목. 이 줄이 여섯 명 모두에게 있어서, 읽을수록 좁혀지지 않는다. */
+.record__doubt {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: clamp(0.8rem, 0.76rem + 0.2vw, 0.9rem);
+  line-height: 1.7;
+  color: oklch(72% 0.05 40);
+}
+.record__mark {
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-seal);
+  border: 1px solid oklch(48% 0.15 27 / 0.7);
+  padding: 0.04rem 0.22rem;
+  border-radius: 0.1rem;
+}
+
+/*
+ * 검열 먹칠. 지워진 줄이 있어야 이 서류가 «누군가를 거쳐 온 것»이 된다.
+ * 내용이 없는 장식이므로 스크린리더에서는 뺀다.
+ */
+.record__redact {
+  position: absolute;
+  right: 3.1rem;
+  bottom: 0.72rem;
+  width: 6.5rem;
+  height: 0.62rem;
+  background: oklch(9% 0.01 250);
+  box-shadow: 0 0 0 1px oklch(30% 0.02 60 / 0.5);
+  transform: rotate(-0.6deg);
+}
+
+.record__seal {
+  position: absolute;
+  top: 50%;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  aspect-ratio: 1;
+  border: 2px solid var(--color-seal);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-seal);
+  opacity: 0.72;
+  transform: translateY(-50%) rotate(-11deg);
+}
+
+/* 종이를 바꿔 끼울 때의 한 번 흔들림. 갓등 아래에서 서류를 넘기는 손. */
+@keyframes record-swap {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  40% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ---- 3막: 신분 ---- */
 .role__label {
   margin: 0;
@@ -410,18 +564,44 @@
   list-style: none;
 }
 
+/*
+ * 손패 한 장. 이름만 있으면 «마차고»가 뭔지 알 수 없으므로
+ * 종류 꼬리표와 «그래서 무슨 뜻인가»를 카드 안에 같이 적는다.
+ */
 .chip {
-  padding: 0.38rem 0.85rem;
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.4rem 0.9rem 0.45rem;
   border: 1px solid oklch(44% 0.018 70);
   border-radius: 0.15rem;
   background: oklch(22% 0.016 62 / 0.8);
-  font-size: 0.88rem;
+}
+.chip__kind {
+  font-family: var(--font-display);
+  font-size: 0.56rem;
+  letter-spacing: 0.24em;
+  color: var(--color-accent);
+}
+.chip__name {
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--color-text);
 }
+.chip__fact {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: oklch(58% 0.012 80);
+}
+
 .chip--sealed {
   border-color: oklch(50% 0.14 27 / 0.8);
-  color: oklch(88% 0.05 30);
+  background: oklch(24% 0.045 28 / 0.7);
+}
+.chip--sealed .chip__kind {
+  color: oklch(66% 0.15 27);
+}
+.chip--sealed .chip__name {
+  color: oklch(90% 0.05 30);
 }
 
 .slip__note {
@@ -556,6 +736,7 @@
   .role__faction,
   .role__desc,
   .slip,
+  .record,
   .briefing__foot,
   .typed__ch {
     animation-duration: 0.01ms;
@@ -566,6 +747,9 @@
   .briefing--culprit::before {
     animation: none;
     opacity: 1;
+  }
+  .briefing::after {
+    animation: none;
   }
   .briefing__stage,
   .briefing__back,
