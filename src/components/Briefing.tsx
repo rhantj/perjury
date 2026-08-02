@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react'
 import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { cardLabel, suspectNameAt } from '../content/labels'
+import type { Role } from '../content/roles'
+import { ROLE_ART } from '../content/role-art'
 import { cardKind } from '../engine/cards'
 import type { CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -13,6 +15,8 @@ interface Props {
   /** 「아무 사건이나」가 쓴다. 같은 시드는 항상 같은 사건이 된다. */
   seed: string
   view: GameView
+  /** 내 직업. 남의 직업은 애초에 여기까지 오지 않는다(store.role 주석 참고). */
+  role: Role
   onEnter: (scenario: Scenario) => void
   /** 1막에서 더 물러나면 표지다. 판을 버리게 되므로 여기서 처리하지 않고 위로 넘긴다. */
   onBack: () => void
@@ -41,7 +45,7 @@ const KIND: Record<CardKind, { label: string; fact: string }> = {
  * 3막은 연출이 아니라 기능이다. 범인 진영은 정답 3장을 알고 시작하는데(설계 §2)
  * 게임판에는 그것을 보여줄 자리가 없다. 여기가 그 자리다.
  */
-export default function Briefing({ seed, view, onEnter, onBack }: Props) {
+export default function Briefing({ seed, view, role, onEnter, onBack }: Props) {
   const [act, setAct] = useState<Act>('pick')
   const [scenario, setScenario] = useState<Scenario | null>(null)
   const [leaving, setLeaving] = useState(false)
@@ -97,6 +101,7 @@ export default function Briefing({ seed, view, onEnter, onBack }: Props) {
           <RoleAct
             scenario={scenario}
             view={view}
+            role={role}
             culprit={culprit}
             onEnter={() => leave(() => onEnter(scenario))}
             onBack={() => advance(() => setAct('suspects'))}
@@ -245,12 +250,14 @@ function SuspectsAct({
 function RoleAct({
   scenario,
   view,
+  role,
   culprit,
   onEnter,
   onBack,
 }: {
   scenario: Scenario
   view: GameView
+  role: Role
   culprit: boolean
   onEnter: () => void
   onBack: () => void
@@ -272,6 +279,27 @@ function RoleAct({
           ? '고발을 틀리게 만들어라. 세 칸 중 하나만 오염시키면 이긴다.'
           : '정답 세 장을 특정하라. 다섯 중 누군가는 선서하고도 거짓을 말한다.'}
       </p>
+
+      {/*
+        직업. 진영이 «어느 편»이라면 직업은 «무엇을 할 수 있는가»다.
+        일러스트가 들어올 자리가 duty__face — 지금은 한자 각인이 대신한다.
+      */}
+      <section className={`duty duty--${role.side}`} tabIndex={0}>
+        <span className="duty__card">
+          <img className="duty__art" src={ROLE_ART[role.id]} alt="" width={340} height={482} />
+        </span>
+        <span className="duty__body">
+          <span className="duty__kicker">직업 · 職業</span>
+          <span className="duty__name">
+            {role.ko}
+            <em className="duty__hanja">{role.hanja}</em>
+          </span>
+          <span className="duty__power">{role.power}</span>
+          {/* 이야기는 눌러 두었다가 카드에 손이 닿을 때만 나온다 — 능력과 같은 무게로 늘어놓으면 둘 다 안 읽힌다. */}
+          <span className="duty__flavor">{role.flavor}</span>
+        </span>
+        <span className="duty__once">壹回</span>
+      </section>
 
       <section className="slip">
         <h2 className="slip__title">손패 — 당신만 아는 사실</h2>

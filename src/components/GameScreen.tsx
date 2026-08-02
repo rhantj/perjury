@@ -42,11 +42,13 @@ export default function GameScreen() {
   if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={open} />
 
   const view = store.view()
+  const role = store.role()
   if (stage === 'briefing' || !scenario)
     return (
       <Briefing
         seed={seed}
         view={view}
+        role={role}
         onEnter={(chosen) => {
           setScenario(chosen)
           setStage('play')
@@ -72,7 +74,7 @@ export default function GameScreen() {
         </span>
         <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
         <span className="bar__side">
-          {view.solution ? '범인 진영' : '시민 진영'} ·{' '}
+          {view.solution ? '범인 진영' : '시민 진영'} · <b className="bar__role">{role.ko}</b> ·{' '}
           {(view.players.find((p) => p.isMe)?.hand ?? [])
             .map((c) => cardLabel(scenario, c))
             .join(' · ')}
