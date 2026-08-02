@@ -12,6 +12,8 @@ interface Props {
   seed: string
   view: GameView
   onEnter: (scenario: Scenario) => void
+  /** 1막에서 더 물러나면 표지다. 판을 버리게 되므로 여기서 처리하지 않고 위로 넘긴다. */
+  onBack: () => void
 }
 
 type Act = 'pick' | 'suspects' | 'role'
@@ -27,7 +29,7 @@ const FADE_MS = 320
  * 3막은 연출이 아니라 기능이다. 범인 진영은 정답 3장을 알고 시작하는데(설계 §2)
  * 게임판에는 그것을 보여줄 자리가 없다. 여기가 그 자리다.
  */
-export default function Briefing({ seed, view, onEnter }: Props) {
+export default function Briefing({ seed, view, onEnter, onBack }: Props) {
   const [act, setAct] = useState<Act>('pick')
   const [scenario, setScenario] = useState<Scenario | null>(null)
   const [leaving, setLeaving] = useState(false)
@@ -51,11 +53,11 @@ export default function Briefing({ seed, view, onEnter }: Props) {
       setAct('suspects')
     })
 
-  /* 마지막 막은 되돌아오지 않으므로 leaving을 풀지 않는다 — 그대로 게임판에 자리를 넘긴다. */
-  const enter = (chosen: Scenario) => {
+  /* 화면을 떠나는 길. 되돌아오지 않으므로 leaving을 풀지 않는다 — 물러난 채로 자리를 넘긴다. */
+  const leave = (hand: () => void) => {
     if (leaving) return
     setLeaving(true)
-    window.setTimeout(() => onEnter(chosen), FADE_MS)
+    window.setTimeout(hand, FADE_MS)
   }
 
   const me = view.players.find((p) => p.isMe)
@@ -67,10 +69,16 @@ export default function Briefing({ seed, view, onEnter }: Props) {
     <main className={`briefing${tone}${leaving ? ' briefing--out' : ''}`}>
       {/* key가 막마다 바뀌어야 등장 애니메이션이 다시 돈다 — 같은 요소를 재사용하면 한 번만 돈다. */}
       <div className="briefing__stage" key={showing}>
-        {showing === 'pick' && <PickAct seed={seed} onChoose={choose} />}
+        {showing === 'pick' && (
+          <PickAct seed={seed} onChoose={choose} onBack={() => leave(onBack)} />
+        )}
 
         {showing === 'suspects' && scenario && (
-          <SuspectsAct scenario={scenario} onNext={() => advance(() => setAct('role'))} />
+          <SuspectsAct
+            scenario={scenario}
+            onNext={() => advance(() => setAct('role'))}
+            onBack={() => advance(() => setAct('pick'))}
+          />
         )}
 
         {showing === 'role' && scenario && (
@@ -78,7 +86,8 @@ export default function Briefing({ seed, view, onEnter }: Props) {
             scenario={scenario}
             view={view}
             culprit={culprit}
-            onEnter={() => enter(scenario)}
+            onEnter={() => leave(() => onEnter(scenario))}
+            onBack={() => advance(() => setAct('suspects'))}
           />
         )}
       </div>
@@ -87,7 +96,15 @@ export default function Briefing({ seed, view, onEnter }: Props) {
 }
 
 /** 1막. 사건 넷 중 하나를 고른다. */
-function PickAct({ seed, onChoose }: { seed: string; onChoose: (s: Scenario) => void }) {
+function PickAct({
+  seed,
+  onChoose,
+  onBack,
+}: {
+  seed: string
+  onChoose: (s: Scenario) => void
+  onBack: () => void
+}) {
   return (
     <>
       <header className="briefing__head">
@@ -113,19 +130,32 @@ function PickAct({ seed, onChoose }: { seed: string; onChoose: (s: Scenario) => 
         ))}
       </ul>
 
-      <button
-        type="button"
-        className="briefing__ghost"
-        onClick={() => onChoose(pickScenario(seed))}
-      >
-        아무 사건이나
-      </button>
+      <div className="briefing__ghosts">
+        <button type="button" className="briefing__back" onClick={onBack}>
+          ← 표지로
+        </button>
+        <button
+          type="button"
+          className="briefing__ghost"
+          onClick={() => onChoose(pickScenario(seed))}
+        >
+          아무 사건이나
+        </button>
+      </div>
     </>
   )
 }
 
 /** 2막. 용의자 여섯의 조서가 책상에 놓인다. */
-function SuspectsAct({ scenario, onNext }: { scenario: Scenario; onNext: () => void }) {
+function SuspectsAct({
+  scenario,
+  onNext,
+  onBack,
+}: {
+  scenario: Scenario
+  onNext: () => void
+  onBack: () => void
+}) {
   return (
     <>
       <header className="briefing__head">
@@ -148,8 +178,11 @@ function SuspectsAct({ scenario, onNext }: { scenario: Scenario; onNext: () => v
       </ul>
 
       <div className="briefing__foot">
+        <button type="button" className="briefing__back" onClick={onBack}>
+          ← 사건 다시
+        </button>
         <button type="button" className="briefing__go" onClick={onNext}>
-          <span>신분 확인</span>
+          <span>내 진영 확인</span>
         </button>
       </div>
     </>
@@ -162,11 +195,13 @@ function RoleAct({
   view,
   culprit,
   onEnter,
+  onBack,
 }: {
   scenario: Scenario
   view: GameView
   culprit: boolean
   onEnter: () => void
+  onBack: () => void
 }) {
   const hand = view.players.find((p) => p.isMe)?.hand ?? []
   const solution = view.solution
@@ -213,6 +248,9 @@ function RoleAct({
       )}
 
       <div className="briefing__foot">
+        <button type="button" className="briefing__back" onClick={onBack}>
+          ← 용의자 다시
+        </button>
         <button type="button" className="briefing__go briefing__go--enter" onClick={onEnter}>
           <span>착석</span>
         </button>

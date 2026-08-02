@@ -22,6 +22,8 @@ interface GameStore {
   error: string | null
 
   start: (seed: string, humanIndex?: number) => void
+  /** 판을 버리고 표지로 돌아간다. 브리핑에서 되돌아 나오는 경로가 이것뿐이다. */
+  reset: () => void
   view: () => GameView
   /** 사람이 지금 결정해야 하는가. 화면은 이 값으로 조작 가능 여부를 정한다. */
   awaitingHuman: () => boolean
@@ -65,6 +67,8 @@ export const useGame = create<GameStore>((set, get) => {
 
     start: (seed, humanIndex = 0) =>
       set({ state: advanceToHuman(createGame({ seed, humanIndex })), error: null }),
+
+    reset: () => set({ state: null, error: null }),
 
     view: () => {
       const state = requireState(get().state)
