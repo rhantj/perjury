@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { cardLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
@@ -7,11 +9,23 @@ import { useGame } from '../store/game'
 import Briefing from './Briefing'
 import Landing from './Landing'
 import Log from './Log'
+import MyPlate from './MyPlate'
 import Notebook from './Notebook'
 import Table from './Table'
+import Verdict from './Verdict'
 import '../styles/game.css'
 
 type Picked = Partial<Record<CardKind, CardId>>
+
+/**
+ * 판 번호. 이 한 값이 진영·직업·카드 배분을 전부 결정하므로 **매판 새로 뽑아야 한다** —
+ * 고정해 두면 표지에서 시작할 때마다 같은 진영·같은 직업이 나온다(설계 §2는 매판 무작위 배정이다).
+ *
+ * 난수는 여기서만 쓴다. 엔진은 이 문자열을 받아 결정론적으로 판을 만든다.
+ */
+function newSeed(): string {
+  return Math.random().toString(36).slice(2, 8)
+}
 
 /** 판은 하나지만 화면은 둘이다 — 브리핑을 거친 뒤에 게임판이 열린다. */
 type Stage = 'briefing' | 'play'
@@ -24,10 +38,13 @@ function toSuggestion(picked: Picked): Suggestion | null {
 export default function GameScreen() {
   const store = useGame()
   const [picked, setPicked] = useState<Picked>({})
-  const [seed, setSeed] = useState('nan2026')
+  const [seed, setSeed] = useState(newSeed)
   const [stage, setStage] = useState<Stage>('briefing')
   /** 브리핑에서 고른 사건. 카드 표시 이름과 좌석 직함이 여기서 나온다. */
   const [scenario, setScenario] = useState<Scenario | null>(null)
+  /** 착석 직후 게임판 위에 얹히는 도입 세 문장. */
+  const [opening, setOpening] = useState(false)
+  const closeOpening = useCallback(() => setOpening(false), [])
 
   /**
    * 브리핑이 손패·진영을 보여주므로 판을 «먼저» 만들고 브리핑을 띄운다.
@@ -39,7 +56,7 @@ export default function GameScreen() {
     setStage('briefing')
   }
 
-  if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={open} />
+  if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
 
   const view = store.view()
   const role = store.role()
@@ -52,6 +69,7 @@ export default function GameScreen() {
         onEnter={(chosen) => {
           setScenario(chosen)
           setStage('play')
+          setOpening(true)
         }}
         onBack={store.reset}
       />
@@ -67,65 +85,119 @@ export default function GameScreen() {
   }
 
   return (
-    <div className="screen">
-      <header className="bar">
-        <span className="bar__round">
-          라운드 <b>{view.round}</b> / {view.totalRounds}
-        </span>
-        <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
-        <span className="bar__side">
-          {view.solution ? '범인 진영' : '시민 진영'} · <b className="bar__role">{role.ko}</b> ·{' '}
-          {(view.players.find((p) => p.isMe)?.hand ?? [])
-            .map((c) => cardLabel(scenario, c))
-            .join(' · ')}
+    /*
+     * 덮개 두 겹은 .screen «밖»에 둔다. 안에 넣으면 게임판이 쌓임 맥락을 만들어
+     * position:fixed + z-index가 통째로 갇히고, 좌석·추리표가 그 위로 올라온다.
+     */
+    <>
+      {opening && <Opening lines={scenario.opening} onDone={closeOpening} />}
+      {view.outcome && (
+        <Verdict view={view} scenario={scenario} seed={seed} onRestart={() => open(newSeed())} />
+      )}
+
+      <div className="screen" data-scenario={scenario.id}>
+        <header className="bar">
+          <span className="bar__round">
+            라운드 <b>{view.round}</b> / {view.totalRounds}
+          </span>
+          <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
+          <span className="bar__case">
+          {scenario.hanja} · {scenario.title}
         </span>
       </header>
 
-      <main className="board">
-        <Table view={view} scenario={scenario} />
-        <Notebook
-          view={view}
-          scenario={scenario}
-          picking={picking}
-          picked={picked}
-          onPick={(kind, cardId) => setPicked((p) => ({ ...p, [kind]: cardId }))}
-        />
-      </main>
+        <main className="board">
+          <MyPlate view={view} scenario={scenario} role={role} />
 
-      <aside className="side">
-        <h2 className="side__title">기록</h2>
-        <Log view={view} scenario={scenario} />
-      </aside>
+          <div className="stage">
+            <Table view={view} scenario={scenario} />
 
-      <footer className="actions">
-        {store.error && <p className="actions__error">{store.error}</p>}
-        {view.outcome ? (
-          <Result view={view} scenario={scenario} onRestart={() => open(seed + '-next')} />
-        ) : view.phase === 'suggest' ? (
-          <button
-            type="button"
-            className="btn btn--go"
-            disabled={!toSuggestion(picked)}
-            onClick={() => submit(store.suggest)}
-          >
-            제안 확정
-          </button>
-        ) : view.phase === 'refute' ? (
-          <RefuteBar view={view} scenario={scenario} onRefute={store.declare} />
-        ) : view.phase === 'challenge' ? (
-          <ChallengeBar view={view} onChallenge={store.challenge} onPass={store.passChallenge} />
-        ) : view.phase === 'accuse' ? (
-          <button
-            type="button"
-            className="btn btn--danger"
-            disabled={!toSuggestion(picked)}
-            onClick={() => submit(store.accuse)}
-          >
-            최종 고발
-          </button>
-        ) : null}
-      </footer>
-    </div>
+            {/*
+              밀담 자리. 아직 비었지만 «검은 여백»으로 두면 미완성으로 읽히고,
+              자리를 잡아 두면 «여기 뭐가 온다»로 읽힌다.
+            */}
+            <section className="parley">
+              <span className="parley__kicker">密談 · 밀담</span>
+              <p className="parley__note">
+                1:1 대화로 정보를 거래하고 알리바이를 압박하는 자리다. 아직 열리지 않았다.
+              </p>
+            </section>
+          </div>
+
+          <Notebook
+            view={view}
+            scenario={scenario}
+            picking={picking}
+            picked={picked}
+            onPick={(kind, cardId) => setPicked((p) => ({ ...p, [kind]: cardId }))}
+          />
+        </main>
+
+        <aside className="side">
+          <h2 className="side__title">기록</h2>
+          <Log view={view} scenario={scenario} />
+        </aside>
+
+        <footer className="actions">
+          {store.error && <p className="actions__error">{store.error}</p>}
+          {view.outcome ? null : view.phase === 'suggest' ? (
+            <button
+              type="button"
+              className="btn btn--go"
+              disabled={!toSuggestion(picked)}
+              onClick={() => submit(store.suggest)}
+            >
+              제안 확정
+            </button>
+          ) : view.phase === 'refute' ? (
+            <RefuteBar view={view} scenario={scenario} onRefute={store.declare} />
+          ) : view.phase === 'challenge' ? (
+            <ChallengeBar view={view} onChallenge={store.challenge} onPass={store.passChallenge} />
+          ) : view.phase === 'accuse' ? (
+            <button
+              type="button"
+              className="btn btn--danger"
+              disabled={!toSuggestion(picked)}
+              onClick={() => submit(store.accuse)}
+            >
+              최종 고발
+            </button>
+          ) : null}
+        </footer>
+      </div>
+    </>
+  )
+}
+
+/** 도입 문장이 머무는 시간. game.css의 opening-veil 키프레임과 맞춰야 한다. */
+const OPENING_MS = 6400
+
+/**
+ * 착석 컷. 화면을 하나 더 만들지 않고 게임판 «위에» 얹었다 걷는다 —
+ * 표지·사건·용의자·신분까지 이미 네 번 넘겼으므로 절차를 더 늘리지 않는다.
+ */
+function Opening({ lines, onDone }: { lines: readonly string[]; onDone: () => void }) {
+  useEffect(() => {
+    const id = window.setTimeout(onDone, OPENING_MS)
+    return () => window.clearTimeout(id)
+  }, [onDone])
+
+  /*
+   * body에 직접 붙인다. 게임판 안에 두면 그쪽 쌓임 맥락에 갇혀
+   * position:fixed와 z-index가 통째로 무시되고 좌석·추리표가 위로 올라온다.
+   */
+  return createPortal(
+    <div className="opening" onClick={onDone} role="presentation">
+      <div className="opening__lines">
+        {lines.map((line, i) => (
+          <p key={line} className="opening__line" style={{ '--i': i } as CSSProperties}>
+            {line}
+          </p>
+        ))}
+      </div>
+      <span className="opening__skip">아무 곳이나 눌러 넘긴다</span>
+    </div>,
+    document.body,
   )
 }
 
@@ -210,40 +282,6 @@ function ChallengeBar({
       })}
       <button type="button" className="btn btn--go" onClick={onPass}>
         넘어가기
-      </button>
-    </div>
-  )
-}
-
-function Result({
-  view,
-  scenario,
-  onRestart,
-}: {
-  view: GameView
-  scenario: Scenario
-  onRestart: () => void
-}) {
-  const outcome = view.outcome
-  if (!outcome) return null
-
-  const label = (id: CardId) => cardLabel(scenario, id)
-
-  return (
-    <div className="result">
-      <span className={`result__verdict result__verdict--${outcome.viewerWon ? 'win' : 'lose'}`}>
-        {outcome.viewerWon ? '승리' : '패배'}
-      </span>
-      <span className="result__detail">
-        정답 {label(outcome.solution.suspect)} · {label(outcome.solution.weapon)} ·{' '}
-        {label(outcome.solution.place)}
-        {' — 고발 '}
-        {label(outcome.accusation.suspect)} · {label(outcome.accusation.weapon)} ·{' '}
-        {label(outcome.accusation.place)}
-        {outcome.accuser.kind === 'council' && ' (AI 합의)'}
-      </span>
-      <button type="button" className="btn btn--go" onClick={onRestart}>
-        새 판
       </button>
     </div>
   )

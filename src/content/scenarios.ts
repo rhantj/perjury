@@ -28,6 +28,13 @@ export interface Scenario {
   hanja: string
   /** 한 문장 도입. 랜딩에서 한 글자씩 찍힌다. */
   intro: string
+  /**
+   * 착석 직후 게임판 위에 얹히는 세 문장.
+   *
+   * **여기서 단서를 주면 안 된다.** 설계 §1.3이 «제안/반증이 정보 획득의 유일한 공식 경로»라고
+   * 못 박고 있어서, 현장 묘사가 카드를 지워 주는 순간 추리 구조가 무너진다. 분위기만 맡는다.
+   */
+  opening: readonly [string, string, string]
   /** 용의자 6명의 직함. cardsOfKind('suspect') 순서와 1:1로 맞춘다. */
   titles: readonly [Title, Title, Title, Title, Title, Title]
   /** 수단 4장. 코드상 kind는 'weapon'이지만 살인사건이 아닌 판도 있어 «수단»으로 읽는다. */
@@ -41,6 +48,11 @@ export const SCENARIOS: readonly Scenario[] = [
     title: '자하동 저택 살인사건',
     hanja: '紫霞洞',
     intro: '문은 안에서 잠겨 있었다.',
+    opening: [
+      '문상객이 모두 돌아간 뒤였다.',
+      '여섯이 안방에 둘러앉았다. 누구도 먼저 입을 열지 않는다.',
+      '순사가 닿기 전에, 이 집 안에서 끝을 봐야 한다.',
+    ],
     titles: [
       {
         ko: '장남',
@@ -87,6 +99,11 @@ export const SCENARIOS: readonly Scenario[] = [
     title: '밀고자 색출',
     hanja: '密告者',
     intro: '그 자리를 아는 사람은 여섯뿐이었다.',
+    opening: [
+      '안가는 잿더미가 되었고 셋이 끌려갔다.',
+      '살아남은 여섯이 인쇄실 뒷방에 모였다.',
+      '이 중 하나가 팔았다. 오늘 밤을 넘기면 다음은 우리다.',
+    ],
     titles: [
       {
         ko: '연락책',
@@ -133,6 +150,11 @@ export const SCENARIOS: readonly Scenario[] = [
     title: '아편굴 변사사건',
     hanja: '阿片窟',
     intro: '아무도 그를 모른다고 한다.',
+    opening: [
+      '굴 안쪽 골방에서 사내 하나가 식은 채 발견됐다.',
+      '여섯이 등잔 하나를 사이에 두고 앉았다.',
+      '순찰이 다시 돌기 전에 말을 맞춰야 한다.',
+    ],
     titles: [
       {
         ko: '굴주인',
@@ -179,6 +201,11 @@ export const SCENARIOS: readonly Scenario[] = [
     title: '극장 분장실 사건',
     hanja: '劇場',
     intro: '막이 오르기 직전이었다.',
+    opening: [
+      '개막 십 분 전, 분장실에서 비명이 났다.',
+      '막은 내려졌고 객석은 아직 차 있다.',
+      '여섯이 무대 뒤에 모였다. 바깥 문에는 순사가 서 있다.',
+    ],
     titles: [
       {
         ko: '주연',

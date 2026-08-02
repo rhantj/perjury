@@ -1,0 +1,250 @@
+/*
+ * 판결문. 판이 끝나는 순간을 위한 한 장 —
+ * 12~15분을 굴리고 푸터에 한 줄이 뜨고 마는 것이 이 게임의 가장 큰 구멍이었다.
+ *
+ * 브리핑의 訊問調書와 같은 서류 계열이되, 이쪽은 «닫는» 문서라 인장이 크고 가운데에 선다.
+ */
+.verdict {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 0.5rem + 3vw, 3rem);
+  overflow-y: auto;
+  word-break: keep-all;
+  background:
+    radial-gradient(ellipse 60% 46% at 50% 30%, oklch(22% 0.03 62 / 0.6), transparent 68%),
+    oklch(7% 0.014 250 / 0.95);
+  animation: verdict-in var(--duration-slow) var(--ease-out-expo);
+}
+
+.verdict__sheet {
+  position: relative;
+  display: grid;
+  gap: 0.75rem;
+  width: min(40rem, 100%);
+  padding: clamp(1.4rem, 1rem + 1.6vw, 2.4rem);
+  border: 1px solid oklch(46% 0.03 74 / 0.6);
+  border-radius: 0.2rem;
+  /* 등사 원지. 가로 괘선이 흐릿하게 비쳐야 «양식 있는 서류»가 된다. */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 1.8rem,
+      oklch(60% 0.02 80 / 0.045) 1.8rem 1.82rem
+    ),
+    linear-gradient(150deg, oklch(23% 0.02 66), oklch(15% 0.014 250));
+  box-shadow: 0 24px 60px oklch(4% 0.02 250 / 0.7);
+}
+
+.verdict__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid oklch(44% 0.02 70 / 0.45);
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.3em;
+  color: oklch(52% 0.012 80);
+}
+.verdict__case {
+  color: var(--color-lantern);
+}
+
+.verdict__result {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 1.4rem + 4vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.verdict--win .verdict__result {
+  color: oklch(94% 0.008 90);
+  text-shadow: 0 0 44px oklch(60% 0.1 250 / 0.45);
+}
+.verdict--lose .verdict__result {
+  color: var(--color-seal);
+  text-shadow: 0 0 44px oklch(54% 0.2 27 / 0.4);
+}
+
+.verdict__lede {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(0.92rem, 0.85rem + 0.4vw, 1.12rem);
+  line-height: 1.65;
+  color: oklch(82% 0.008 80);
+}
+
+/* ---- 사실 관계 ---- */
+.verdict__facts {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.3rem 0 0;
+  padding: 0.8rem 0.9rem;
+  border-left: 2px solid oklch(44% 0.02 70);
+  background: linear-gradient(90deg, oklch(26% 0.02 64 / 0.5), transparent 88%);
+}
+.verdict__facts > div {
+  display: grid;
+  grid-template-columns: 5.6rem 1fr;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+.verdict__facts dt {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: oklch(54% 0.012 80);
+}
+.verdict__facts dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+/* 직함·고발 주체는 딸린 정보라 한 급 낮춘다. */
+.verdict__facts em {
+  margin-left: 0.5rem;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+}
+
+/* 진범이 곧 나였던 판. 못 박아 두지 않으면 «내가 그였다»가 안 읽힌다. */
+.verdict__facts em.verdict__mine {
+  font-weight: 700;
+  color: var(--color-seal);
+}
+
+/* ---- 위증 기록 ---- */
+.verdict__sub {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  color: oklch(58% 0.012 80);
+}
+
+.liars {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.liars__row {
+  display: grid;
+  grid-template-columns: 4.4rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+.liars__name {
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+/*
+ * 막대. --n이 위증 횟수이고 한 칸을 1.1rem으로 잡는다.
+ * 최대치를 모르므로 비율이 아니라 «칸 수»로 그린다 — 1회와 4회의 차이가 눈에 보이면 된다.
+ */
+.liars__bar {
+  height: 0.5rem;
+  width: calc(var(--n) * 1.1rem);
+  max-width: 100%;
+  border-radius: 0.05rem;
+  background: linear-gradient(90deg, oklch(58% 0.1 55), oklch(48% 0.06 50 / 0.35));
+}
+.liars__row--culprit .liars__bar {
+  background: linear-gradient(90deg, var(--color-seal), oklch(44% 0.12 27 / 0.35));
+}
+.liars__row--culprit .liars__name {
+  color: oklch(84% 0.07 30);
+}
+.liars__count {
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: oklch(58% 0.012 80);
+}
+
+.verdict__none,
+.verdict__tally {
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.7;
+  color: oklch(56% 0.012 80);
+}
+
+/* ---- 발치 ---- */
+.verdict__foot {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.6rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid oklch(44% 0.02 70 / 0.45);
+}
+
+/* 판 번호. 같은 값을 다시 넣으면 같은 배분이 나오므로 «다시 해볼 수 있는» 유일한 실마리다. */
+.verdict__seed {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: oklch(48% 0.012 80);
+}
+
+/* 인장은 서류 모서리에 «나중에 찍힌 것»으로 앉는다. */
+.verdict__seal {
+  position: absolute;
+  right: clamp(0.8rem, 0.4rem + 1.4vw, 1.8rem);
+  bottom: clamp(0.8rem, 0.4rem + 1.4vw, 1.6rem);
+  display: grid;
+  place-items: center;
+  width: clamp(3rem, 2.2rem + 2vw, 4.2rem);
+  aspect-ratio: 1;
+  border: 3px solid var(--color-seal);
+  border-radius: 0.3rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 1rem + 1.4vw, 2.2rem);
+  color: var(--color-seal);
+  opacity: 0;
+  transform: rotate(-12deg) scale(1.6);
+  animation: verdict-stamp var(--duration-slow) var(--ease-out-expo) 620ms forwards;
+}
+
+@keyframes verdict-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 도장은 «찍힌다» — 커진 채로 들어와 한 번에 앉는다. */
+@keyframes verdict-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(1.6);
+  }
+  to {
+    opacity: 0.8;
+    transform: rotate(-12deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verdict {
+    animation: none;
+  }
+  .verdict__seal {
+    animation: none;
+    opacity: 0.8;
+    transform: rotate(-12deg);
+  }
+}
