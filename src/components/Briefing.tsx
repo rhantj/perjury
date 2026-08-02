@@ -266,74 +266,78 @@ function RoleAct({
   const solution = view.solution
 
   return (
-    <>
-      <header className="briefing__head">
-        <span className="briefing__rule" />
-        <p className="briefing__kicker">身元 通報</p>
-      </header>
+    /*
+     * 두 단으로 가른다 — 왼쪽은 «듣는 말»(진영·지시), 오른쪽은 «쥐는 것»(직업패·손패).
+     * 한 줄로 쌓으면 카드가 작아지고 화면 오른쪽 절반이 통째로 빈다.
+     */
+    <div className="role">
+      <div className="role__say">
+        <header className="briefing__head">
+          <span className="briefing__rule" />
+          <p className="briefing__kicker">身元 通報</p>
+        </header>
 
-      <p className="role__label">당신은</p>
-      <h1 className="role__faction">{culprit ? '범인' : '시민'}</h1>
-      <p className="role__desc">
-        {culprit
-          ? '고발을 틀리게 만들어라. 세 칸 중 하나만 오염시키면 이긴다.'
-          : '정답 세 장을 특정하라. 다섯 중 누군가는 선서하고도 거짓을 말한다.'}
-      </p>
-
-      {/*
-        직업. 진영이 «어느 편»이라면 직업은 «무엇을 할 수 있는가»다.
-        일러스트가 들어올 자리가 duty__face — 지금은 한자 각인이 대신한다.
-      */}
-      <section className={`duty duty--${role.side}`} tabIndex={0}>
-        <span className="duty__card">
-          <img className="duty__art" src={ROLE_ART[role.id]} alt="" width={340} height={482} />
-        </span>
-        <span className="duty__body">
-          <span className="duty__kicker">직업 · 職業</span>
-          <span className="duty__name">
-            {role.ko}
-            <em className="duty__hanja">{role.hanja}</em>
-          </span>
-          <span className="duty__power">{role.power}</span>
-          {/* 이야기는 눌러 두었다가 카드에 손이 닿을 때만 나온다 — 능력과 같은 무게로 늘어놓으면 둘 다 안 읽힌다. */}
-          <span className="duty__flavor">{role.flavor}</span>
-        </span>
-        <span className="duty__once">壹回</span>
-      </section>
-
-      <section className="slip">
-        <h2 className="slip__title">손패 — 당신만 아는 사실</h2>
-        <ul className="slip__cards">
-          {hand.map((id) => (
-            <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} />
-          ))}
-        </ul>
-        <p className="slip__note">
-          쥐고 있으니 봉인될 수 없다 — 확정이다. 반증에 꺼내 쓸 수도, 없다고 잡아뗄 수도 있다.
+        <p className="role__label">당신은</p>
+        <h1 className="role__faction">{culprit ? '범인' : '시민'}</h1>
+        <p className="role__desc">
+          {culprit
+            ? '고발을 틀리게 만들어라. 세 칸 중 하나만 오염시키면 이긴다.'
+            : '정답 세 장을 특정하라. 다섯 중 누군가는 선서하고도 거짓을 말한다.'}
         </p>
-      </section>
 
-      {solution && (
-        <section className="slip slip--sealed">
-          <h2 className="slip__title">봉인된 정답</h2>
+        <div className="briefing__foot">
+          <button type="button" className="briefing__back" onClick={onBack}>
+            ← 용의자 다시
+          </button>
+          <button type="button" className="briefing__go briefing__go--enter" onClick={onEnter}>
+            <span>착석</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="role__hold">
+        <section className={`duty duty--${role.side}`} tabIndex={0}>
+          <span className="duty__card">
+            <img className="duty__art" src={ROLE_ART[role.id]} alt="" width={340} height={482} />
+          </span>
+          <span className="duty__body">
+            <span className="duty__kicker">직업 · 職業</span>
+            <span className="duty__name">
+              {role.ko}
+              <em className="duty__hanja">{role.hanja}</em>
+            </span>
+            <span className="duty__power">{role.power}</span>
+            {/* 이야기는 눌러 두었다가 카드에 손이 닿을 때만 나온다. */}
+            <span className="duty__flavor">{role.flavor}</span>
+          </span>
+          <span className="duty__once">壹回</span>
+        </section>
+
+        <section className="slip">
+          <h2 className="slip__title">손패 — 당신만 아는 사실</h2>
           <ul className="slip__cards">
-            {[solution.suspect, solution.weapon, solution.place].map((id) => (
-              <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} sealed />
+            {hand.map((id) => (
+              <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} />
             ))}
           </ul>
-          <p className="slip__note">당신만 안다. 지키는 것이 아니라 감추는 것이 목적이다.</p>
+          <p className="slip__note">
+            쥐고 있으니 봉인될 수 없다 — 확정이다. 반증에 꺼내 쓸 수도, 없다고 잡아뗄 수도 있다.
+          </p>
         </section>
-      )}
 
-      <div className="briefing__foot">
-        <button type="button" className="briefing__back" onClick={onBack}>
-          ← 용의자 다시
-        </button>
-        <button type="button" className="briefing__go briefing__go--enter" onClick={onEnter}>
-          <span>착석</span>
-        </button>
+        {solution && (
+          <section className="slip slip--sealed">
+            <h2 className="slip__title">봉인된 정답</h2>
+            <ul className="slip__cards">
+              {[solution.suspect, solution.weapon, solution.place].map((id) => (
+                <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} sealed />
+              ))}
+            </ul>
+            <p className="slip__note">당신만 안다. 지키는 것이 아니라 감추는 것이 목적이다.</p>
+          </section>
+        )}
       </div>
-    </>
+    </div>
   )
 }
 
