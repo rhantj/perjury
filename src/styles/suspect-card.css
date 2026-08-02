@@ -1,0 +1,233 @@
+/*
+ * 용의자 조서. 책상에 흩어 놓은 종이 서류처럼 보이게 한다 —
+ * 균일한 카드 그리드로 두면 게임이 아니라 관리자 화면이 된다.
+ */
+
+.dossier {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  width: clamp(6.2rem, 3.6rem + 8.5vw, 9.5rem);
+  padding: 0.55rem 0.55rem 0.5rem;
+  border: 1px solid oklch(46% 0.02 70 / 0.55);
+  border-radius: 0.2rem;
+  /* 한지. 균일한 단색이면 인쇄물로 안 읽힌다. */
+  background:
+    linear-gradient(158deg, oklch(88% 0.024 82 / 0.07), transparent 58%),
+    repeating-linear-gradient(92deg, oklch(70% 0.02 80 / 0.028) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, oklch(26% 0.02 70), oklch(19% 0.016 65));
+  box-shadow:
+    0 1px 0 oklch(80% 0.02 80 / 0.07) inset,
+    0 12px 26px oklch(8% 0.02 250 / 0.55);
+  /* 서류가 조금씩 다르게 놓여 있다. --i는 순번(0~5), 2.5가 가운데다. */
+  transform: rotate(calc((var(--i) - 2.5) * 0.85deg));
+  transition:
+    transform var(--duration-normal) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-in-out),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+.dossier:hover {
+  transform: rotate(0deg) translateY(-7px) scale(1.035);
+  border-color: var(--color-accent);
+  box-shadow:
+    0 1px 0 oklch(80% 0.02 80 / 0.1) inset,
+    0 20px 38px oklch(6% 0.02 250 / 0.68);
+}
+
+/* ---- 모서리 괄호 (사건 파일 표식) ---- */
+.dossier__tick {
+  position: absolute;
+  width: 0.55rem;
+  height: 0.55rem;
+  opacity: 0.5;
+  transition: opacity var(--duration-fast) var(--ease-in-out);
+}
+.dossier__tick--tl {
+  top: 0.18rem;
+  left: 0.18rem;
+  border-top: 1px solid var(--color-accent);
+  border-left: 1px solid var(--color-accent);
+}
+.dossier__tick--br {
+  right: 0.18rem;
+  bottom: 0.18rem;
+  border-right: 1px solid var(--color-accent);
+  border-bottom: 1px solid var(--color-accent);
+}
+.dossier:hover .dossier__tick {
+  opacity: 1;
+}
+
+/* ---- 머리말 ---- */
+.dossier__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.3rem;
+  padding: 0 0.1rem;
+}
+.dossier__no {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+}
+.dossier__file {
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  color: oklch(52% 0.012 80);
+}
+
+/* ---- 초상 ---- */
+.dossier__portrait {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 5 / 6;
+  overflow: hidden;
+  border: 1px solid oklch(38% 0.015 70 / 0.7);
+  /* 인화지. 위에서 빛이 떨어지는 방향을 고정해 6장이 같은 조명 아래 있게 한다. */
+  background:
+    radial-gradient(ellipse 74% 56% at 50% 24%, oklch(42% 0.035 68 / 0.75), transparent 70%),
+    linear-gradient(180deg, oklch(27% 0.022 62), oklch(15% 0.014 250));
+}
+
+.dossier__portrait svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dossier__head-shape,
+.dossier__body-shape {
+  fill: oklch(12% 0.014 250);
+  transition: fill var(--duration-normal) var(--ease-in-out);
+}
+.dossier:hover .dossier__head-shape,
+.dossier:hover .dossier__body-shape {
+  fill: oklch(10% 0.02 255);
+}
+
+/* 한자 직함. 창호지에 비쳐 보이는 글자다 — 카드의 주인공은 이것이다. */
+.dossier__hanja {
+  position: relative;
+  font-size: clamp(1.1rem, 0.7rem + 1.3vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: oklch(78% 0.03 82);
+  text-shadow:
+    0 0 14px oklch(72% 0.12 62 / 0.4),
+    0 1px 0 oklch(8% 0.02 250 / 0.85);
+  transition:
+    color var(--duration-fast) var(--ease-in-out),
+    text-shadow var(--duration-normal) var(--ease-in-out);
+}
+.dossier:hover .dossier__hanja {
+  color: var(--color-lantern);
+  text-shadow: 0 0 26px oklch(76% 0.14 64 / 0.75);
+}
+
+/*
+ * 창살. 경성 인테리어의 핵심 조형이라 배경 무늬가 아니라 «앞»에 놓는다 —
+ * 장지문 너머로 사람을 들여다보는 구도가 된다.
+ */
+.dossier__lattice {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      oklch(30% 0.02 70 / 0.9) 0 1px,
+      transparent 1px 33.33%
+    ),
+    repeating-linear-gradient(0deg, oklch(30% 0.02 70 / 0.9) 0 1px, transparent 1px 25%);
+  opacity: 0.75;
+  transition: opacity var(--duration-normal) var(--ease-in-out);
+}
+.dossier:hover .dossier__lattice {
+  opacity: 0.35;
+}
+
+/* 인화지 위를 훑는 빛. 조서를 넘겨보는 손전등이다. */
+.dossier__scan {
+  position: absolute;
+  inset: -40% -120%;
+  background: linear-gradient(
+    100deg,
+    transparent 42%,
+    oklch(92% 0.05 80 / 0.16) 50%,
+    transparent 58%
+  );
+  opacity: 0;
+  transform: translateX(-42%);
+  transition: opacity var(--duration-fast) var(--ease-in-out);
+}
+.dossier:hover .dossier__scan {
+  opacity: 1;
+  animation: dossier-scan 1.4s var(--ease-in-out) infinite;
+}
+
+/* ---- 꼬리말 ---- */
+.dossier__foot {
+  display: grid;
+  gap: 0.14rem;
+  justify-items: center;
+  padding-top: 0.08rem;
+  border-top: 1px solid oklch(46% 0.02 70 / 0.32);
+}
+.dossier__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+.dossier__status {
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: oklch(50% 0.012 80);
+}
+
+/* ---- 도장 ---- */
+.dossier__stamp {
+  position: absolute;
+  right: -0.3rem;
+  bottom: 2.3rem;
+  padding: 0.16rem 0.3rem;
+  border: 1.5px solid oklch(56% 0.17 25 / 0.85);
+  border-radius: 0.15rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: oklch(64% 0.17 25);
+  opacity: 0;
+  transform: rotate(-13deg) scale(1.35);
+  transition:
+    opacity var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-normal) var(--ease-out-expo);
+}
+.dossier:hover .dossier__stamp {
+  opacity: 0.92;
+  transform: rotate(-13deg) scale(1);
+}
+
+@keyframes dossier-scan {
+  from {
+    transform: translateX(-42%);
+  }
+  to {
+    transform: translateX(42%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dossier,
+  .dossier__scan,
+  .dossier__stamp {
+    transition-duration: 0.01ms;
+  }
+  .dossier:hover .dossier__scan {
+    animation: none;
+  }
+}

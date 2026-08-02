@@ -6,9 +6,35 @@
   --color-accent: oklch(66% 0.16 40);
   --color-line: oklch(32% 0.012 60);
 
+  /*
+   * 경성 밤골목. 찬 청록이 바탕이고 남포등만 따뜻하다 —
+   * 이 대비가 "서늘함"을 만든다. 둘 중 하나만 쓰면 그냥 어두운 화면이 된다.
+   */
+  --color-night: oklch(19% 0.045 235);
+  --color-night-deep: oklch(11% 0.032 250);
+  --color-dusk: oklch(34% 0.075 245);
+  --color-lantern: oklch(80% 0.15 70);
+  --color-cold: oklch(64% 0.11 215);
+  /* 인장·경고에만 쓴다. 이 붉은색이 흔해지면 아무것도 강조되지 않는다. */
+  --color-seal: oklch(54% 0.2 27);
+
+  /*
+   * 제목·직함용 명조. 본문 산세리프와 «격»을 갈라 시대감을 만든다.
+   * 웹폰트를 싣지 않는 이유는 성능이 아니라 배포다 — GitHub Pages에서
+   * 외부 폰트가 늦게 오면 표지 첫인상이 산세리프로 한 번 깜빡인다.
+   */
+  --font-display: 'AppleMyungjo', 'Nanum Myeongjo', 'Batang', 'Times New Roman', serif;
+
   --text-title: clamp(3rem, 1.5rem + 6vw, 7rem);
 
   --space-gap: clamp(1rem, 0.5rem + 1.5vw, 2rem);
+
+  /* 등장 연출용. 값이 컴포넌트마다 흩어지면 리듬이 어긋난다. */
+  --duration-fast: 180ms;
+  --duration-normal: 420ms;
+  --duration-slow: 760ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
   color-scheme: dark;
 }
