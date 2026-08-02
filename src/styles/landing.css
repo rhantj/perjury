@@ -1,0 +1,366 @@
+/*
+ * 표지. 경성 호외(號外) 조판 — 좌측 정렬 한 덩어리에 붉은 인장 하나.
+ * 사건·용의자는 여기 올리지 않는다 (briefing.css).
+ */
+
+.landing {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  overflow: hidden;
+  background: var(--color-night-deep);
+}
+
+/*
+ * 배경 위에 얹히는 내용 층. 배경이 absolute라 이쪽에 z-index가 필요하다.
+ * 세로는 가운데지만 가로는 왼쪽이다 — 이 비대칭이 «편집된 지면»을 만든다.
+ */
+.landing__stage {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  justify-self: start;
+  display: grid;
+  gap: clamp(1.1rem, 0.7rem + 1.4vw, 2rem);
+  width: min(46rem, 100%);
+  padding: clamp(2rem, 1rem + 4vw, 4rem) clamp(1.5rem, 0.8rem + 4vw, 6rem);
+  transition:
+    transform var(--duration-slow) var(--ease-in-out),
+    opacity var(--duration-slow) var(--ease-in-out);
+}
+
+/* 골목 안쪽으로 걸어 들어가며 다음 화면에 자리를 넘긴다. */
+.landing--leaving .landing__stage {
+  transform: scale(1.12);
+  opacity: 0;
+}
+.landing--leaving .backdrop {
+  transform: scale(1.06);
+  opacity: 0.45;
+  transition:
+    transform var(--duration-slow) var(--ease-in-out),
+    opacity var(--duration-slow) var(--ease-in-out);
+}
+
+/* ---- 제호 ---- */
+.landing__masthead {
+  display: grid;
+  grid-template-columns: 2.5rem auto;
+  align-items: center;
+  gap: 0.85rem;
+  opacity: 0;
+  animation: landing-rise var(--duration-normal) var(--ease-out-expo) 260ms forwards;
+}
+
+.landing__rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-lantern));
+}
+
+.landing__meta {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--color-lantern);
+  text-shadow: 0 0 18px oklch(70% 0.14 60 / 0.45);
+}
+
+/* ---- 제목판 ---- */
+.landing__plate {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: clamp(0.8rem, 0.4rem + 1.4vw, 1.8rem);
+}
+
+/*
+ * 세로쓰기 한자. 제목 왼쪽에 «판본»처럼 세워 둔다.
+ * writing-mode를 빼면 그냥 두 글자가 되고 시대 기호가 사라진다.
+ */
+.landing__hanja {
+  writing-mode: vertical-rl;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 0.9rem + 3.6vw, 4.2rem);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  color: oklch(58% 0.03 80);
+  border-right: 1px solid oklch(40% 0.02 70);
+  padding-right: clamp(0.5rem, 0.3rem + 0.8vw, 1.1rem);
+  opacity: 0;
+  animation: landing-rise var(--duration-slow) var(--ease-out-expo) 480ms forwards;
+}
+
+.landing__title {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+  line-height: 0.84;
+  opacity: 0;
+  animation: landing-rise var(--duration-slow) var(--ease-out-expo) 620ms forwards;
+}
+
+/*
+ * 색분해 글리치. 증언이 어긋나는 게임이므로 제목도 한 겹 어긋나 있다.
+ * ::before/::after가 같은 글자를 청록·적색으로 겹쳐 찍는다.
+ */
+.landing__title-ko {
+  position: relative;
+  display: inline-block;
+  justify-self: start;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: oklch(97% 0.006 90);
+  text-shadow: 0 0 48px oklch(60% 0.1 250 / 0.5);
+}
+.landing__title-ko::before,
+.landing__title-ko::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.landing__title-ko::before {
+  color: var(--color-cold);
+  opacity: 0.34;
+  transform: translate(-2px, 0);
+  animation: glitch-cold 6.5s var(--ease-in-out) infinite;
+}
+.landing__title-ko::after {
+  color: var(--color-seal);
+  opacity: 0.3;
+  transform: translate(2px, 0);
+  animation: glitch-warm 6.5s var(--ease-in-out) infinite;
+}
+
+.landing__title-en {
+  font-size: clamp(0.6rem, 0.42rem + 0.5vw, 0.9rem);
+  font-weight: 500;
+  letter-spacing: 0.62em;
+  text-indent: 0.62em;
+  color: var(--color-accent);
+}
+
+/* ---- 본문 ---- */
+.landing__brief {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 30rem;
+  /* 왼쪽 세로줄이 제호와 본문을 한 단으로 묶는다. */
+  border-left: 1px solid oklch(36% 0.015 70);
+  padding-left: clamp(0.9rem, 0.6rem + 1vw, 1.5rem);
+  opacity: 0;
+  animation: landing-rise var(--duration-normal) var(--ease-out-expo) 1000ms forwards;
+}
+
+.landing__lede {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 0.88rem + 0.5vw, 1.35rem);
+  line-height: 1.62;
+  color: oklch(88% 0.008 80);
+}
+
+.landing__note {
+  margin: 0;
+  font-size: clamp(0.76rem, 0.72rem + 0.2vw, 0.88rem);
+  line-height: 1.85;
+  color: oklch(66% 0.012 80);
+}
+.landing__note b {
+  color: var(--color-lantern);
+  font-weight: 600;
+}
+
+/* ---- 발치 ---- */
+.landing__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: clamp(0.9rem, 0.5rem + 1.2vw, 1.8rem);
+  padding-top: 0.4rem;
+  opacity: 0;
+  animation: landing-rise var(--duration-normal) var(--ease-out-expo) 1300ms forwards;
+}
+
+.landing__enter {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-lantern);
+  background: transparent;
+  color: var(--color-lantern);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  padding: 0.75rem 2.6rem;
+  cursor: pointer;
+  transition:
+    color var(--duration-normal) var(--ease-out-expo),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+/* 남포등 불이 문 안쪽에서 차오른다. 채운 버튼으로 시작하면 배경과 따로 논다. */
+.landing__enter::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-lantern);
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+}
+/* 버튼 위를 훑는 빛. 남포등이 문 앞을 지나가는 인상. */
+.landing__enter::after {
+  content: '';
+  position: absolute;
+  inset: 0 -60%;
+  background: linear-gradient(100deg, transparent 44%, oklch(92% 0.1 80 / 0.28) 50%, transparent 56%);
+  transform: translateX(-60%);
+  animation: enter-sweep 4.2s var(--ease-in-out) infinite;
+}
+.landing__enter-label {
+  position: relative;
+}
+.landing__enter:hover {
+  color: oklch(15% 0.03 45);
+  box-shadow: 0 10px 34px oklch(62% 0.15 55 / 0.32);
+}
+.landing__enter:hover::before {
+  transform: scaleY(1);
+}
+.landing__enter:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+/*
+ * 검열 인장. 화면에서 유일한 붉은색이라 시선이 여기서 멈춘다.
+ * 지면 바깥으로 반쯤 걸쳐 «나중에 찍힌 것»으로 읽히게 한다.
+ */
+.landing__seal {
+  position: absolute;
+  z-index: 1;
+  right: clamp(1.5rem, 0.5rem + 4vw, 6rem);
+  bottom: clamp(2rem, 1rem + 4vw, 5rem);
+  display: grid;
+  place-items: center;
+  width: clamp(3.6rem, 2.4rem + 3vw, 5.6rem);
+  aspect-ratio: 1;
+  border: 3px solid var(--color-seal);
+  border-radius: 0.3rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 1.1rem + 1.8vw, 2.9rem);
+  color: var(--color-seal);
+  opacity: 0;
+  transform: rotate(-13deg) scale(1.6);
+  animation: seal-stamp var(--duration-slow) var(--ease-out-expo) 1700ms forwards;
+}
+
+/* ---- 등장 ---- */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 도장은 «찍힌다» — 커진 채로 들어와 한 번에 앉는다. */
+@keyframes seal-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-13deg) scale(1.6);
+  }
+  to {
+    opacity: 0.82;
+    transform: rotate(-13deg) scale(1);
+  }
+}
+
+/* 대부분 가만히 있다가 가끔 한 번 어긋난다. 계속 떨면 싸구려로 보인다. */
+@keyframes glitch-cold {
+  0%,
+  86%,
+  100% {
+    opacity: 0.34;
+    transform: translate(-2px, 0);
+  }
+  88% {
+    opacity: 0.85;
+    transform: translate(-7px, 2px);
+  }
+  90% {
+    opacity: 0.5;
+    transform: translate(4px, -2px);
+  }
+  92% {
+    opacity: 0.34;
+    transform: translate(-2px, 0);
+  }
+}
+
+@keyframes glitch-warm {
+  0%,
+  86%,
+  100% {
+    opacity: 0.3;
+    transform: translate(2px, 0);
+  }
+  88% {
+    opacity: 0.75;
+    transform: translate(6px, -2px);
+  }
+  90% {
+    opacity: 0.45;
+    transform: translate(-4px, 2px);
+  }
+  92% {
+    opacity: 0.3;
+    transform: translate(2px, 0);
+  }
+}
+
+@keyframes enter-sweep {
+  0%,
+  62% {
+    transform: translateX(-60%);
+  }
+  88%,
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__stage,
+  .landing__masthead,
+  .landing__hanja,
+  .landing__title,
+  .landing__brief,
+  .landing__foot {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+    transition-duration: 0.01ms;
+    opacity: 1;
+  }
+  .landing__seal {
+    animation: none;
+    opacity: 0.82;
+    transform: rotate(-13deg);
+  }
+  .landing__title-ko::before,
+  .landing__title-ko::after,
+  .landing__enter::after {
+    animation: none;
+  }
+}

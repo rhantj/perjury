@@ -3,6 +3,7 @@ import { cardName } from '../engine/cards'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { useGame } from '../store/game'
+import Landing from './Landing'
 import Log from './Log'
 import Notebook from './Notebook'
 import Table from './Table'
@@ -20,7 +21,7 @@ export default function GameScreen() {
   const [picked, setPicked] = useState<Picked>({})
   const [seed, setSeed] = useState('nan2026')
 
-  if (!store.state) return <StartScreen seed={seed} onSeed={setSeed} onStart={store.start} />
+  if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={store.start} />
 
   const view = store.view()
   const picking = view.phase === 'suggest' || view.phase === 'accuse'
@@ -99,46 +100,6 @@ const PHASE_LABEL: Record<GameView['phase'], string> = {
   whisper: '밀담',
   accuse: '최종 고발',
   over: '종료',
-}
-
-function StartScreen({
-  seed,
-  onSeed,
-  onStart,
-}: {
-  seed: string
-  onSeed: (v: string) => void
-  onStart: (seed: string) => void
-}) {
-  return (
-    <main className="start">
-      <p className="start__kicker">NAN 2026 · 사전 과제</p>
-      <h1 className="start__title">
-        위증<span>PERJURY</span>
-      </h1>
-      <p className="start__line">
-        AI 에이전트 5명과 같은 테이블에 앉는다. 반증은 공개 선언이고, 거짓말이 허용된다.
-        <br />
-        들통나면 손패를 잃는다.
-      </p>
-      <form
-        className="start__form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          onStart(seed)
-        }}
-      >
-        <label className="start__label">
-          시드
-          <input className="start__input" value={seed} onChange={(e) => onSeed(e.target.value)} />
-        </label>
-        <button type="submit" className="btn btn--go">
-          시작
-        </button>
-      </form>
-      <p className="start__note">같은 시드는 항상 같은 판이 된다.</p>
-    </main>
-  )
 }
 
 /** 반증 선언. 갖고 있지 않은 카드도 고를 수 있다 — 그것이 위증이다. */
