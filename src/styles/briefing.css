@@ -215,6 +215,35 @@
   transform: translateX(0);
 }
 
+/* 되돌아가는 길은 «앞으로»와 다른 무게여야 한다 — 밑줄 하나짜리 글자로 둔다. */
+.briefing__back {
+  border: none;
+  background: none;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  color: oklch(54% 0.012 80);
+  padding: 0.7rem 0.2rem;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-normal) var(--ease-out-expo);
+}
+.briefing__back:hover,
+.briefing__back:focus-visible {
+  color: var(--color-text);
+  transform: translateX(-3px);
+  outline: none;
+}
+
+.briefing__ghosts {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  opacity: 0;
+  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 840ms forwards;
+}
+
 .briefing__ghost {
   justify-self: start;
   padding: 0.4rem 0;
@@ -225,8 +254,7 @@
   letter-spacing: 0.14em;
   color: oklch(58% 0.012 80);
   cursor: pointer;
-  opacity: 0;
-  animation: brief-rise var(--duration-normal) var(--ease-out-expo) 840ms forwards;
+  /* 등장은 감싼 .briefing__ghosts가 맡는다 — 둘 다 걸면 페이드가 두 번 돈다. */
   transition:
     color var(--duration-fast) var(--ease-in-out),
     border-color var(--duration-fast) var(--ease-in-out);
@@ -286,16 +314,51 @@
   text-shadow: 0 0 52px oklch(54% 0.2 27 / 0.45);
 }
 
-/* 범인 판에서만 화면 가장자리가 붉게 죈다. 진영이 바뀐 걸 글자 말고도 알아야 한다. */
+/*
+ * 3막 배경. 진영마다 방의 공기가 다르다 — 글자 색만 바꾸면 «통보»의 무게가 안 산다.
+ * 두 판의 차이는 밝기가 아니라 «열려 있는가»다.
+ */
+.briefing--citizen {
+  /* 갓등이 희고 차다. 위가 트여 있어 빠져나갈 데가 있는 방. */
+  background:
+    radial-gradient(ellipse 62% 46% at 20% 0%, oklch(31% 0.05 232 / 0.62), transparent 64%),
+    linear-gradient(180deg, oklch(14% 0.02 244), var(--color-night-deep));
+}
+.briefing--culprit {
+  /* 같은 갓등이 붉게 탁하다. 바탕도 청색에서 검붉은 쪽으로 내려앉는다. */
+  background:
+    radial-gradient(ellipse 62% 46% at 20% 0%, oklch(27% 0.07 32 / 0.55), transparent 64%),
+    linear-gradient(180deg, oklch(13% 0.03 22), oklch(9% 0.022 250));
+}
+
+.briefing--citizen::before,
 .briefing--culprit::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  box-shadow: inset 0 0 22vmin oklch(40% 0.16 27 / 0.28);
   opacity: 0;
   animation: brief-fade var(--duration-slow) var(--ease-in-out) 420ms forwards;
+}
+
+/* 시민: 새벽빛이 발치에서 올라온다. 테두리를 누르지 않아 화면이 열려 보인다. */
+.briefing--citizen::before {
+  background: radial-gradient(
+    ellipse 96% 42% at 26% 104%,
+    oklch(52% 0.1 228 / 0.3),
+    transparent 68%
+  );
+}
+
+/* 범인: 사방이 붉게 조여들어 가운데만 남는다. 같은 자리인데 나갈 데가 없다. */
+.briefing--culprit::before {
+  background: radial-gradient(
+    ellipse 92% 50% at 30% 96%,
+    oklch(42% 0.14 28 / 0.24),
+    transparent 62%
+  );
+  box-shadow: inset 0 0 26vmin oklch(38% 0.17 27 / 0.42);
 }
 
 .role__desc {
@@ -371,7 +434,8 @@
 /* ---- 발치 ---- */
 .briefing__foot {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  gap: 1.4rem;
   padding-top: 0.5rem;
   opacity: 0;
   animation: brief-rise var(--duration-normal) var(--ease-out-expo) 1200ms forwards;
@@ -487,7 +551,7 @@
   .briefing__note,
   .picker__item,
   .dossiers__item,
-  .briefing__ghost,
+  .briefing__ghosts,
   .role__label,
   .role__faction,
   .role__desc,
@@ -498,11 +562,13 @@
     animation-delay: 0ms;
     opacity: 1;
   }
+  .briefing--citizen::before,
   .briefing--culprit::before {
     animation: none;
     opacity: 1;
   }
   .briefing__stage,
+  .briefing__back,
   .case,
   .case__go,
   .briefing__go,
