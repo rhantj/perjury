@@ -31,10 +31,10 @@ const FADE_MS = 320
  * 손패 한 장이 «무슨 뜻인가». 이름만 띄우면 처음 보는 사람은 마차고가 뭔지 알 수 없다.
  * 쥔 카드는 봉인될 수 없으므로 종류마다 지워지는 칸이 정해져 있다.
  */
-const KIND: Record<CardKind, { label: string; fact: string }> = {
-  suspect: { label: '용의자', fact: '범인이 아니다' },
-  weapon: { label: '수단', fact: '쓰이지 않았다' },
-  place: { label: '장소', fact: '현장이 아니다' },
+const KIND: Record<CardKind, { label: string; hanja: string; fact: string; truth: string }> = {
+  suspect: { label: '용의자', hanja: '容疑者', fact: '범인이 아니다', truth: '이자가 범인이다' },
+  weapon: { label: '수단', hanja: '手段', fact: '쓰이지 않았다', truth: '이것이 쓰였다' },
+  place: { label: '장소', hanja: '場所', fact: '현장이 아니다', truth: '여기가 현장이다' },
 }
 
 /**
@@ -305,11 +305,7 @@ function RoleAct({
         <h2 className="slip__title">손패 — 당신만 아는 사실</h2>
         <ul className="slip__cards">
           {hand.map((id) => (
-            <li key={id} className="chip">
-              <span className="chip__kind">{KIND[cardKind(id)].label}</span>
-              <span className="chip__name">{cardLabel(scenario, id)}</span>
-              <span className="chip__fact">{KIND[cardKind(id)].fact}</span>
-            </li>
+            <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} />
           ))}
         </ul>
         <p className="slip__note">
@@ -322,10 +318,7 @@ function RoleAct({
           <h2 className="slip__title">봉인된 정답</h2>
           <ul className="slip__cards">
             {[solution.suspect, solution.weapon, solution.place].map((id) => (
-              <li key={id} className="chip chip--sealed">
-                <span className="chip__kind">{KIND[cardKind(id)].label}</span>
-                <span className="chip__name">{cardLabel(scenario, id)}</span>
-              </li>
+              <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} sealed />
             ))}
           </ul>
           <p className="slip__note">당신만 안다. 지키는 것이 아니라 감추는 것이 목적이다.</p>
@@ -341,6 +334,28 @@ function RoleAct({
         </button>
       </div>
     </>
+  )
+}
+
+/**
+ * 손패 한 장. 일러스트가 없어도 카드로 서게 조판으로 만든다 —
+ * 종류 각인(위) · 이름(가운데) · 명패(아래)가 곧 카드의 삼단 구성이다.
+ *
+ * 그림이 들어오면 .handcard__art 자리에 얹으면 되고, 이 조판은 그대로 위에 남는다.
+ */
+function HandCard({ kind, name, sealed = false }: { kind: CardKind; name: string; sealed?: boolean }) {
+  const meta = KIND[kind]
+
+  return (
+    <li className={`handcard handcard--${kind}${sealed ? ' handcard--sealed' : ''}`}>
+      <span className="handcard__art" aria-hidden="true" />
+      <span className="handcard__kind">
+        {meta.hanja}
+        <em>{meta.label}</em>
+      </span>
+      <span className="handcard__name">{name}</span>
+      <span className="handcard__plate">{sealed ? meta.truth : meta.fact}</span>
+    </li>
   )
 }
 
