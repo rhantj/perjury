@@ -51,6 +51,7 @@ export default function GameScreen() {
           setScenario(chosen)
           setStage('play')
         }}
+        onBack={store.reset}
       />
     )
 
