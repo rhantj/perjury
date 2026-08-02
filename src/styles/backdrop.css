@@ -1,0 +1,635 @@
+/*
+ * 경성 밤골목. 찬 청록 바탕에 남포등만 따뜻하다 — 이 대비가 서늘함을 만든다.
+ * 모든 움직임은 transform·opacity다. 배경이 레이아웃을 건드리면 위에 얹힌 글자가 흔들린다.
+ */
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--color-night-deep);
+}
+
+/* ---- 하늘 ---- */
+.backdrop__sky {
+  position: absolute;
+  inset: 0;
+  /*
+   * 따뜻한 띠는 지평선에만 얇게 둔다. 넓게 깔면 노을 풍경화가 되고
+   * 이 게임이 필요로 하는 «서늘함»이 사라진다.
+   */
+  background: linear-gradient(
+    180deg,
+    oklch(8% 0.03 268) 0%,
+    oklch(13% 0.05 262) 30%,
+    oklch(21% 0.062 252) 52%,
+    oklch(33% 0.082 48) 66%,
+    oklch(18% 0.052 242) 74%,
+    var(--color-night-deep) 100%
+  );
+}
+
+/* 하늘이 천천히 식었다 풀린다. 정지 화면이 아니라는 신호가 이 한 겹에서 나온다. */
+.backdrop__chill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    oklch(14% 0.05 255) 0%,
+    oklch(26% 0.08 240) 46%,
+    oklch(16% 0.05 240) 72%,
+    transparent 100%
+  );
+  opacity: 0.25;
+  animation: backdrop-chill 24s var(--ease-in-out) infinite;
+}
+
+/*
+ * 저기압 구름. 아주 느리게 가로지르며 별빛을 지운다 —
+ * 하늘이 «닫혀 있다»는 인상이 스산함의 절반이다.
+ */
+.backdrop__cloud {
+  position: absolute;
+  left: -30%;
+  top: -10%;
+  width: 160%;
+  height: 70%;
+  background:
+    radial-gradient(ellipse 26% 42% at 18% 40%, oklch(16% 0.03 260 / 0.75), transparent 70%),
+    radial-gradient(ellipse 34% 36% at 52% 26%, oklch(13% 0.028 258 / 0.8), transparent 72%),
+    radial-gradient(ellipse 22% 46% at 82% 46%, oklch(17% 0.032 262 / 0.7), transparent 70%);
+  filter: blur(26px);
+  animation: cloud-crawl 120s linear infinite alternate;
+}
+
+/* 지평선 잔광. 남포등 무리가 뭉쳐 보이는 자리다. */
+.backdrop__afterglow {
+  position: absolute;
+  left: 50%;
+  top: 66%;
+  width: 104%;
+  aspect-ratio: 8 / 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    oklch(62% 0.14 58 / 0.45),
+    oklch(48% 0.11 40 / 0.16) 45%,
+    transparent 72%
+  );
+  animation: backdrop-breathe 15s var(--ease-in-out) infinite;
+}
+
+/* ---- 실루엣 ---- */
+.backdrop__far,
+.backdrop__mid,
+.backdrop__near,
+.backdrop__poles,
+.backdrop__eaves {
+  position: absolute;
+  left: -6%;
+  width: 112%;
+}
+
+/*
+ * 실루엣은 하늘보다 «어두워야» 실루엣이다. 하늘과 비슷한 명도로 두면
+ * 지붕이 사라지고 창문만 허공에 뜬다.
+ * 명도 서열(원경 밝음 → 근경 어두움)이 뒤집히면 깊이도 뒤집힌다.
+ */
+.backdrop__far {
+  bottom: 0;
+  height: 30%;
+  fill: oklch(15% 0.038 248);
+  opacity: 0.85;
+  /* 멀리 있는 것이 느리게 흐른다 — 시차가 깊이를 만든다. */
+  animation: drift-right 96s linear infinite alternate;
+}
+
+.backdrop__mid {
+  bottom: 0;
+  height: 38%;
+  fill: oklch(9% 0.024 252);
+  animation: drift-left 64s linear infinite alternate;
+}
+
+.backdrop__near {
+  bottom: 0;
+  height: 52%;
+  fill: oklch(5% 0.012 254);
+  animation: drift-left 64s linear infinite alternate;
+}
+
+/* ---- 전봇대 ---- */
+.backdrop__poles {
+  bottom: 0;
+  height: 48%;
+  fill: oklch(7% 0.018 252);
+  animation: drift-left 64s linear infinite alternate;
+}
+
+.wire {
+  fill: none;
+  stroke: oklch(14% 0.028 250);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.backdrop__eaves {
+  top: 0;
+  height: 26%;
+  fill: var(--color-night-deep);
+  animation: drift-sink 18s var(--ease-in-out) infinite;
+}
+
+.near__mass {
+  fill: oklch(5% 0.012 254);
+}
+
+/* ---- 창호 ---- */
+/*
+ * 창은 근경 SVG의 자식이라 건물 좌표계를 그대로 쓴다.
+ * 퍼센트 좌표로 따로 놓으면 건물을 옮길 때마다 창이 벽을 벗어난다.
+ */
+.pane {
+  animation: window-glow 9s var(--ease-in-out) infinite;
+  animation-delay: var(--d);
+}
+/* 불 꺼진 창은 깜빡일 이유가 없다. */
+.pane--dark {
+  animation: none;
+  opacity: 0.9;
+}
+
+.pane__mullion {
+  stroke: oklch(16% 0.02 60 / 0.85);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---- 인영 ---- */
+/*
+ * 30초에 한 번, 3초 남짓 창을 가로지른다. 자주 지나가면 무섭지 않고 분주해진다.
+ * view-box 기준이라 px 값이 곧 viewBox 단위다.
+ */
+.walker {
+  transform-box: view-box;
+  animation: walk-pass 30s linear infinite;
+  animation-delay: var(--fd);
+}
+
+/* 걸음마다 몸이 한 번 뜬다. 이 반동이 없으면 팔다리만 움직이는 인형이 된다. */
+.walker__bob {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: walk-bob 0.46s var(--ease-in-out) infinite;
+}
+
+.walker__torso,
+.walker__head,
+.walker__limb {
+  fill: oklch(13% 0.018 60 / 0.92);
+}
+
+/*
+ * 팔다리는 «관절»에서 돈다. fill-box 기준 50% 0 이 각 사지의 윗변 가운데,
+ * 곧 어깨·엉덩이 지점이다. 여기가 어긋나면 팔이 통째로 미끄러진다.
+ */
+.walker__limb {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: walk-step 0.92s var(--ease-in-out) infinite;
+}
+/* 반대 위상. 오른팔과 왼다리가 같이 나가야 걷는 것으로 보인다. */
+.walker__limb--b {
+  animation-name: walk-step-b;
+}
+/* 먼 쪽 사지. 흐려야 앞뒤가 갈린다. */
+.walker__limb--far {
+  fill: oklch(11% 0.016 60 / 0.6);
+}
+
+/* ---- 남포등 ---- */
+/*
+ * 벽에서 뻗은 브래킷에 걸린 등. 좌표가 건물에서 나오므로 허공에 뜰 수 없다.
+ */
+.lamp__arm {
+  stroke: oklch(10% 0.018 60);
+  stroke-width: 2.4;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 줄은 팔보다 가늘다. 같은 굵기면 팔이 꺾인 것처럼 보인다. */
+.lamp__cord {
+  stroke: oklch(14% 0.02 60);
+  stroke-width: 1.4;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.lamp__trim {
+  fill: oklch(12% 0.018 60);
+}
+
+/* 팔 끝을 축으로 흔들린다. transform-origin은 컴포넌트가 인라인으로 준다. */
+.lamp__hang {
+  transform-box: view-box;
+  animation: lantern-sway 6.4s var(--ease-in-out) infinite;
+  animation-delay: var(--d);
+}
+
+.lamp__bulb {
+  /* 등 자체가 흔들리며 밝기가 변한다 — 불꽃이 기울기 때문이다. */
+  animation: lantern-burn 3.1s var(--ease-in-out) infinite;
+  animation-delay: var(--d);
+}
+
+.lamp__glow {
+  animation: lantern-flicker 4.5s var(--ease-in-out) infinite;
+  animation-delay: var(--d);
+}
+
+.backdrop__ash {
+  position: absolute;
+  inset: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- 새 ---- */
+.backdrop__crow {
+  position: absolute;
+  top: 16%;
+  left: 0;
+  width: 2.2rem;
+  fill: oklch(8% 0.02 250);
+  opacity: 0;
+  animation: crow-cross 27s linear infinite;
+}
+
+/* ---- 재 ---- */
+.ash {
+  position: absolute;
+  left: var(--x);
+  bottom: -4%;
+  width: calc(2.5px * var(--s));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: oklch(82% 0.03 78 / 0.55);
+  animation: ash-rise var(--dur) linear infinite;
+  animation-delay: var(--d);
+}
+
+/* ---- 공기 ---- */
+.backdrop__haze {
+  position: absolute;
+  left: -20%;
+  bottom: 4%;
+  width: 140%;
+  height: 34%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(52% 0.03 230 / 0.16) 30%,
+    oklch(58% 0.02 220 / 0.22) 52%,
+    transparent 80%
+  );
+  filter: blur(18px);
+  animation: drift-haze 42s linear infinite alternate;
+}
+
+/*
+ * 바닥을 기는 안개. 건물보다 «앞»이라 지붕 밑동을 먹어 들어간다 —
+ * 골목 끝이 안 보인다는 인상이 여기서 나온다.
+ */
+.backdrop__mist {
+  position: absolute;
+  left: -25%;
+  bottom: -10%;
+  width: 150%;
+  height: 22%;
+  background:
+    radial-gradient(ellipse 30% 60% at 20% 74%, oklch(62% 0.02 225 / 0.2), transparent 70%),
+    radial-gradient(ellipse 38% 54% at 55% 84%, oklch(58% 0.02 230 / 0.17), transparent 72%),
+    radial-gradient(ellipse 28% 62% at 86% 72%, oklch(64% 0.02 220 / 0.19), transparent 70%);
+  filter: blur(20px);
+  animation: mist-crawl 34s var(--ease-in-out) infinite alternate;
+}
+
+/* 글자가 얹히는 자리를 눌러 준다. 이게 없으면 노을 위에서 본문이 읽히지 않는다. */
+.backdrop__scrim {
+  position: absolute;
+  inset: 0;
+  /* 본문이 앉는 왼쪽을 더 눌러 준다 — 표지 조판이 좌측 정렬이라 대칭 비네팅은 어긋난다. */
+  background:
+    linear-gradient(100deg, oklch(8% 0.02 250 / 0.86) 6%, oklch(9% 0.02 250 / 0.34) 52%, transparent 82%),
+    radial-gradient(ellipse 130% 92% at 50% 46%, transparent 28%, oklch(7% 0.02 250 / 0.94) 100%);
+}
+
+/*
+ * 정전. 13초에 한 번, 예고 없이 화면이 어두워졌다 돌아온다.
+ * 규칙적으로 깜빡이면 조명 연출이 되고, 드물어야 «불안»이 된다.
+ */
+.backdrop__flicker {
+  position: absolute;
+  inset: 0;
+  background: oklch(4% 0.01 250);
+  opacity: 0;
+  animation: power-cut 13s steps(1, end) infinite;
+}
+
+/* 필름 그레인. 화면 전체가 아주 미세하게 떨려 정지 이미지처럼 보이지 않는다. */
+.backdrop__grain {
+  position: absolute;
+  inset: -2%;
+  background-image: repeating-conic-gradient(oklch(100% 0 0 / 0.014) 0% 25%, transparent 0% 50%);
+  background-size: 3px 3px;
+  opacity: 0.5;
+  animation: grain-jitter 0.9s steps(4) infinite;
+}
+
+/* ---- 키프레임 ---- */
+@keyframes backdrop-chill {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
+@keyframes backdrop-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+@keyframes cloud-crawl {
+  from {
+    transform: translateX(-4%);
+  }
+  to {
+    transform: translateX(4%);
+  }
+}
+
+@keyframes mist-crawl {
+  0% {
+    transform: translate(-3%, 1%);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(3%, -1%);
+    opacity: 1;
+  }
+}
+
+@keyframes drift-right {
+  from {
+    transform: translateX(-1.6%);
+  }
+  to {
+    transform: translateX(1.6%);
+  }
+}
+
+@keyframes drift-left {
+  from {
+    transform: translateX(1.1%);
+  }
+  to {
+    transform: translateX(-1.1%);
+  }
+}
+
+@keyframes drift-sink {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.5%);
+  }
+}
+
+@keyframes drift-haze {
+  from {
+    transform: translateX(-6%);
+  }
+  to {
+    transform: translateX(6%);
+  }
+}
+
+@keyframes lantern-sway {
+  0%,
+  100% {
+    transform: rotate(-3.2deg);
+  }
+  50% {
+    transform: rotate(3.2deg);
+  }
+}
+
+/* 불꽃이 기울며 밝기가 변한다. 흔들림과 위상이 어긋나야 «타는» 것으로 보인다. */
+@keyframes lantern-burn {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  30% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.72;
+  }
+  70% {
+    opacity: 0.97;
+  }
+}
+
+@keyframes lantern-flicker {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  62% {
+    opacity: 0.62;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes window-glow {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  40% {
+    opacity: 1;
+  }
+  74% {
+    opacity: 0.6;
+  }
+}
+
+/* 30초 중 3초만 창 안에 있다. 나머지 시간은 클립 밖에 서 있다. */
+@keyframes walk-pass {
+  0%,
+  90% {
+    transform: translateX(var(--from));
+  }
+  100% {
+    transform: translateX(var(--to));
+  }
+}
+
+@keyframes walk-step {
+  0%,
+  100% {
+    transform: rotate(26deg);
+  }
+  50% {
+    transform: rotate(-26deg);
+  }
+}
+
+@keyframes walk-step-b {
+  0%,
+  100% {
+    transform: rotate(-26deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+}
+
+/* 한 걸음에 한 번. 보폭 주기(0.92s)의 절반이라야 좌우 발마다 반동이 온다. */
+@keyframes walk-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+
+/* 대부분 화면 밖에 있다가 27초에 한 번 가로지른다. */
+@keyframes crow-cross {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translate(-10vw, 0) scale(0.8);
+  }
+  9% {
+    opacity: 0.75;
+  }
+  22% {
+    transform: translate(46vw, -3vh) scale(0.95);
+  }
+  34% {
+    opacity: 0.7;
+  }
+  40%,
+  100% {
+    opacity: 0;
+    transform: translate(112vw, -8vh) scale(1.1);
+  }
+}
+
+@keyframes ash-rise {
+  from {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  12% {
+    opacity: 0.7;
+  }
+  80% {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0;
+    transform: translate(3.5vw, -108vh);
+  }
+}
+
+/* steps(1)이라 값이 «튄다» — 부드럽게 이어지면 정전이 아니라 페이드가 된다. */
+@keyframes power-cut {
+  0%,
+  70% {
+    opacity: 0;
+  }
+  71% {
+    opacity: 0.55;
+  }
+  72% {
+    opacity: 0;
+  }
+  73% {
+    opacity: 0.42;
+  }
+  75% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes grain-jitter {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-1px, 1px);
+  }
+  50% {
+    transform: translate(1px, -1px);
+  }
+  75% {
+    transform: translate(-1px, -1px);
+  }
+  100% {
+    transform: translate(1px, 1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop__chill,
+  .backdrop__afterglow,
+  .backdrop__cloud,
+  .backdrop__far,
+  .backdrop__mid,
+  .backdrop__near,
+  .backdrop__poles,
+  .backdrop__eaves,
+  .lamp__hang,
+  .lamp__bulb,
+  .lamp__glow,
+  .pane,
+  .backdrop__haze,
+  .backdrop__mist,
+  .backdrop__grain {
+    animation: none;
+  }
+  .backdrop__crow,
+  .backdrop__flicker,
+  .walker,
+  .ash {
+    display: none;
+  }
+}
