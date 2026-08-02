@@ -1,5 +1,6 @@
 import { cardLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
+import type { CardId } from '../engine/types'
 import type { GameView, RoundView } from '../engine/view'
 
 interface Props {
@@ -7,23 +8,35 @@ interface Props {
   scenario: Scenario
 }
 
+/**
+ * 한 줄의 기록.
+ *
+ * 반증 선언은 원래 «대사»다 — 「없습니다」도 진술이고 그래서 위증이 될 수 있다(설계 §1.4.1).
+ * 그러니 화자를 떼어내 말풍선으로 세운다. 사실 서술(제안·발각·공개)은 화자 없이 지문으로 둔다.
+ */
+interface Line {
+  tone: string
+  /** 있으면 말풍선, 없으면 지문. */
+  who: string | null
+  text: string
+  mine: boolean
+}
+
 function nameOf(view: GameView, id: string): string {
   return view.players.find((p) => p.id === id)?.name ?? id
 }
 
-function lines(
-  view: GameView,
-  scenario: Scenario,
-  round: RoundView,
-): { text: string; tone: string }[] {
-  const cardName = (id: string) => cardLabel(scenario, id)
+function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
+  const label = (id: CardId) => cardLabel(scenario, id)
 
-  const out: { text: string; tone: string }[] = [
+  const out: Line[] = [
     {
       tone: 'suggest',
-      text: `${nameOf(view, round.suggesterId)}가 ${cardName(round.suggestion.suspect)} · ${cardName(
+      who: null,
+      mine: false,
+      text: `${nameOf(view, round.suggesterId)}가 ${label(round.suggestion.suspect)} · ${label(
         round.suggestion.weapon,
-      )} · ${cardName(round.suggestion.place)}를 제안했다.`,
+      )} · ${label(round.suggestion.place)}를 올렸다.`,
     },
   ]
 
@@ -32,9 +45,16 @@ function lines(
       d.claim.kind === 'refute'
         ? {
             tone: 'refute',
-            text: `${nameOf(view, d.playerId)}: "${cardName(d.claim.cardId)}로 반증합니다."`,
+            who: nameOf(view, d.playerId),
+            mine: d.playerId === view.viewerId,
+            text: `${label(d.claim.cardId)}로 반증합니다.`,
           }
-        : { tone: 'pass', text: `${nameOf(view, d.playerId)}: "없습니다."` },
+        : {
+            tone: 'pass',
+            who: nameOf(view, d.playerId),
+            mine: d.playerId === view.viewerId,
+            text: '없습니다.',
+          },
     )
   }
 
@@ -42,14 +62,18 @@ function lines(
     const { challengerId, targetId, cardId, success, reveals } = round.challenge
     out.push({
       tone: success ? 'caught' : 'failed',
+      who: null,
+      mine: false,
       text: success
-        ? `${nameOf(view, challengerId)}가 ${nameOf(view, targetId)}의 위증을 잡았다 — ${cardName(cardId)}는 자신이 갖고 있다.`
+        ? `${nameOf(view, challengerId)}가 ${nameOf(view, targetId)}의 위증을 잡았다 — ${label(cardId)}는 자신이 갖고 있다.`
         : `${nameOf(view, challengerId)}의 이의제기가 실패했다.`,
     })
     for (const r of reveals) {
       out.push({
         tone: 'reveal',
-        text: `${nameOf(view, r.playerId)}의 ${cardName(r.cardId)}가 공개됐다.`,
+        who: null,
+        mine: false,
+        text: `${nameOf(view, r.playerId)}의 ${label(r.cardId)}가 공개됐다.`,
       })
     }
   }
@@ -57,6 +81,7 @@ function lines(
   return out
 }
 
+/** 증언 기록. 이 게임에서 오가는 «말»이 전부 여기 쌓인다. */
 export default function Log({ view, scenario }: Props) {
   const rounds = [...view.rounds].reverse()
 
@@ -64,17 +89,37 @@ export default function Log({ view, scenario }: Props) {
     <ol className="log">
       {rounds.map((round) => (
         <li key={round.round} className="log__round">
-          <span className="log__num">라운드 {round.round}</span>
+          <span className="log__num">제{round.round}회 신문</span>
           <ul className="log__items">
             {lines(view, scenario, round).map((line, i) => (
-              <li key={i} className={`log__item log__item--${line.tone}`}>
-                {line.text}
+              <li
+                key={i}
+                className={[
+                  'say',
+                  `say--${line.tone}`,
+                  line.who ? '' : 'say--note',
+                  line.mine ? 'say--mine' : '',
+                ]
+                  .join(' ')
+                  .trim()}
+              >
+                {line.who ? (
+                  <>
+                    <span className="say__face">{line.who.slice(1, 2)}</span>
+                    <span className="say__body">
+                      <span className="say__who">{line.who}</span>
+                      <span className="say__bubble">{line.text}</span>
+                    </span>
+                  </>
+                ) : (
+                  line.text
+                )}
               </li>
             ))}
           </ul>
         </li>
       ))}
-      {rounds.length === 0 && <li className="log__empty">아직 기록이 없다.</li>}
+      {rounds.length === 0 && <li className="log__empty">아직 아무도 입을 열지 않았다.</li>}
     </ol>
   )
 }
