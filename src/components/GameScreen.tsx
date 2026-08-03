@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { llmDeciderForRound } from '../ai/llm-decider'
@@ -48,6 +48,20 @@ export default function GameScreen() {
   const closeOpening = useCallback(() => setOpening(false), [])
   /** 기록은 상시 옆에 두지 않는다 — 그 폭을 보드·추리표·내 패에 돌려주고, 필요할 때만 연다. */
   const [logOpen, setLogOpen] = useState(false)
+  /*
+   * 제안·반증을 제출하는 순간의 화면 전체 신호. «위증」은 남의 위증 여부를 화면이
+   * 대신 판정해 보여주면 안 된다(엔진 view.ts 주석 — isPerjury는 시야 밖이다) —
+   * 하지만 «내가 지금 내 손패에 없는 카드로 반증한다»는 나 스스로 이미 아는 사실이라,
+   * 그것만 감지해서 극적으로 띄운다. 남의 반증에는 이 판정을 절대 쓰지 않는다.
+   */
+  const [flash, setFlash] = useState<{ id: number; kind: 'suggest' | 'refute' | 'perjury' } | null>(
+    null,
+  )
+  const flashSeq = useRef(0)
+  const fireFlash = (kind: 'suggest' | 'refute' | 'perjury') => {
+    flashSeq.current += 1
+    setFlash({ id: flashSeq.current, kind })
+  }
 
   /**
    * 브리핑이 손패·진영을 보여주므로 판을 «먼저» 만들고 브리핑을 띄운다.
@@ -92,6 +106,19 @@ export default function GameScreen() {
     setPicked({})
   }
 
+  /** 반증 제출. 내 손패와 대조해 «지금 내가 거짓을 말하는지» 그 자리에서 판정한다 — 이건 남이 아니라 나만의 사실이다. */
+  const handleRefute = (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => {
+    const hand = view.players.find((p) => p.isMe)?.hand ?? []
+    const record = view.rounds[view.rounds.length - 1]
+    const suggested = record
+      ? [record.suggestion.suspect, record.suggestion.weapon, record.suggestion.place]
+      : []
+    const lying =
+      claim.kind === 'refute' ? !hand.includes(claim.cardId) : suggested.some((c) => hand.includes(c))
+    fireFlash(lying ? 'perjury' : 'refute')
+    store.declare(claim)
+  }
+
   return (
     /*
      * 덮개 두 겹은 .screen «밖»에 둔다. 안에 넣으면 게임판이 쌓임 맥락을 만들어
@@ -110,6 +137,14 @@ export default function GameScreen() {
         </div>
       )}
 
+      {flash && (
+        <div key={flash.id} className={`action-flash action-flash--${flash.kind}`} aria-hidden="true">
+          <span>
+            {flash.kind === 'suggest' ? '제안' : flash.kind === 'perjury' ? '위증!!!' : '반증합니다'}
+          </span>
+        </div>
+      )}
+
       <div
         className={`screen${opening ? ' screen--entering' : ''}${isMyTurn ? ' screen--my-turn' : ''}`}
         data-scenario={scenario.id}
@@ -121,6 +156,14 @@ export default function GameScreen() {
           <span key={view.phase} className="bar__phase">
             {PHASE_LABEL[view.phase]}
           </span>
+          {view.phase === 'suggest' && (
+            <span
+              key={view.turnIndex}
+              className={`bar__turn${isMyTurn ? ' bar__turn--mine' : ''}`}
+            >
+              {isMyTurn ? '당신의 차례' : `${participantLabel(view, view.players[view.turnIndex]?.id ?? '')}의 차례`}
+            </span>
+          )}
           <span className="bar__case">
             {scenario.hanja} · {scenario.title}
           </span>
@@ -164,12 +207,15 @@ export default function GameScreen() {
               type="button"
               className="btn btn--go"
               disabled={!toSuggestion(picked)}
-              onClick={() => submit(store.suggest)}
+              onClick={() => {
+                fireFlash('suggest')
+                submit(store.suggest)
+              }}
             >
               제안 확정
             </button>
           ) : view.phase === 'refute' ? (
-            <RefuteBar view={view} scenario={scenario} onRefute={store.declare} />
+            <RefuteBar view={view} scenario={scenario} onRefute={handleRefute} />
           ) : view.phase === 'challenge' ? (
             <ChallengeBar view={view} onChallenge={store.challenge} onPass={store.passChallenge} />
           ) : view.phase === 'accuse' ? (
