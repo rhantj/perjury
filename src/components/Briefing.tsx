@@ -6,6 +6,7 @@ import { cardLabel, suspectNameAt } from '../content/labels'
 import type { Role } from '../content/roles'
 import { ROLE_ART } from '../content/role-art'
 import { placeArtFor } from '../content/place-art'
+import { weaponArtFor } from '../content/weapon-art'
 import { SCENARIO_ART } from '../content/scenario-art'
 import { suspectArtFor } from '../content/suspect-art'
 import { cardKind } from '../engine/cards'
@@ -414,7 +415,7 @@ function HandCard({
   sealed?: boolean
 }) {
   const meta = KIND[kind]
-  const art = suspectArtFor(id) ?? placeArtFor(scenario, id)
+  const art = suspectArtFor(id) ?? placeArtFor(scenario, id) ?? weaponArtFor(scenario, id)
 
   return (
     <li
