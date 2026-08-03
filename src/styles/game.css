@@ -88,6 +88,24 @@
   color: var(--tone-key);
   border: 1px solid var(--tone-line);
   padding: 0.2rem 0.7rem;
+  /* GameScreen.tsx가 phase로 key를 걸어 매 페이즈 전환마다 새로 마운트한다. */
+  animation: phase-pop 320ms var(--ease-out-expo);
+}
+@keyframes phase-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+    border-color: var(--tone-key);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar__phase {
+    animation-duration: 0.01ms;
+  }
 }
 .bar__case {
   margin-left: auto;
@@ -308,22 +326,81 @@
   color: var(--tone-key);
 }
 .centre__claim {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-.centre__claim i {
-  font-style: normal;
-  color: var(--tone-line);
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
 }
 .centre__idle {
   font-size: 0.8rem;
   color: oklch(48% 0.012 80);
+}
+
+/* 제안이 «패로 놓인다». 텍스트 세 단어가 아니라 손패와 같은 비례의 카드 세 장이어야
+   이게 카드 게임이라는 감각이 생긴다. */
+.centre__cards {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.centre-card {
+  --tilt: 0deg;
+  position: relative;
+  width: 3.6rem;
+  aspect-ratio: 3 / 4;
+  display: grid;
+  align-items: end;
+  overflow: hidden;
+  border: 1px solid var(--tone-line);
+  border-radius: 0.16rem;
+  background: var(--tone-panel);
+  box-shadow: 0 6px 14px oklch(6% 0.02 250 / 0.55);
+  animation: centre-card-drop var(--duration-normal) var(--ease-out-expo) backwards;
+}
+.centre-card:nth-child(1) {
+  --tilt: -4deg;
+}
+.centre-card:nth-child(2) {
+  animation-delay: 90ms;
+}
+.centre-card:nth-child(3) {
+  --tilt: 4deg;
+  animation-delay: 180ms;
+}
+.centre-card__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.82) saturate(0.95);
+}
+.centre-card__name {
+  position: relative;
+  z-index: 1;
+  padding: 0.24rem 0.28rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: oklch(96% 0.01 84);
+  background: linear-gradient(0deg, oklch(8% 0.02 250 / 0.86), transparent);
+}
+@keyframes centre-card-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-0.7rem) scale(0.88) rotate(0deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(var(--tilt));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .centre-card {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+  }
 }
 
 .seat {
@@ -337,6 +414,7 @@
   background: var(--tone-panel);
   transition:
     border-color var(--duration-fast) var(--ease-in-out),
+    box-shadow var(--duration-normal) var(--ease-out-expo),
     transform var(--duration-normal) var(--ease-out-expo);
 }
 /* 지금 차례인 사람이 상 쪽으로 한 발 나온다. */
@@ -347,8 +425,10 @@
 .seat--me {
   border-color: oklch(48% 0.12 27 / 0.7);
 }
+/* 위증이 발각되는 순간이라 다른 상태 변화보다 세게 — 은은한 붉은 빛으로 잡아챈다. */
 .seat--caught {
   border-color: var(--color-seal);
+  box-shadow: 0 0 0 1px oklch(56% 0.16 27 / 0.3), 0 0 22px oklch(56% 0.16 27 / 0.28);
 }
 
 .seat__face {
@@ -383,15 +463,28 @@
   font-size: 0.84rem;
   line-height: 1.6;
   color: oklch(80% 0.02 70);
+  /* 발언이 바뀔 때마다(Table.tsx의 key) 새로 마운트돼 이 애니메이션이 다시 돈다. */
+  animation: seat-say-in var(--duration-fast) var(--ease-out-expo);
 }
 .seat__say--mute {
   color: oklch(42% 0.01 80);
+}
+@keyframes seat-say-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.3rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .seat__revealed {
   grid-column: 1 / -1;
   margin-top: 0.1rem;
   font-size: 0.72rem;
   color: oklch(66% 0.1 40);
+  animation: seat-say-in var(--duration-normal) var(--ease-out-expo);
 }
 .seat__badge {
   position: absolute;
@@ -401,6 +494,28 @@
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   color: oklch(74% 0.15 25);
+  /* revealed/badge는 조건부 렌더라 처음 나타날 때가 곧 마운트다 — key 트릭이 따로 필요 없다. */
+  animation: seat-badge-in 360ms var(--ease-out-expo);
+}
+@keyframes seat-badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  60% {
+    transform: scale(1.15) rotate(2deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seat__say,
+  .seat__revealed,
+  .seat__badge {
+    animation-duration: 0.01ms;
+  }
 }
 
 /* ---- 밀담 자리 ---- */
@@ -498,10 +613,21 @@
   font-size: 0.78rem;
   line-height: 1;
   cursor: pointer;
-  transition: border-color 120ms;
+  transition:
+    border-color 120ms,
+    background-color 120ms,
+    transform 100ms var(--ease-out-expo);
 }
 .nb__cell:hover:not(:disabled) {
   border-color: var(--color-accent);
+}
+/* 눌렀다는 감각이 있어야 종이 칸이 아니라 «누르는 버튼»으로 읽힌다. */
+.nb__cell:active:not(:disabled) {
+  transform: scale(0.85);
+}
+.nb__cell--o {
+  border-color: var(--color-accent);
+  background: oklch(30% 0.06 60 / 0.5);
 }
 .nb__cell--x {
   color: var(--color-line);

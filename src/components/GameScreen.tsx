@@ -103,7 +103,9 @@ export default function GameScreen() {
           <span className="bar__round">
             라운드 <b>{view.round}</b> / {view.totalRounds}
           </span>
-          <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
+          <span key={view.phase} className="bar__phase">
+            {PHASE_LABEL[view.phase]}
+          </span>
           <span className="bar__case">
           {scenario.hanja} · {scenario.title}
         </span>
