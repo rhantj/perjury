@@ -118,6 +118,8 @@ function Seat({
         : '“없습니다”'
       : null
 
+  const art = suspectArtFor(player.characterId)
+
   return (
     <li
       className={[
@@ -130,6 +132,10 @@ function Seat({
         .join(' ')
         .trim()}
     >
+      {/* 참가N/나로 익명화했더라도 얼굴은 있어야 «사람」으로 읽힌다 — 손패 노출과는 무관하다. */}
+      {art && <img className="seat__art" src={art} alt="" />}
+      <span className="seat__scrim" aria-hidden="true" />
+
       <span className="seat__face">{participantInitial(view, player.id)}</span>
 
       <span className="seat__id">

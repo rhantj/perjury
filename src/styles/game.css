@@ -191,7 +191,7 @@
   top: 0;
   left: 0;
   z-index: 18;
-  width: min(27rem, 92vw);
+  width: min(36rem, 94vw);
   height: 100dvh;
   overflow-y: auto;
   border-radius: 0;
@@ -220,9 +220,14 @@
   gap: 1.15rem;
   padding: 1.35rem 1.25rem 1.4rem;
   border: 1px solid oklch(48% 0.13 27 / 0.55);
-  /* 붉은 봉인선. 이 화면에서 유일하게 «남이 못 보는» 판때기다. */
+  /*
+   * 붉은 봉인선. 이 화면에서 유일하게 «남이 못 보는» 판때기다.
+   * fixed로 보드 위에 뜨는 패널이라, 그라데이션 알파값이 낮으면 뒤의 좌석·추리표가
+   * 비쳐 보여 «겹쳐 보인다»는 피드백이 났다 — 불투명한 바탕색을 맨 아래 층에 깐다.
+   */
   background:
-    linear-gradient(160deg, oklch(24% 0.04 26 / 0.5), oklch(15% 0.016 260 / 0.72));
+    linear-gradient(160deg, oklch(24% 0.04 26 / 0.7), oklch(15% 0.016 260 / 0.92)),
+    oklch(11% 0.016 260);
   box-shadow: 0 0 0 1px oklch(50% 0.14 27 / 0.14) inset;
 }
 
@@ -249,8 +254,8 @@
 
 .plate__who {
   display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
-  gap: 0.9rem;
+  grid-template-columns: 7.6rem minmax(0, 1fr);
+  gap: 1.1rem;
   align-items: start;
 }
 .plate__art {
@@ -335,7 +340,7 @@
  */
 .held {
   position: relative;
-  width: clamp(6rem, 10cqw, 8.2rem);
+  width: clamp(8rem, 14cqw, 11.5rem);
   aspect-ratio: 3 / 4;
   display: grid;
   align-items: end;
@@ -372,16 +377,16 @@
 .held__kind {
   position: relative;
   z-index: 1;
-  padding: 0.4rem 0.5rem 0;
-  font-size: 0.64rem;
+  padding: 0.5rem 0.6rem 0;
+  font-size: 0.74rem;
   letter-spacing: 0.14em;
   color: var(--color-accent);
 }
 .held__name {
   position: relative;
   z-index: 1;
-  padding: 0 0.5rem 0.42rem;
-  font-size: 1rem;
+  padding: 0 0.6rem 0.5rem;
+  font-size: 1.14rem;
   font-weight: 600;
   color: var(--color-text);
 }
@@ -555,19 +560,44 @@
   }
 }
 
+/*
+ * 좌석 카드. 네모 칸에 이름만 적으면 «명단」으로 읽힌다 — 용의자 초상(SuspectCard와
+ * 같은 소스)을 배경으로 깔고 아래에 정보를 얹어야 «사람」으로 읽힌다.
+ * 참가N/나로 익명화한 건 손패 소지를 헷갈리지 않게 하려는 것이지 얼굴을 감추자는
+ * 게 아니라, 초상은 그대로 보여준다.
+ */
 .seat {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.3rem 0.65rem;
-  padding: 0.85rem 0.9rem;
+  align-content: end;
+  gap: 0.22rem;
+  min-height: 15rem;
+  overflow: hidden;
+  padding: 0.95rem 1.05rem;
   border: 1px solid var(--tone-line);
-  border-radius: 0.18rem;
+  border-radius: 0.22rem;
   background: var(--tone-panel);
   transition:
     border-color var(--duration-fast) var(--ease-in-out),
     box-shadow var(--duration-normal) var(--ease-out-expo),
     transform var(--duration-normal) var(--ease-out-expo);
+}
+.seat__art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 24%;
+  filter: brightness(0.7) saturate(0.92);
+}
+.seat__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(0deg, oklch(6% 0.02 250 / 0.94) 0%, oklch(6% 0.02 250 / 0.25) 58%, transparent 82%);
 }
 /*
  * 지금 차례인 사람이 상 쪽으로 한 발 나오고, 테두리가 숨쉬듯 밝아졌다 어두워진다 —
@@ -632,48 +662,52 @@
 }
 
 .seat__face {
-  grid-row: 1 / span 2;
+  position: absolute;
+  top: 0.55rem;
+  left: 0.65rem;
   display: grid;
   place-items: center;
-  width: 2.4rem;
+  width: 1.75rem;
   aspect-ratio: 1;
-  border: 1px solid var(--tone-line);
+  border: 1px solid oklch(70% 0.02 80 / 0.5);
   border-radius: 0.15rem;
-  background: oklch(12% 0.014 250);
+  background: oklch(10% 0.014 250 / 0.72);
   font-family: var(--font-display);
-  font-size: 1.05rem;
-  color: oklch(80% 0.03 82);
+  font-size: 0.9rem;
+  color: oklch(90% 0.02 82);
 }
 .seat__id {
   display: grid;
 }
 .seat__name {
-  font-size: 1.02rem;
-  font-weight: 600;
-  color: var(--color-text);
+  font-size: 1.24rem;
+  font-weight: 700;
+  color: oklch(97% 0.006 84);
+  text-shadow: 0 1px 8px oklch(4% 0.01 250 / 0.85);
 }
 .seat__title {
-  margin-top: 0.1rem;
-  font-size: 0.74rem;
-  letter-spacing: 0.06em;
-  color: oklch(56% 0.012 80);
+  margin-top: 0.12rem;
+  font-size: 0.88rem;
+  letter-spacing: 0.05em;
+  color: oklch(86% 0.015 80);
+  text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
 }
 .seat__title em {
   margin-right: 0.35rem;
   font-style: normal;
-  font-size: 0.86em;
-  opacity: 0.62;
+  font-size: 0.82em;
+  opacity: 0.7;
 }
 .seat__say {
-  grid-column: 2;
-  font-size: 0.84rem;
-  line-height: 1.6;
-  color: oklch(80% 0.02 70);
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: oklch(92% 0.015 70);
+  text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
   /* 발언이 바뀔 때마다(Table.tsx의 key) 새로 마운트돼 이 애니메이션이 다시 돈다. */
   animation: seat-say-in var(--duration-fast) var(--ease-out-expo);
 }
 .seat__say--mute {
-  color: oklch(42% 0.01 80);
+  color: oklch(68% 0.01 80);
 }
 @keyframes seat-say-in {
   from {
@@ -686,10 +720,10 @@
   }
 }
 .seat__revealed {
-  grid-column: 1 / -1;
   margin-top: 0.1rem;
-  font-size: 0.72rem;
-  color: oklch(66% 0.1 40);
+  font-size: 0.78rem;
+  color: oklch(78% 0.1 40);
+  text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
   animation: seat-say-in var(--duration-normal) var(--ease-out-expo);
 }
 .seat__badge {
