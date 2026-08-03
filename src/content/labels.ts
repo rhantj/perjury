@@ -1,6 +1,6 @@
 import { cardName } from '../engine/cards'
 import type { CardId } from '../engine/types'
-import type { Scenario } from './scenarios'
+import type { Scenario, Title } from './scenarios'
 
 /**
  * 카드 «표시 이름». 엔진은 건드리지 않는다 — 카드 id도 장수도 그대로고, 화면에 쓰는 글자만 바꾼다.
@@ -43,4 +43,11 @@ export function suspectTitle(scenario: Scenario, characterId: CardId): string | 
   const index = SUSPECTS.indexOf(characterId)
   if (index < 0) return null
   return scenario.titles[index]?.ko ?? null
+}
+
+/** 직함 전체(한글·한자·한 줄 소개). 손패 카드 호버에서 «이 사람이 누구인가»를 보여주는 자리에 쓴다. */
+export function suspectTitleFull(scenario: Scenario, characterId: CardId): Title | null {
+  const index = SUSPECTS.indexOf(characterId)
+  if (index < 0) return null
+  return scenario.titles[index] ?? null
 }
