@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cardLabel } from '../content/labels'
 import { placeArtFor } from '../content/place-art'
 import { ROLE_ART } from '../content/role-art'
@@ -8,6 +10,9 @@ import { weaponArtFor } from '../content/weapon-art'
 import { cardKind } from '../engine/cards'
 import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
+
+/** 탭↔패널을 오갈 때 살짝 여유를 둬 끊기지 않게 한다. */
+const CLOSE_DELAY_MS = 150
 
 interface Props {
   view: GameView
@@ -41,18 +46,59 @@ export default function MyPlate({ view, scenario, role }: Props) {
   const solution = view.solution
   const label = (id: CardId) => cardLabel(scenario, id)
 
+  /*
+   * 상시 폭을 먹던 판때기를 탭 하나로 줄이고, 호버·포커스에서만 패널을 띄운다 —
+   * 그만큼 원탁·추리표가 커진다.
+   *
+   * 패널은 body로 포탈한다. .board > *에 z-index:1이 걸려 있어, 포탈하지 않으면
+   * .plate-flyout(그 규칙을 물려받는 MyPlate의 뿌리)이 독립된 쌓임 맥락을 만들고,
+   * 그 안에 있는 position:fixed 패널은 z-index를 아무리 올려도 그 맥락 밖으로
+   *못 나간다 — DOM 순서상 뒤에 오는 원탁·추리표(둘 다 z-index:1)에 가려
+   * 완전히 안 보이게 된다. Opening·Verdict·LogDrawer와 같은 이유의 같은 처방이다.
+   *
+   * 포탈하면 CSS만으로 :hover가 안 이어지므로(패널이 더 이상 탭의 DOM 자손이
+   * 아니다) 호버 상태를 JS로 들고, 탭↔패널 사이를 오갈 때 끊기지 않게 살짝
+   * 닫힘을 지연시킨다.
+   */
+  const [open, setOpen] = useState(false)
+  const closeTimer = useRef<number | null>(null)
+
+  const cancelClose = () => {
+    if (closeTimer.current === null) return
+    window.clearTimeout(closeTimer.current)
+    closeTimer.current = null
+  }
+  const openNow = () => {
+    cancelClose()
+    setOpen(true)
+  }
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimer.current = window.setTimeout(() => setOpen(false), CLOSE_DELAY_MS)
+  }
+
   return (
-    /*
-     * 상시 폭을 먹던 판때기를 탭 하나로 줄이고, 호버·포커스에서만 패널로 펼친다 —
-     * 그만큼 원탁·추리표가 커진다. 탭과 패널이 같은 wrapper의 자식이라
-     * 순수 CSS :hover/:focus-within만으로 열고 닫힌다(둘 사이를 오갈 때 끊기지 않는다).
-     */
     <div className="plate-flyout">
-      <button type="button" className="plate-flyout__tab" aria-label="나만 보는 패 열기">
+      <button
+        type="button"
+        className="plate-flyout__tab"
+        aria-label="나만 보는 패 열기"
+        onMouseEnter={openNow}
+        onMouseLeave={scheduleClose}
+        onFocus={openNow}
+        onBlur={scheduleClose}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span>密 나만 보는 패</span>
       </button>
 
-      <aside className={`plate plate-flyout__panel plate--${culprit ? 'culprit' : 'citizen'}`}>
+      {open &&
+        createPortal(
+          <aside
+            className={`plate plate-flyout__panel plate--${culprit ? 'culprit' : 'citizen'}`}
+            onMouseEnter={openNow}
+            onMouseLeave={scheduleClose}
+          >
       <header className="plate__head">
         <span className="plate__kicker">密 · 나만 보는 패</span>
         <span className="plate__faction">{culprit ? '범인' : '시민'}</span>
@@ -105,7 +151,9 @@ export default function MyPlate({ view, scenario, role }: Props) {
           </ul>
         </section>
       )}
-      </aside>
+          </aside>,
+          document.body,
+        )}
     </div>
   )
 }
