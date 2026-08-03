@@ -9,7 +9,7 @@ import { placeArtFor } from '../content/place-art'
 import { weaponArtFor } from '../content/weapon-art'
 import { SCENARIO_ART } from '../content/scenario-art'
 import { suspectArtFor } from '../content/suspect-art'
-import { cardKind } from '../engine/cards'
+import { cardKind, cardName } from '../engine/cards'
 import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
 import SuspectCard, { NUMERALS } from './SuspectCard'
@@ -306,8 +306,11 @@ function RoleAct({
   onEnter: () => void
   onBack: () => void
 }) {
-  const hand = view.players.find((p) => p.isMe)?.hand ?? []
+  const me = view.players.find((p) => p.isMe)
+  const hand = me?.hand ?? []
   const solution = view.solution
+  /* 조서에서 소개만 받고 착석 전엔 «내가 여섯 중 누구인지» 끝내 안 알려줬다는 피드백 — 여기서 밝힌다. */
+  const myTitle = me ? suspectTitleFull(scenario, me.characterId) : null
 
   return (
     /*
@@ -323,6 +326,17 @@ function RoleAct({
 
         <p className="role__label">당신은</p>
         <h1 className="role__faction">{culprit ? '범인' : '시민'}</h1>
+        {me && (
+          <p className="role__identity">
+            <strong>{cardName(me.characterId)}</strong>
+            {myTitle && (
+              <span className="role__identity-title">
+                <em>이 사건 속</em>
+                {myTitle.ko}
+              </span>
+            )}
+          </p>
+        )}
         <p className="role__desc">
           {culprit
             ? '고발을 틀리게 만들어라. 세 칸 중 하나만 오염시키면 이긴다.'
