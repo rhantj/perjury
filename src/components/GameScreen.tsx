@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { cardLabel } from '../content/labels'
+import { cardLabel, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -278,7 +278,7 @@ function ChallengeBar({
             className={`btn${provable ? ' btn--held' : ''}`}
             onClick={() => onChallenge(d.playerId)}
           >
-            {view.players.find((p) => p.id === d.playerId)?.name} 위증
+            {participantLabel(view, d.playerId)} 위증
             {provable && <small>증명 가능</small>}
           </button>
         )

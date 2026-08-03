@@ -1,4 +1,4 @@
-import { cardLabel, suspectTitle } from '../content/labels'
+import { cardLabel, participantInitial, participantLabel, suspectTitle } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
@@ -27,6 +27,7 @@ export default function Table({ view, scenario }: Props) {
   const seat = (player: PlayerView, slot: string) => (
     <Seat
       key={player.id}
+      view={view}
       player={player}
       slot={slot}
       live={live}
@@ -44,9 +45,7 @@ export default function Table({ view, scenario }: Props) {
       <li className="seats__centre">
         {live ? (
           <>
-            <span className="centre__by">
-              {view.players.find((p) => p.id === live.suggesterId)?.name}의 제안
-            </span>
+            <span className="centre__by">{participantLabel(view, live.suggesterId)}의 제안</span>
             <span className="centre__claim">
               <b>{label(live.suggestion.suspect)}</b>
               <i>·</i>
@@ -66,6 +65,7 @@ export default function Table({ view, scenario }: Props) {
 }
 
 function Seat({
+  view,
   player,
   slot,
   live,
@@ -73,6 +73,7 @@ function Seat({
   scenario,
   label,
 }: {
+  view: GameView
   player: PlayerView
   slot: string
   live: RoundView | null
@@ -104,13 +105,10 @@ function Seat({
         .join(' ')
         .trim()}
     >
-      <span className="seat__face">{player.name.slice(1, 2)}</span>
+      <span className="seat__face">{participantInitial(view, player.id)}</span>
 
       <span className="seat__id">
-        <span className="seat__name">
-          {player.name}
-          {player.isMe && <em>나</em>}
-        </span>
+        <span className="seat__name">{participantLabel(view, player.id)}</span>
         <span className="seat__title">{suspectTitle(scenario, player.characterId)}</span>
       </span>
 

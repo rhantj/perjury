@@ -372,13 +372,6 @@
   font-weight: 600;
   color: var(--color-text);
 }
-.seat__name em {
-  margin-left: 0.3rem;
-  font-size: 0.6rem;
-  font-style: normal;
-  letter-spacing: 0.1em;
-  color: var(--color-seal);
-}
 .seat__title {
   margin-top: 0.1rem;
   font-size: 0.74rem;
@@ -603,6 +596,29 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.45rem;
   align-items: start;
+  /*
+   * 반증·이의제기로 배열에 새 줄이 붙을 때만 이 줄이 새로 마운트된다(키가 인덱스라도
+   * 항상 끝에 추가되므로 기존 줄은 재마운트되지 않는다) — 그래서 그냥 mount 애니메이션으로
+   * 충분하다. 착석 컷의 board-rise처럼 paused로 묶어 둘 필요가 없다.
+   */
+  animation: say-in var(--duration-normal) var(--ease-out-expo);
+}
+
+@keyframes say-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.45rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .say {
+    animation-duration: 0.01ms;
+  }
 }
 
 .say__face {
