@@ -15,6 +15,30 @@ const KIND_LABEL: Record<CardKind, string> = {
 type Mark = '' | 'o' | 'x' | '?'
 const NEXT_MARK: Record<Mark, Mark> = { '': 'o', o: 'x', x: '?', '?': '' }
 
+/*
+ * ●/×/? 세 기호만으로는 눌러보기 전엔 무슨 뜻인지 안 읽힌다는 피드백 — 글자 대신
+ * 뜻이 바로 보이는 아이콘으로 바꾸고, 클래스명도 CSS 선택자에 못 쓰는 «?» 대신
+ * 안전한 영문 접미사(suspect)를 쓴다.
+ */
+const MARK_INFO: Record<Mark, { glyph: string; className: string; title: string }> = {
+  '': { glyph: '', className: 'blank', title: '미확인 — 눌러서 «있음»으로 표시한다' },
+  o: {
+    glyph: '✓',
+    className: 'o',
+    title: '있음 — 이 사람이 이 카드를 쥐고 있다는 표시다. 눌러서 «없음»으로 바뀐다',
+  },
+  x: {
+    glyph: '✕',
+    className: 'x',
+    title: '없음 — 이 사람에게 이 카드가 없다는 표시다. 눌러서 «의심»으로 바뀐다',
+  },
+  '?': {
+    glyph: '?',
+    className: 'suspect',
+    title: '의심 — 확실친 않지만 의심된다는 표시다. 눌러서 지운다',
+  },
+}
+
 interface Props {
   view: GameView
   scenario: Scenario
@@ -108,17 +132,22 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                   const known =
                     (player.isMe && myHand.includes(card.id)) || player.revealed.includes(card.id)
                   const mark = known ? 'o' : (marks[`${card.id}:${player.id}`] ?? '')
+                  const info = MARK_INFO[mark]
+                  const title = known
+                    ? '확정됨 — 실제로 보유가 확인된 카드다. 바꿀 수 없다'
+                    : info.title
 
                   return (
                     <td key={player.id} className={isNewGroup ? 'nb__cell-top' : undefined}>
                       <button
                         type="button"
-                        className={`nb__cell nb__cell--${mark || 'blank'}${known ? ' nb__cell--fixed' : ''}`}
+                        className={`nb__cell nb__cell--${info.className}${known ? ' nb__cell--fixed' : ''}`}
                         disabled={known}
                         onClick={() => toggle(card.id, player.id)}
-                        aria-label={`${label(card.id)} / ${participantLabel(view, player.id)}`}
+                        title={title}
+                        aria-label={`${label(card.id)} / ${participantLabel(view, player.id)} — ${title}`}
                       >
-                        {mark === 'o' ? '●' : mark === 'x' ? '×' : mark}
+                        {info.glyph}
                       </button>
                     </td>
                   )
@@ -136,7 +165,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
       <p className="nb__hint">
         {picking
           ? '카드 이름을 눌러 범인·수단·장소를 하나씩 고른다.'
-          : '칸을 눌러 ● 있음 → × 없음 → ? 의심 순으로 바꾼다. 확정된 칸은 잠긴다.'}
+          : '칸을 눌러 ✓ 있음 → ✕ 없음 → ? 의심 순으로 바꾼다. 칸에 커서를 올리면 뜻이 뜬다. 확정된 칸은 잠긴다.'}
       </p>
     </div>
   )
