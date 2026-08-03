@@ -655,7 +655,7 @@
   position: relative;
   display: block;
   /* cqw — duty의 실제 그리드 열 폭을 따른다. vw만 쓰면 옆 칸(손패)이 얼마나 남았는지 모르고 커진다. */
-  width: clamp(7rem, 34cqw, 15rem);
+  width: clamp(8rem, 38cqw, 18rem);
   aspect-ratio: 340 / 475;
   overflow: hidden;
   border-radius: 0.12rem;
@@ -687,7 +687,7 @@
   display: grid;
   gap: 0.2rem;
   min-width: 0;
-  max-width: clamp(7rem, 36cqw, 14rem);
+  max-width: clamp(7rem, 38cqw, 16rem);
 }
 .duty__kicker {
   font-family: var(--font-display);
@@ -804,7 +804,7 @@
   grid-template-rows: auto 1fr auto;
   justify-items: center;
   /* cqw — slip의 실제 폭을 따른다. 카드 두 장이 한 줄에 나란히 들어가는 몫으로 잡는다. */
-  width: clamp(6rem, 46cqw, 12rem);
+  width: clamp(7rem, 46cqw, 14rem);
   aspect-ratio: 3 / 4;
   padding: 0.85rem 0.65rem 0.7rem;
   border: 1px solid oklch(52% 0.05 78 / 0.55);
