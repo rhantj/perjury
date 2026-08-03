@@ -716,11 +716,19 @@
   text-shadow: 0 1px 8px oklch(4% 0.01 250 / 0.85);
 }
 .seat__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem;
   margin-top: 0.12rem;
   font-size: 0.88rem;
   letter-spacing: 0.05em;
   color: oklch(86% 0.015 80);
   text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
+}
+.seat__title-name {
+  font-weight: 700;
+  color: oklch(96% 0.01 84);
 }
 .seat__title em {
   margin-right: 0.35rem;
@@ -923,6 +931,8 @@
   font-size: 0.84rem;
   line-height: 1.6;
   color: var(--color-muted);
+  /* Notebook.tsx가 pickGuide 문구로 key를 걸어, 단계가 넘어갈 때마다 다시 마운트된다. */
+  animation: nb-warning-in 220ms var(--ease-out-expo);
 }
 .nb__warning {
   margin: 0.8rem 0 0;
