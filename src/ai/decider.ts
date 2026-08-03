@@ -7,6 +7,12 @@ import type { GameView } from '../engine/view'
  * 입력이 GameView 하나로 고정된 것이 이 인터페이스의 핵심이다.
  * viewFor()가 seed·정답·남의 손패·isPerjury를 이미 뺐으므로,
  * 구현체가 무엇이든 전지적 정보를 받을 통로가 없다.
+ *
+ * 계약: **하나의 인스턴스가 여러 좌석을 대행한다.** flow.ts는 반증·이의제기 페이즈에서
+ * 같은 Decider 인스턴스에 6개 좌석의 서로 다른 GameView를 차례로 먹인다. 따라서
+ * 구현체는 호출 사이에 상태를 들고 있으면 안 된다 — 대화 이력이나 캐시를 인스턴스에
+ * 두면 한 좌석의 손패가 다른 좌석의 판단에 새어 든다. 입력이 GameView 하나인 것은
+ * *입력* 격리를 보장할 뿐 *인스턴스* 격리를 보장하지 않는다.
  */
 export interface Decider {
   chooseSuggestion(view: GameView): Promise<Suggestion>

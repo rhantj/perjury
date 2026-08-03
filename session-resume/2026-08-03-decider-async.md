@@ -45,14 +45,24 @@ fallbackRound: boolean  // 이번 라운드가 규칙 기반 폴백으로 떨어
 
 `gameId`와 `deciderForRound`는 store 지역 변수라 계약에 없다. 화면이 알 필요가 없다.
 
-**`fallbackRound`는 A 단계에서 항상 `false`다.** LLM Decider가 없어 넘어질 대상이 없다. 필드와
-전달 경로만 미리 뚫었다 — C에서 store를 다시 고치지 않아도 되게 하려는 것이다.
+**전달 경로는 실제로 존재한다.** `store.start()`가 `makeDeciders`로 고른 팩토리를 그대로 쓰지
+않고 `createRoundFallback`으로 직접 감싸며, `onFallback` 콜백이 `fallbackRound`를 `true`로
+만든다(`src/store/game.ts`). 임의의 팩토리를 꽂아도 규칙 기반 폴백이 자동으로 붙는다 — 절대
+규칙 4를 "C 단계 작성자가 잊지 않는다"는 관례가 아니라 store 구조로 만든 지점이다.
 
-### (3) 컴포넌트는 한 줄도 안 바뀌었다
+**그런데도 `fallbackRound`는 A 단계에서 항상 `false`다.** 경로가 없어서가 아니라, 지금 꽂힌
+규칙 Decider(`createRuleDecider`)가 절대 던지지 않아서다. 넘어질 일이 없으니 넘어졌다는
+표시도 뜨지 않는다. C 단계에서 LLM Decider가 예외를 던지면 그때 `true`가 뜬다.
+
+### (3) 컴포넌트는 한 줄도 안 바뀌었다 — 그리고 그만큼 잠금도 표시도 없다
 
 `start`·`suggest`·`declare`·`challenge`·`passChallenge`·`accuse`가 전부 `Promise<void>`를
-반환하지만, `GameScreen.tsx`를 포함해 컴포넌트가 반환값을 쓰지 않는다. 조작 잠금은 이미
-`awaitingHuman()`(`aiThinking`이면 `false`를 반환)이 처리하므로 그대로 동작한다.
+반환하지만, `GameScreen.tsx`를 포함해 컴포넌트가 반환값을 쓰지 않는다. **다만 조작 잠금도
+화면에는 없다.** `awaitingHuman()`이 `aiThinking` 중 `false`를 돌려주는 배선은 store 쪽에만
+있고, 그것을 읽어 버튼을 비활성화하는 코드는 없다(위 (1) 참고). A 단계에서는 규칙 Decider가
+마이크로태스크 안에서 끝나 사람 입력으로는 가드에 도달조차 하지 않지만, C 단계에서 LLM이
+붙으면 1~5초 창이 생겨 버튼이 살아 있는 채로 클릭이 삼켜진다. **비활성화와 대기 표시 둘 다
+B가 넣어야 한다.**
 
 ### (4) `start`에 3번째 인수가 생겼다
 
@@ -112,9 +122,10 @@ npm run typecheck && npx vitest run
 
 ## 팀에 전달
 
-- **B가 지금 할 일은 화면 코드 수정이 아니라 표시 추가다.** 계약(액션 시그니처, `awaitingHuman()`
-  동작)은 안 바뀌었으므로 기존 컴포넌트는 그대로 쓰면 된다. `aiThinking`·`fallbackRound` 두
-  값만 읽어서 그리면 된다 — 위 (1)(2) 참고.
+- **B가 지금 할 일은 표시만이 아니라 잠금까지다.** 액션 시그니처는 안 바뀌었으므로 기존
+  컴포넌트를 갈아엎을 필요는 없지만, `aiThinking`을 읽어 버튼을 실제로 비활성화하는 코드가
+  지금 하나도 없다(위 (1)(3) 참고). `aiThinking`·`fallbackRound` 두 값을 읽어서 대기 표시와
+  조작 잠금을 함께 그려야 한다.
 - **`fallbackRound`는 지금 배너를 만들어도 절대 안 보인다.** A 단계엔 넘어질 대상(LLM)이 없다.
   안 보인다고 배선이 잘못된 게 아니다. C 단계에서 `true`가 뜨는 걸 보면 그때 확인된다.
   스타일만 미리 확인하고 싶으면 커밋하지 않을 로컬 임시 코드로 `fallbackRound: true`를

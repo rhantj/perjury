@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import { perRound } from '../ai/decider'
+import { createRoundFallback, perRound } from '../ai/decider'
 import type { DeciderForRound } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
-import { ruleDeciderForRound } from '../ai/rule-decider'
+import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
@@ -125,7 +125,19 @@ export const useGame = create<GameStore>((set, get) => {
     start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
       gameId += 1
       const myGameId = gameId
-      deciderForRound = perRound(makeDeciders(seed))
+      const chosen = makeDeciders(seed)
+
+      /**
+       * 어떤 팩토리를 꽂아도 규칙 기반 폴백이 붙는다.
+       * 절대 규칙 4(폴백 경로를 깨지 않는다)를 관례가 아니라 구조로 만드는 지점이다.
+       * 라운드마다 새 래퍼가 만들어지므로 "이 라운드는 넘어졌다"는 표시도 라운드 경계에서 지워진다.
+       */
+      deciderForRound = perRound((round) => {
+        set({ fallbackRound: false })
+        return createRoundFallback(chosen(round), createRuleDecider(seed), () =>
+          set({ fallbackRound: true }),
+        )
+      })
 
       const initial = createGame({ seed, humanIndex })
       set({ state: initial, error: null, aiThinking: true, fallbackRound: false })
