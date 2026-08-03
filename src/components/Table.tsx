@@ -128,7 +128,14 @@ function Seat({
 
       <span className="seat__id">
         <span className="seat__name">{participantLabel(view, player.id)}</span>
-        <span className="seat__title">{suspectTitle(scenario, player.characterId)}</span>
+        {/*
+          직업(검시관·순사 등 마피아 능력)과 헷갈리기 쉽다 — 이건 능력이 아니라
+          이 사건 속에서 이 좌석이 맡은 배역(장남·안주인 등)이다. 접두어로 구분한다.
+        */}
+        <span className="seat__title">
+          <em>이 사건 속</em>
+          {suspectTitle(scenario, player.characterId)}
+        </span>
       </span>
 
       {/*

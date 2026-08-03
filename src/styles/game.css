@@ -1,16 +1,17 @@
 /*
- * 게임판. 세 단이다 — 내 패(비공개) · 원탁(공개) · 증언(기록).
- * 이 셋이 곧 이 게임의 정보 구조라, 화면이 그대로 그것을 비춘다.
+ * 게임판. 내 패(비공개) · 원탁(공개) 두 단만 상시 차지한다. 증언(기록)은 항상 옆에
+ * 붙어 있던 세 번째 단이었지만, 그 18~22rem을 상시 점유하는 대신 팝업으로 빼서
+ * 보드·추리표·내 패가 그만큼 커지게 했다 — «다 너무 작다»는 피드백의 근본 원인이 폭이었다.
  */
 .screen {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    'bar bar'
-    'board side'
-    'actions actions';
+    'bar'
+    'board'
+    'actions';
   background: var(--tone-bg, var(--color-bg));
   word-break: keep-all;
 }
@@ -119,9 +120,9 @@
 .board {
   grid-area: board;
   display: grid;
-  grid-template-columns: minmax(12rem, 14rem) minmax(0, 1fr) minmax(19rem, 23rem);
-  gap: 1.15rem;
-  padding: 1.35rem 1.15rem 1.35rem 1.5rem;
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr) minmax(25rem, 32rem);
+  gap: 1.5rem;
+  padding: 1.5rem 1.6rem;
   align-items: start;
   position: relative;
 }
@@ -149,8 +150,8 @@
 .plate {
   position: relative;
   display: grid;
-  gap: 0.95rem;
-  padding: 1.1rem 1rem 1.15rem;
+  gap: 1.15rem;
+  padding: 1.35rem 1.25rem 1.4rem;
   border: 1px solid oklch(48% 0.13 27 / 0.55);
   border-radius: 0.2rem;
   /* 붉은 봉인선. 이 화면에서 유일하게 «남이 못 보는» 판때기다. */
@@ -171,7 +172,7 @@
 }
 .plate__faction {
   font-family: var(--font-display);
-  font-size: 1.9rem;
+  font-size: 2.3rem;
   font-weight: 700;
   line-height: 1;
   color: oklch(94% 0.008 84);
@@ -182,19 +183,19 @@
 
 .plate__who {
   display: grid;
-  grid-template-columns: 4.4rem minmax(0, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 0.9rem;
   align-items: start;
 }
 .plate__art {
   width: 100%;
   height: auto;
-  border-radius: 0.1rem;
+  border-radius: 0.14rem;
   filter: brightness(0.9) saturate(0.94);
 }
 .plate__duty {
   display: grid;
-  gap: 0.16rem;
+  gap: 0.22rem;
   min-width: 0;
 }
 /*
@@ -209,12 +210,12 @@
   gap: 0.32rem;
   min-width: 0;
   font-family: var(--font-display);
-  font-size: 1.14rem;
+  font-size: 1.36rem;
   font-weight: 700;
   color: var(--color-text);
 }
 .plate__role em {
-  font-size: 0.66em;
+  font-size: 0.62em;
   font-style: normal;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -222,7 +223,7 @@
 }
 .plate__power {
   margin-top: 0.1rem;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   line-height: 1.65;
   color: oklch(72% 0.01 80);
 }
@@ -237,17 +238,22 @@
   padding: 0.12rem 0.4rem;
 }
 
+.plate__cards {
+  /* .held의 clamp(...,10cqw,...)가 이 폭을 기준으로 삼는다. */
+  container-type: inline-size;
+}
 .plate__cards ul {
-  display: grid;
-  gap: 0.28rem;
-  margin: 0.3rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.4rem 0 0;
   padding: 0;
   list-style: none;
 }
 .plate__label {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.22em;
   color: oklch(56% 0.012 80);
@@ -256,26 +262,80 @@
   color: oklch(64% 0.14 27);
 }
 
+/*
+ * 손패 카드. Briefing의 HandCard와 같은 언어를 쓴다 — 사진이 기본으로 보이고,
+ * 호버·포커스에서 어두워지며 이름표가 뜬다. 판이 도는 내내 보이는 화면이라도
+ * 시각 언어가 브리핑과 달라지면 «다른 카드»로 읽힌다.
+ */
 .held {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.42rem 0.6rem;
-  border-left: 2px solid oklch(46% 0.05 76 / 0.7);
+  position: relative;
+  width: clamp(6rem, 10cqw, 8.2rem);
+  aspect-ratio: 3 / 4;
+  display: grid;
+  align-items: end;
+  overflow: hidden;
+  border: 1px solid oklch(46% 0.05 76 / 0.7);
+  border-radius: 0.16rem;
   background: oklch(22% 0.014 60 / 0.6);
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+.held__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.82) saturate(0.92);
+  transition: filter var(--duration-normal) var(--ease-in-out);
+}
+.held__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, oklch(6% 0.02 250 / 0.92) 0%, transparent 62%);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-in-out);
+}
+.held:hover .held__art,
+.held:focus-within .held__art {
+  filter: brightness(0.5) saturate(0.8);
+}
+.held:hover .held__scrim,
+.held:focus-within .held__scrim {
+  opacity: 1;
 }
 .held__kind {
-  font-size: 0.62rem;
+  position: relative;
+  z-index: 1;
+  padding: 0.4rem 0.5rem 0;
+  font-size: 0.64rem;
   letter-spacing: 0.14em;
   color: var(--color-accent);
 }
 .held__name {
-  font-size: 0.98rem;
+  position: relative;
+  z-index: 1;
+  padding: 0 0.5rem 0.42rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--color-text);
 }
+.held--has-art .held__kind,
+.held--has-art .held__name {
+  opacity: 0;
+  transform: translateY(0.25rem);
+  transition:
+    opacity var(--duration-normal) var(--ease-in-out),
+    transform var(--duration-normal) var(--ease-out-expo);
+}
+.held--has-art:hover .held__kind,
+.held--has-art:hover .held__name,
+.held--has-art:focus-within .held__kind,
+.held--has-art:focus-within .held__name {
+  opacity: 1;
+  transform: translateY(0);
+}
 .held--sealed {
-  border-left-color: var(--color-seal);
+  border-color: var(--color-seal);
   background: oklch(24% 0.05 28 / 0.55);
 }
 .held--sealed .held__kind {
@@ -283,6 +343,13 @@
 }
 .held--sealed .held__name {
   color: oklch(90% 0.05 30);
+}
+@media (prefers-reduced-motion: reduce) {
+  .held--has-art .held__kind,
+  .held--has-art .held__name {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---- 원탁 ---- */
@@ -506,6 +573,12 @@
   letter-spacing: 0.06em;
   color: oklch(56% 0.012 80);
 }
+.seat__title em {
+  margin-right: 0.35rem;
+  font-style: normal;
+  font-size: 0.86em;
+  opacity: 0.62;
+}
 .seat__say {
   grid-column: 2;
   font-size: 0.84rem;
@@ -593,23 +666,23 @@
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: 0.55rem;
-  padding: 0.9rem;
+  padding: 1.15rem;
   font-size: 0.9rem;
 }
 .nb__table {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.75rem;
+  font-size: 0.86rem;
 }
 .nb__corner {
-  width: 7.5rem;
+  width: 8.4rem;
 }
 .nb__head {
   font-weight: 500;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   color: var(--color-muted);
-  padding-bottom: 0.35rem;
+  padding-bottom: 0.5rem;
 }
 .nb__head--me {
   color: var(--color-accent);
@@ -653,12 +726,12 @@
 }
 .nb__cell {
   width: 100%;
-  height: 1.65rem;
+  height: 1.95rem;
   border: 1px solid var(--color-line);
   background: var(--color-bg);
   color: var(--color-text);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   line-height: 1;
   cursor: pointer;
   transition:
@@ -708,27 +781,124 @@
   }
 }
 
-/* ---- 증언 ---- */
-.side {
-  grid-area: side;
-  align-self: stretch;
-  margin: 1rem 1.25rem 1rem 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.6rem;
-  max-height: calc(100dvh - 9rem);
-  padding: 0.9rem 0.9rem 0.6rem;
+/* ---- 증언(기록) 여는 단추 ---- */
+.bar__log-toggle {
+  margin-left: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  color: oklch(80% 0.02 80);
   border: 1px solid var(--tone-line);
   border-radius: 0.2rem;
-  background: var(--tone-panel);
+  padding: 0.28rem 0.7rem;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-in-out),
+    color var(--duration-fast) var(--ease-in-out);
 }
-.side__title {
+.bar__log-toggle:hover,
+.bar__log-toggle:focus-visible {
+  border-color: var(--tone-key);
+  color: var(--tone-key);
+}
+.bar__log-toggle em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--tone-key);
+  border: 1px solid var(--tone-key);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+}
+
+/* ---- 증언(기록) 팝업 ---- */
+.log-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  justify-items: end;
+}
+.log-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: oklch(6% 0.014 250 / 0.68);
+  cursor: pointer;
+  animation: log-drawer-dim var(--duration-normal) var(--ease-out-expo);
+}
+.log-drawer__panel {
+  position: relative;
+  width: min(30rem, 92vw);
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 1.2rem 1.3rem;
+  border-left: 1px solid var(--tone-line);
+  background: var(--tone-panel, var(--color-surface));
+  background-color: oklch(13% 0.018 260 / 0.98);
+  box-shadow: -18px 0 40px oklch(4% 0.01 250 / 0.5);
+  animation: log-drawer-in var(--duration-normal) var(--ease-out-expo);
+}
+.log-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.log-drawer__head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  color: oklch(58% 0.012 80);
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
+  color: oklch(90% 0.01 84);
+}
+.log-drawer__close {
+  border: 1px solid var(--tone-line);
+  border-radius: 0.2rem;
+  background: transparent;
+  color: oklch(70% 0.012 80);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+.log-drawer__close:hover,
+.log-drawer__close:focus-visible {
+  border-color: var(--color-seal);
+  color: var(--color-seal);
+}
+.log-drawer .log {
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+@keyframes log-drawer-dim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes log-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .log-drawer__backdrop,
+  .log-drawer__panel {
+    animation-duration: 0.01ms;
+  }
 }
 
 .log,
@@ -1021,20 +1191,11 @@
 
 /* ---- 좁은 화면 ---- */
 @media (max-width: 78rem) {
-  .screen {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      'bar'
-      'board'
-      'side'
-      'actions';
-  }
   .board {
     grid-template-columns: 1fr;
   }
-  .side {
-    margin: 0 1.25rem 1rem;
-    max-height: 24rem;
+  .log-drawer__panel {
+    width: 100vw;
   }
 }
 
@@ -1280,31 +1441,25 @@
 }
 .screen > .bar,
 .screen > .board,
-.screen > .side,
 .screen > .actions {
   animation: board-rise var(--duration-slow) var(--ease-out-expo) both;
   animation-play-state: paused;
 }
 .screen:not(.screen--entering) > .bar,
 .screen:not(.screen--entering) > .board,
-.screen:not(.screen--entering) > .side,
 .screen:not(.screen--entering) > .actions {
   animation-play-state: running;
 }
 .screen > .board {
   animation-delay: 90ms;
 }
-.screen > .side {
-  animation-delay: 170ms;
-}
 .screen > .actions {
-  animation-delay: 240ms;
+  animation-delay: 170ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .screen > .bar,
   .screen > .board,
-  .screen > .side,
   .screen > .actions {
     animation-duration: 0.01ms;
     animation-delay: 0ms;

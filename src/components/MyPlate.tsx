@@ -1,7 +1,10 @@
 import { cardLabel } from '../content/labels'
+import { placeArtFor } from '../content/place-art'
 import { ROLE_ART } from '../content/role-art'
 import type { Role } from '../content/roles'
 import type { Scenario } from '../content/scenarios'
+import { suspectArtFor } from '../content/suspect-art'
+import { weaponArtFor } from '../content/weapon-art'
 import { cardKind } from '../engine/cards'
 import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -16,6 +19,11 @@ const KIND_LABEL: Record<CardKind, string> = {
   suspect: '용의자',
   weapon: '수단',
   place: '장소',
+}
+
+/** 손패 카드 사진. Briefing의 HandCard와 같은 소스를 쓴다 — 게임 내내 같은 카드로 읽혀야 한다. */
+function artFor(scenario: Scenario, id: CardId): string | undefined {
+  return suspectArtFor(id) ?? placeArtFor(scenario, id) ?? weaponArtFor(scenario, id)
 }
 
 /**
@@ -55,12 +63,17 @@ export default function MyPlate({ view, scenario, role }: Props) {
       <section className="plate__cards">
         <h2 className="plate__label">손패</h2>
         <ul>
-          {hand.map((id) => (
-            <li key={id} className={`held held--${cardKind(id)}`}>
-              <span className="held__kind">{KIND_LABEL[cardKind(id)]}</span>
-              <span className="held__name">{label(id)}</span>
-            </li>
-          ))}
+          {hand.map((id) => {
+            const art = artFor(scenario, id)
+            return (
+              <li key={id} className={`held held--${cardKind(id)}${art ? ' held--has-art' : ''}`}>
+                {art && <img className="held__art" src={art} alt="" />}
+                <span className="held__scrim" aria-hidden="true" />
+                <span className="held__kind">{KIND_LABEL[cardKind(id)]}</span>
+                <span className="held__name">{label(id)}</span>
+              </li>
+            )
+          })}
         </ul>
       </section>
 
@@ -68,12 +81,17 @@ export default function MyPlate({ view, scenario, role }: Props) {
         <section className="plate__cards plate__cards--sealed">
           <h2 className="plate__label">봉인된 정답</h2>
           <ul>
-            {[solution.suspect, solution.weapon, solution.place].map((id) => (
-              <li key={id} className="held held--sealed">
-                <span className="held__kind">{KIND_LABEL[cardKind(id)]}</span>
-                <span className="held__name">{label(id)}</span>
-              </li>
-            ))}
+            {[solution.suspect, solution.weapon, solution.place].map((id) => {
+              const art = artFor(scenario, id)
+              return (
+                <li key={id} className={`held held--sealed${art ? ' held--has-art' : ''}`}>
+                  {art && <img className="held__art" src={art} alt="" />}
+                  <span className="held__scrim" aria-hidden="true" />
+                  <span className="held__kind">{KIND_LABEL[cardKind(id)]}</span>
+                  <span className="held__name">{label(id)}</span>
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}
