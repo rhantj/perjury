@@ -180,9 +180,10 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
 // 스텝 하나는 Decider 인스턴스를 그대로 받는다. 라운드 경계를 모른다.
 ```
 
-store가 `deciderForRound`를 소유한다. A 단계에서는 `() => createRuleDecider(seed)` 하나뿐이고,
-C 단계에서 `() => createRoundFallback(createLlmDecider(...), createRuleDecider(seed))`로 바뀐다.
-**flow와 store의 시그니처는 그때 바뀌지 않는다.**
+store가 `deciderForRound`를 소유한다. store의 `start()`가 `makeDeciders(seed)`로 고른 팩토리를
+**항상** `createRoundFallback(chosen(round), createRuleDecider(seed), onFallback)`으로 감싸
+넘긴다 — A 단계부터 이미 그렇다. C 단계에서 `makeDeciders`에 LLM 팩토리를 꽂아도 이 감싸는
+지점은 그대로다. **flow와 store의 시그니처는 그때 바뀌지 않는다.**
 
 ### 5.2 반증이 `Promise.all`인 이유
 
@@ -218,14 +219,16 @@ export function createRoundFallback(preferred: Decider, fallback: Decider): Deci
 
 ### 6.2 A 단계에서의 상태
 
-`preferred`가 아직 없다. **`rule-decider` 하나만 두고, `createRoundFallback`은 인터페이스와 테스트만 갖춘다.**
-LLM Decider는 B·C에서 꽂는다. 지금 LLM 클라이언트 스텁을 만들지 않는다 — YAGNI.
+LLM Decider(`preferred`)가 아직 없다. 지금 store가 감싸는 `createRoundFallback`의 두 인수는
+결국 규칙 Decider끼리다 — `makeDeciders`의 기본값이 `ruleDeciderForRound`이고, 감싸는 쪽의
+`fallback`도 `createRuleDecider(seed)`다. **감싸는 배선 자체는 A 단계부터 이미 store에 있다.**
+LLM Decider는 B·C에서 `makeDeciders` 자리에 꽂힌다. 지금 LLM 클라이언트 스텁을 만들지 않는다 — YAGNI.
 
 넘어졌다는 사실은 store가 `fallbackRound`로 노출한다(§8).
 
-**A 단계에서 `fallbackRound`는 항상 `false`다.** preferred가 없어 넘어질 대상이 없기 때문이다.
-필드와 전달 경로만 미리 뚫어두고, 실제로 `true`가 되는 것은 C 단계부터다.
-UI가 이 값을 미리 그려두면 C에서 store를 다시 고치지 않아도 된다.
+**A 단계에서 `fallbackRound`는 항상 `false`다.** 경로가 없어서가 아니라, 지금 꽂힌 규칙
+Decider가 절대 던지지 않아 넘어질 일이 없기 때문이다. 전달 경로는 이미 존재하며, C 단계에서
+LLM Decider가 예외를 던지면 그대로 `true`가 뜬다.
 
 ---
 
@@ -280,8 +283,10 @@ interface GameStore {
 
 `gameId`는 store 내부에서만 쓰는 값이라 계약에 넣지 않는다. 화면이 알 필요가 없다.
 
-**기존 컴포넌트는 수정이 필요 없다.** 컴포넌트가 `suggest(...)` 등의 반환값을 쓰지 않고,
-조작 잠금은 이미 `awaitingHuman()`으로 처리되기 때문이다.
+**기존 컴포넌트의 액션 호출부는 수정이 필요 없다.** `suggest(...)` 등의 반환값을 컴포넌트가
+쓰지 않기 때문이다. 다만 `aiThinking`을 읽어 조작을 잠그는 코드는 컴포넌트 쪽에 아직 없다 —
+`awaitingHuman()`이 그 값을 반영해 `false`를 반환하도록 store에 배선은 돼 있지만, 그것을
+읽어 버튼을 비활성화하는 것은 별도 작업(B)이다.
 
 `aiThinking`·`fallbackRound`를 화면에 그리는 것은 B(UI) 작업이다. 인계 내용은
 `session-resume/`의 해당 날짜 파일에 남긴다 — 다음 작업 세션에서 바로 보이도록.

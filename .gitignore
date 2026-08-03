@@ -30,6 +30,9 @@ coverage/
 # claude code local settings
 .claude/settings.local.json
 
+# 에이전트 실행 중간 산출물(원장·리뷰 패키지). 결과는 커밋과 docs/에만 남긴다.
+.superpowers/
+
 # 개인 작업 공간 — 확인 질문지, 메모, 임시 스크립트
 local/
 
