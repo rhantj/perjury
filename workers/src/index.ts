@@ -26,6 +26,8 @@ interface Env {
   readonly BUDGET: KVNamespace
   readonly DAILY_CALL_CAP?: string
   readonly IP_DAILY_CALL_CAP?: string
+  /** 쉼표로 구분한 CORS 허용 오리진. 비면 배포용 기본값만 쓴다. */
+  readonly ALLOWED_ORIGINS?: string
   /** OpenAI 호환 엔드포인트. 로컬 올라마는 http://127.0.0.1:11434/v1 */
   readonly LLM_BASE_URL?: string
   readonly LLM_MODEL?: string
@@ -43,16 +45,21 @@ const DEFAULT_MAX_TOKENS = 2500
 const UPSTREAM_TIMEOUT_MS = 25_000
 
 /**
- * CORS 허용 오리진. `*`를 쓰지 않고 일치하는 값을 그대로 에코한다(설계 §6.1).
+ * CORS 허용 오리진의 기본값. 배포본에는 이것만 남는다 —
+ * 개발용 localhost는 `--var ALLOWED_ORIGINS:...`로 로컬에서만 얹는다.
  *
  * **이것은 접근 제어가 아니다.** curl은 Origin 헤더를 마음대로 넣는다.
  * 실제 방어선은 스키마 검증·레이트리밋·예산 캡이고, 여기서 막는 것은
  * "다른 웹사이트가 우리 프록시를 쓰는 것"뿐이다.
  */
-const ALLOWED_ORIGINS: readonly string[] = [
-  'https://rhantj.github.io',
-  'http://localhost:5173',
-]
+const DEFAULT_ORIGINS: readonly string[] = ['https://rhantj.github.io']
+
+function allowedOrigins(env: Env): readonly string[] {
+  const configured = env.ALLOWED_ORIGINS?.split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+  return configured && configured.length > 0 ? configured : DEFAULT_ORIGINS
+}
 
 function corsHeaders(origin: string): Record<string, string> {
   return {
@@ -66,10 +73,10 @@ function corsHeaders(origin: string): Record<string, string> {
 }
 
 /** 허용 목록에 있으면 그 오리진을, 아니면 null. null이면 CORS 헤더를 붙이지 않는다. */
-function allowedOrigin(request: Request): string | null {
+function allowedOrigin(request: Request, env: Env): string | null {
   const origin = request.headers.get('Origin')
   if (!origin) return null
-  return ALLOWED_ORIGINS.includes(origin) ? origin : null
+  return allowedOrigins(env).includes(origin) ? origin : null
 }
 
 function json(
@@ -101,7 +108,7 @@ function fail(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const origin = allowedOrigin(request)
+    const origin = allowedOrigin(request, env)
     const { pathname } = new URL(request.url)
     const dailyCap = capFrom(env.DAILY_CALL_CAP, DEFAULT_DAILY_CAP)
 

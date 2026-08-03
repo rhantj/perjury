@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { createRoundFallback, perRound } from '../ai/decider'
-import type { DeciderForRound } from '../ai/decider'
+import type { DeciderForRound, FallbackReason } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
-import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
+import { llmDeciderForRound } from '../ai/llm-decider'
+import { createRuleDecider } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
@@ -27,11 +28,13 @@ interface GameStore {
   error: string | null
   /** AI가 판단 중인가. true인 동안 awaitingHuman()은 false를 반환한다. */
   aiThinking: boolean
-  /**
-   * 이번 라운드가 규칙 기반 폴백으로 떨어졌는가.
-   * A 단계에서는 LLM Decider가 없으므로 항상 false다. C 단계부터 true가 될 수 있다.
-   */
+  /** 이번 라운드가 규칙 기반 폴백으로 떨어졌는가. */
   fallbackRound: boolean
+  /**
+   * 왜 떨어졌는가. fallbackRound가 true일 때만 의미가 있다.
+   * budget이면 그날 안에 낫지 않고, error면 다음 라운드에 복구될 수 있다 — 안내 문구가 달라진다.
+   */
+  fallbackReason: FallbackReason | null
 
   /**
    * 판을 시작한다.
@@ -73,6 +76,14 @@ function humanId(state: GameState): PlayerId {
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
+}
+
+/**
+ * 기본 판단자는 LLM이다. seed를 받지 않는 이유는 LLM 판단이 시드로 재현되지 않기 때문이다.
+ * 실패하면 start()가 감싸는 폴백이 같은 seed의 규칙 기반으로 받아낸다.
+ */
+function defaultDeciders(_seed: string): DeciderForRound {
+  return llmDeciderForRound()
 }
 
 export const useGame = create<GameStore>((set, get) => {
@@ -121,8 +132,9 @@ export const useGame = create<GameStore>((set, get) => {
     error: null,
     aiThinking: false,
     fallbackRound: false,
+    fallbackReason: null,
 
-    start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
+    start: async (seed, humanIndex = 0, makeDeciders = defaultDeciders) => {
       gameId += 1
       const myGameId = gameId
       const chosen = makeDeciders(seed)
@@ -133,14 +145,14 @@ export const useGame = create<GameStore>((set, get) => {
        * 라운드마다 새 래퍼가 만들어지므로 "이 라운드는 넘어졌다"는 표시도 라운드 경계에서 지워진다.
        */
       deciderForRound = perRound((round) => {
-        set({ fallbackRound: false })
-        return createRoundFallback(chosen(round), createRuleDecider(seed), () =>
-          set({ fallbackRound: true }),
+        set({ fallbackRound: false, fallbackReason: null })
+        return createRoundFallback(chosen(round), createRuleDecider(seed), (reason) =>
+          set({ fallbackRound: true, fallbackReason: reason }),
         )
       })
 
       const initial = createGame({ seed, humanIndex })
-      set({ state: initial, error: null, aiThinking: true, fallbackRound: false })
+      set({ state: initial, error: null, aiThinking: true, fallbackRound: false, fallbackReason: null })
 
       try {
         const next = await advanceToHuman(initial, deciderForRound)
@@ -155,7 +167,7 @@ export const useGame = create<GameStore>((set, get) => {
     reset: () => {
       gameId += 1
       deciderForRound = null
-      set({ state: null, error: null, aiThinking: false, fallbackRound: false })
+      set({ state: null, error: null, aiThinking: false, fallbackRound: false, fallbackReason: null })
     },
 
     view: () => {

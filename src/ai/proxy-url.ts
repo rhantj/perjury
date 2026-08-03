@@ -5,5 +5,5 @@
  * import.meta.env.DEV는 Vite 내장이라 파일이 필요 없다.
  */
 export const PROXY_URL = import.meta.env.DEV
-  ? 'http://127.0.0.1:8787'
+  ? 'http://localhost:8787'
   : 'https://perjury-proxy.perjury.workers.dev'
