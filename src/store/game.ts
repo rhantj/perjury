@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { createRoundFallback, perRound } from '../ai/decider'
 import type { DeciderForRound, FallbackReason } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
-import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
+import { llmDeciderForRound } from '../ai/llm-decider'
+import { createRuleDecider } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
@@ -80,6 +81,14 @@ function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+/**
+ * 기본 판단자는 LLM이다. seed를 받지 않는 이유는 LLM 판단이 시드로 재현되지 않기 때문이다.
+ * 실패하면 start()가 감싸는 폴백이 같은 seed의 규칙 기반으로 받아낸다.
+ */
+function defaultDeciders(_seed: string): DeciderForRound {
+  return llmDeciderForRound()
+}
+
 export const useGame = create<GameStore>((set, get) => {
   /**
    * 지금 살아 있는 판의 번호. start·reset마다 올린다.
@@ -128,7 +137,7 @@ export const useGame = create<GameStore>((set, get) => {
     fallbackRound: false,
     fallbackReason: null,
 
-    start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
+    start: async (seed, humanIndex = 0, makeDeciders = defaultDeciders) => {
       gameId += 1
       const myGameId = gameId
       const chosen = makeDeciders(seed)
