@@ -95,7 +95,10 @@ export default function GameScreen() {
         <Verdict view={view} scenario={scenario} seed={seed} onRestart={() => open(newSeed())} />
       )}
 
-      <div className="screen" data-scenario={scenario.id}>
+      <div
+        className={`screen${opening ? ' screen--entering' : ''}`}
+        data-scenario={scenario.id}
+      >
         <header className="bar">
           <span className="bar__round">
             라운드 <b>{view.round}</b> / {view.totalRounds}

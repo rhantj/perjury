@@ -942,3 +942,54 @@
     opacity: 1;
   }
 }
+
+/*
+ * 착석 컷이 걷힐 때의 등장. 막 밑에서 게임판이 이미 통째로 완성돼 있다가 한 번에 드러나면
+ * 딱딱하다 — 바 → 보드 → 기록 → 액션 순으로 살짝 떠오르며 들어오게 한다.
+ * .screen--entering이 붙어 있는 동안(=막이 덮인 동안) paused로 0프레임에 묶어 두고,
+ * opening이 꺼져 클래스가 빠지면 그제야 재생한다. 그냥 animation을 걸면 막 밑에서
+ * 이미 다 재생돼 버려 막이 걷혔을 때는 정작 아무 움직임도 안 보인다.
+ */
+@keyframes board-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.screen > .bar,
+.screen > .board,
+.screen > .side,
+.screen > .actions {
+  animation: board-rise var(--duration-slow) var(--ease-out-expo) both;
+  animation-play-state: paused;
+}
+.screen:not(.screen--entering) > .bar,
+.screen:not(.screen--entering) > .board,
+.screen:not(.screen--entering) > .side,
+.screen:not(.screen--entering) > .actions {
+  animation-play-state: running;
+}
+.screen > .board {
+  animation-delay: 90ms;
+}
+.screen > .side {
+  animation-delay: 170ms;
+}
+.screen > .actions {
+  animation-delay: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen > .bar,
+  .screen > .board,
+  .screen > .side,
+  .screen > .actions {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+    opacity: 1;
+  }
+}
