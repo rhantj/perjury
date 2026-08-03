@@ -177,15 +177,25 @@
 .plate__duty {
   display: grid;
   gap: 0.16rem;
+  min-width: 0;
 }
+/*
+ * 이름과 한자 사이에 실제 공백이 없어(role.ko 뒤에 <em>이 바로 붙는다) 인라인 텍스트로는
+ * 줄바꿈 지점이 안 생겨 카드 밖으로 흘러넘친다. flex + wrap으로 바꾸면 두 항목 사이가
+ * 항상 줄바꿈 가능한 경계가 된다 — Briefing의 .duty__name과 같은 처리.
+ */
 .plate__role {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+  min-width: 0;
   font-family: var(--font-display);
   font-size: 1.14rem;
   font-weight: 700;
   color: var(--color-text);
 }
 .plate__role em {
-  margin-left: 0.32rem;
   font-size: 0.66em;
   font-style: normal;
   font-weight: 500;
@@ -512,6 +522,23 @@
   font-size: 0.84rem;
   line-height: 1.6;
   color: var(--color-muted);
+}
+.nb__warning {
+  margin: 0.8rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: oklch(72% 0.15 27);
+  animation: nb-warning-in 220ms var(--ease-out-expo);
+}
+@keyframes nb-warning-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.3rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---- 증언 ---- */

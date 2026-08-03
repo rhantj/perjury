@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cardLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import { CARDS } from '../engine/cards'
@@ -32,14 +32,37 @@ interface Props {
  */
 export default function Notebook({ view, scenario, picking, picked, onPick }: Props) {
   const [marks, setMarks] = useState<Record<string, Mark>>({})
+  const [warning, setWarning] = useState<string | null>(null)
   const label = (id: CardId) => cardLabel(scenario, id)
 
   const self = view.players.find((p) => p.isMe)
   const myHand = self?.hand ?? []
 
+  useEffect(() => {
+    if (!warning) return
+    const id = window.setTimeout(() => setWarning(null), 2600)
+    return () => window.clearTimeout(id)
+  }, [warning])
+
+  /** 카드 한 장은 한 사람만 쥔다 — 이 행에 이미 «있음»으로 잡힌 다른 사람이 있는가. */
+  const heldElsewhere = (cardId: CardId, exceptPlayerId: string): boolean =>
+    view.players.some((player) => {
+      if (player.id === exceptPlayerId) return false
+      const known = (player.isMe && myHand.includes(cardId)) || player.revealed.includes(cardId)
+      return known || marks[`${cardId}:${player.id}`] === 'o'
+    })
+
   const toggle = (cardId: CardId, playerId: string) => {
     const key = `${cardId}:${playerId}`
-    setMarks((prev) => ({ ...prev, [key]: NEXT_MARK[prev[key] ?? ''] }))
+    const next = NEXT_MARK[marks[key] ?? '']
+
+    if (next === 'o' && heldElsewhere(cardId, playerId)) {
+      setWarning(`${label(cardId)}는 이미 다른 사람 몫으로 표시돼 있다 — 한 장은 한 사람만 쥔다.`)
+      return
+    }
+
+    setWarning(null)
+    setMarks((prev) => ({ ...prev, [key]: next }))
   }
 
   let lastKind: CardKind | null = null
@@ -103,6 +126,11 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
           })}
         </tbody>
       </table>
+      {warning && (
+        <p className="nb__warning" key={warning} role="alert">
+          {warning}
+        </p>
+      )}
       <p className="nb__hint">
         {picking
           ? '카드 이름을 눌러 범인·수단·장소를 하나씩 고른다.'
