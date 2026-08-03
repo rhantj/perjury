@@ -6,6 +6,8 @@
  */
 
 import { capFrom, chargeCall, peekRemaining } from './budget'
+import { decide } from './llm'
+import type { LlmConfig } from './llm'
 import { parseDecideRequest } from './schema'
 
 /** 실패 응답의 code. 프론트는 이 값만 보고 폴백 여부를 정한다(설계 §3.3). */
@@ -15,17 +17,30 @@ type ErrorCode =
   | 'rate_limited'
   | 'budget_exhausted'
   | 'not_found'
-  | 'not_implemented'
+  | 'upstream_error'
+  | 'upstream_timeout'
+  | 'invalid_upstream'
+  | 'not_configured'
 
 interface Env {
   readonly BUDGET: KVNamespace
   readonly DAILY_CALL_CAP?: string
   readonly IP_DAILY_CALL_CAP?: string
+  /** OpenAI 호환 엔드포인트. 로컬 올라마는 http://127.0.0.1:11434/v1 */
+  readonly LLM_BASE_URL?: string
+  readonly LLM_MODEL?: string
+  readonly LLM_MAX_TOKENS?: string
+  /** 시크릿. 로컬 올라마는 없어도 된다. */
+  readonly LLM_API_KEY?: string
 }
 
 /** 무료 티어 쓰기 1,000회/일 ÷ 요청당 2회. 환경변수가 비었을 때의 안전한 상한이다. */
 const DEFAULT_DAILY_CAP = 250
 const DEFAULT_IP_CAP = 120
+/** thinking을 쓰는 모델은 응답 전에 상한을 다 쓸 수 있다. 넉넉히 잡는다. */
+const DEFAULT_MAX_TOKENS = 2500
+/** 프론트(30초)보다 짧게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1). */
+const UPSTREAM_TIMEOUT_MS = 25_000
 
 /**
  * CORS 허용 오리진. `*`를 쓰지 않고 일치하는 값을 그대로 에코한다(설계 §6.1).
@@ -132,10 +147,40 @@ export default {
         )
       }
 
-      // LLM 호출이 붙을 자리다.
-      return fail('not_implemented', `${parsed.value.kind} 판단이 아직 붙지 않았다`, 501, origin, {
-        'X-Budget-Remaining': String(verdict.remaining),
-      })
+      /**
+       * 설정이 없으면 조용히 성공하지 않고 503으로 끊는다.
+       * 프론트가 폴백으로 넘어가므로 게임은 계속 돈다 — 잘못 배포해도 판이 죽지 않게 하려는 것이다.
+       */
+      if (!env.LLM_BASE_URL || !env.LLM_MODEL) {
+        return fail('not_configured', 'LLM 설정이 없다', 503, origin)
+      }
+
+      const config: LlmConfig = {
+        baseUrl: env.LLM_BASE_URL,
+        model: env.LLM_MODEL,
+        apiKey: env.LLM_API_KEY,
+        maxTokens: capFrom(env.LLM_MAX_TOKENS, DEFAULT_MAX_TOKENS),
+        timeoutMs: UPSTREAM_TIMEOUT_MS,
+      }
+
+      const result = await decide(config, parsed.value.kind, parsed.value.view)
+      if (!result.ok) {
+        const status = result.code === 'upstream_timeout' ? 504 : result.code === 'invalid_upstream' ? 502 : 503
+        return fail(result.code, result.detail, status, origin)
+      }
+
+      return json(
+        {
+          ok: true,
+          kind: parsed.value.kind,
+          decision: result.decision.decision,
+          line: result.line,
+          budget: { remaining: verdict.remaining },
+        },
+        200,
+        origin,
+        { 'X-Upstream-Tokens': `${result.usage.promptTokens}/${result.usage.completionTokens}` },
+      )
     }
 
     return fail('not_found', '없는 경로다', 404, origin)
