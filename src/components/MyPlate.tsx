@@ -42,7 +42,17 @@ export default function MyPlate({ view, scenario, role }: Props) {
   const label = (id: CardId) => cardLabel(scenario, id)
 
   return (
-    <aside className={`plate plate--${culprit ? 'culprit' : 'citizen'}`}>
+    /*
+     * 상시 폭을 먹던 판때기를 탭 하나로 줄이고, 호버·포커스에서만 패널로 펼친다 —
+     * 그만큼 원탁·추리표가 커진다. 탭과 패널이 같은 wrapper의 자식이라
+     * 순수 CSS :hover/:focus-within만으로 열고 닫힌다(둘 사이를 오갈 때 끊기지 않는다).
+     */
+    <div className="plate-flyout">
+      <button type="button" className="plate-flyout__tab" aria-label="나만 보는 패 열기">
+        <span>密 나만 보는 패</span>
+      </button>
+
+      <aside className={`plate plate-flyout__panel plate--${culprit ? 'culprit' : 'citizen'}`}>
       <header className="plate__head">
         <span className="plate__kicker">密 · 나만 보는 패</span>
         <span className="plate__faction">{culprit ? '범인' : '시민'}</span>
@@ -95,6 +105,7 @@ export default function MyPlate({ view, scenario, role }: Props) {
           </ul>
         </section>
       )}
-    </aside>
+      </aside>
+    </div>
   )
 }
