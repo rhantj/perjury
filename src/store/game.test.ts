@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGame } from './game'
-import { createRuleDecider } from '../ai/rule-decider'
-import type { Decider, DeciderForRound } from '../ai/decider'
+import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
+import type { Decider, DeciderForRound, FallbackReason } from '../ai/decider'
 import type { Suggestion } from '../engine/types'
 
 const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
@@ -44,6 +44,25 @@ function probeDeciders(ms: number) {
   }
 
   return { source, claims: () => claims }
+}
+
+/**
+ * 항상 던지는 판단자. 폴백 래퍼가 사유를 실제로 옮기는지 보려는 것이다.
+ * fallbackReason은 예외에 붙은 태그로 전달되므로, 태그만 흉내내면 네트워크가 필요 없다.
+ */
+function failingDeciders(reason: FallbackReason): DeciderForRound {
+  const boom = () => {
+    const e = new Error('판단 실패') as Error & { fallbackReason: FallbackReason }
+    e.fallbackReason = reason
+    throw e
+  }
+  const decider: Decider = {
+    chooseSuggestion: async () => boom(),
+    chooseClaim: async () => boom(),
+    chooseChallengeTarget: async () => boom(),
+    chooseAccusation: async () => boom(),
+  }
+  return () => decider
 }
 
 describe('useGame', () => {
@@ -172,9 +191,27 @@ describe('useGame', () => {
     expect(game().aiThinking).toBe(false)
   })
 
-  it('A 단계에서 fallbackRound는 항상 false다', async () => {
-    await game().start('fallback', 0)
+  it('판단자가 멀쩡하면 폴백 표시가 서지 않는다', async () => {
+    await game().start('fallback', 0, (seed) => ruleDeciderForRound(seed))
 
     expect(game().fallbackRound).toBe(false)
+    expect(game().fallbackReason).toBeNull()
+  })
+
+  it('판단자가 실패하면 규칙 기반으로 받아내고 사유를 남긴다', async () => {
+    // humanIndex 1이라 사람 차례 전에 AI가 먼저 제안한다 — 여기서 실패가 일어난다.
+    await game().start('fallback', 1, () => failingDeciders('error'))
+
+    expect(game().fallbackRound).toBe(true)
+    expect(game().fallbackReason).toBe('error')
+    // 폴백이 받아냈으므로 판은 살아 있어야 한다.
+    expect(game().state).not.toBeNull()
+    expect(game().error).toBeNull()
+  })
+
+  it('예산 소진은 사유가 budget으로 구분된다', async () => {
+    await game().start('fallback', 1, () => failingDeciders('budget'))
+
+    expect(game().fallbackReason).toBe('budget')
   })
 })

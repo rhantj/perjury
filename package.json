@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "worker:dev": "wrangler dev --config workers/wrangler.toml --var LLM_BASE_URL:http://127.0.0.1:11434/v1 --var LLM_MODEL:gemma4:e2b --var ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174",
+    "worker:typecheck": "tsc --noEmit -p workers/tsconfig.json",
+    "worker:deploy": "wrangler deploy --config workers/wrangler.toml"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -17,11 +20,13 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "typescript": "^7.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.118.0"
   }
 }

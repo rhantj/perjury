@@ -1,0 +1,18 @@
+name = "perjury-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-08-03"
+
+# account_id를 적지 않는다. 로그인한 계정에서 추론되므로,
+# 팀원이 각자 자기 계정으로 배포해도 이 파일을 고칠 필요가 없다.
+
+# 일일 총 호출 상한. 재배포 없이 조정하려고 환경변수로 둔다(설계 §8.6).
+# KV 무료 티어 쓰기 1,000회/일 ÷ 요청당 쓰기 2회 = 400이 상한이다.
+[vars]
+DAILY_CALL_CAP = "250"
+IP_DAILY_CALL_CAP = "120"
+
+# 호출 카운터. Workers는 상태가 없으므로 밖에 둔다.
+# id는 비밀이 아니다 — 이 네임스페이스는 계정 인증 없이 읽고 쓸 수 없다.
+[[kv_namespaces]]
+binding = "BUDGET"
+id = "5278dc63190845b28fbe0072602d18ac"

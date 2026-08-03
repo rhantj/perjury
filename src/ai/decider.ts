@@ -32,6 +32,27 @@ export interface Decider {
 export type DeciderForRound = (round: number) => Decider
 
 /**
+ * 왜 폴백으로 떨어졌는가. 화면 안내 문구를 고르는 데만 쓴다.
+ *
+ * budget과 error를 나누는 이유는 **복구 가능성이 다르기** 때문이다.
+ * error는 다음 라운드에 나을 수 있지만 budget은 그날 안에 낫지 않는다.
+ */
+export type FallbackReason = 'budget' | 'error'
+
+/** 폴백 사유를 실어 나르는 예외. 네트워크 계층이 태그를 붙이고 여기서 읽는다. */
+interface Reasoned {
+  readonly fallbackReason: FallbackReason
+}
+
+function reasonOf(e: unknown): FallbackReason {
+  if (typeof e === 'object' && e !== null && 'fallbackReason' in e) {
+    const tagged = (e as Reasoned).fallbackReason
+    if (tagged === 'budget' || tagged === 'error') return tagged
+  }
+  return 'error'
+}
+
+/**
  * 한 라운드짜리 폴백 래퍼.
  *
  * preferred가 한 번이라도 실패하면 남은 호출은 전부 fallback으로 간다.
@@ -43,7 +64,7 @@ export type DeciderForRound = (round: number) => Decider
 export function createRoundFallback(
   preferred: Decider,
   fallback: Decider,
-  onFallback?: () => void,
+  onFallback?: (reason: FallbackReason) => void,
 ): Decider {
   let fallen = false
 
@@ -51,10 +72,10 @@ export function createRoundFallback(
     if (fallen) return pick(fallback)
     try {
       return await pick(preferred)
-    } catch {
+    } catch (e) {
       if (!fallen) {
         fallen = true
-        onFallback?.()
+        onFallback?.(reasonOf(e))
       }
       return pick(fallback)
     }
