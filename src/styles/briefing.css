@@ -40,6 +40,40 @@
   animation: brief-blackout 13s steps(1, end) infinite;
 }
 
+/*
+ * 사건 카드를 훑을 때 까는 배경. 넷을 같은 자리에 겹쳐 opacity로만 넘긴다 —
+ * 갓등 하나·결 텍스처(::after)·스테이지(z-index 1)는 그대로 위에 남아
+ * 사진이 바뀌어도 «같은 방, 다른 사건»으로 읽힌다.
+ */
+.briefing__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.briefing__backdrop-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 32%;
+  opacity: 0;
+  transform: scale(1.05);
+  /* 어둡고 흐릿하게 — 슬라이드쇼가 아니라 «그 방의 공기가 새어 나온다»는 인상만 준다. */
+  filter: brightness(0.38) saturate(0.5) blur(1.5px);
+  transition: opacity 1100ms var(--ease-in-out);
+}
+.briefing__backdrop-img--active {
+  opacity: 0.62;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .briefing__backdrop-img {
+    transition-duration: 0.01ms;
+  }
+}
+
 @keyframes brief-blackout {
   0%,
   91%,
@@ -451,23 +485,40 @@
 /* ---- 3막: 신분 ---- */
 /*
  * 두 단. 왼쪽은 통보, 오른쪽은 내가 쥐는 것.
- * 좁아지면 한 단으로 접히고, 그때는 카드가 아래로 내려간다.
+ * 왼쪽 글은 짧으니 폭을 적게 주고, 나머지를 전부 오른쪽(직업패·손패)에 몰아준다 —
+ * 여기서 위아래로 접히면 화면이 스크롤 없이 안 들어간다.
  */
 .role {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(24rem, 32rem);
-  gap: clamp(1.5rem, 1rem + 3vw, 4rem);
-  align-items: start;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+  gap: clamp(1.2rem, 0.8rem + 2vw, 2.4rem);
+  align-items: center;
 }
-.role__say,
+.role__say {
+  display: grid;
+  gap: clamp(0.7rem, 0.5rem + 0.8vw, 1.1rem);
+  align-content: start;
+}
+/*
+ * 직업패 오른쪽에 손패·봉인된 정답이 «나란히» — 한 줄에 고정한다.
+ * grid-auto-flow: column이라 자식이 몇 개든(손패만 2개, 범인이면 3개) 항상 같은 행에
+ * 새 열로 늘어선다. flex-wrap처럼 아래로 접히지 않으므로 세로 스크롤이 안 생긴다.
+ */
 .role__hold {
   display: grid;
-  gap: clamp(0.9rem, 0.6rem + 1.1vw, 1.5rem);
-  align-content: start;
+  grid-template-columns: minmax(0, 1.15fr);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  align-items: start;
+  gap: clamp(1rem, 0.6rem + 1.4vw, 2rem);
 }
 
 @media (max-width: 68rem) {
   .role {
+    grid-template-columns: 1fr;
+  }
+  .role__hold {
+    grid-auto-flow: row;
     grid-template-columns: 1fr;
   }
 }
@@ -566,11 +617,13 @@
  * 손패보다 위에 두고 테두리를 세게 줘서, 진영 다음으로 눈이 여기 멈추게 한다.
  */
 .duty {
+  container-type: inline-size;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0.9rem 1.1rem;
+  gap: 1.4rem;
+  min-width: 0;
+  padding: 1.4rem 1.6rem;
   border: 1px solid oklch(46% 0.02 70 / 0.7);
   border-radius: 0.2rem;
   background: linear-gradient(120deg, oklch(25% 0.02 66 / 0.75), oklch(18% 0.014 250 / 0.6));
@@ -593,12 +646,17 @@
   background: linear-gradient(120deg, oklch(27% 0.05 28 / 0.7), oklch(16% 0.02 250 / 0.6));
 }
 
-/* 일러스트 카드. 금박 액자와 명패가 그림 안에 이미 있으므로 여기서 테두리를 더 두르지 않는다. */
+/*
+ * 일러스트 카드. 금박 액자와 명패가 그림 안에 이미 있으므로 여기서 테두리를 더 두르지 않는다.
+ * aspect-ratio는 원본 웹피(340×475 안팎)에 맞춘다 — 482로 두면 실제 그림보다 세로가 길어져
+ * object-fit: cover가 아래를 밀어내며 명패를 잘라먹는다. contain으로 한 번 더 막아 둔다.
+ */
 .duty__card {
   position: relative;
   display: block;
-  width: clamp(6.4rem, 4.6rem + 5vw, 9.5rem);
-  aspect-ratio: 340 / 482;
+  /* cqw — duty의 실제 그리드 열 폭을 따른다. vw만 쓰면 옆 칸(손패)이 얼마나 남았는지 모르고 커진다. */
+  width: clamp(7rem, 34cqw, 15rem);
+  aspect-ratio: 340 / 475;
   overflow: hidden;
   border-radius: 0.12rem;
   box-shadow: 0 8px 22px oklch(6% 0.02 250 / 0.6);
@@ -609,7 +667,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   /* 갓등 하나짜리 방에 놓인 카드다 — 원본 그대로면 화면에서 이것만 밝게 뜬다. */
   filter: brightness(0.86) saturate(0.92);
   transition: filter var(--duration-normal) var(--ease-in-out);
@@ -624,22 +682,27 @@
   filter: brightness(1.04) saturate(1);
 }
 
+/* 폭을 직접 못 박는다 — 1fr 트랙이 이미지·배지 크기에 밀려 0으로 접히면 글이 카드 밖으로 흘러넘친다. */
 .duty__body {
   display: grid;
-  gap: 0.16rem;
+  gap: 0.2rem;
+  min-width: 0;
+  max-width: clamp(7rem, 36cqw, 14rem);
 }
 .duty__kicker {
   font-family: var(--font-display);
-  font-size: 0.56rem;
+  font-size: 0.66rem;
   letter-spacing: 0.28em;
   color: oklch(54% 0.012 80);
 }
 .duty__name {
   display: flex;
   align-items: baseline;
-  gap: 0.45rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
   font-family: var(--font-display);
-  font-size: 1.45rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: oklch(94% 0.008 84);
 }
@@ -654,7 +717,7 @@
   color: oklch(70% 0.15 27);
 }
 .duty__power {
-  font-size: 0.95rem;
+  font-size: 1.08rem;
   line-height: 1.6;
   color: oklch(84% 0.008 80);
 }
@@ -663,8 +726,8 @@
  * 높이를 미리 잡아 두었으므로 나타나도 아래가 밀리지 않는다.
  */
 .duty__flavor {
-  min-height: 1.3rem;
-  font-size: 0.82rem;
+  min-height: 1.5rem;
+  font-size: 0.92rem;
   line-height: 1.6;
   color: oklch(62% 0.03 60);
   opacity: 0;
@@ -693,9 +756,11 @@
 }
 
 .slip {
+  container-type: inline-size;
   display: grid;
   gap: 0.6rem;
   justify-items: start;
+  min-width: 0;
   padding: 0.9rem 1.1rem;
   border-left: 2px solid oklch(42% 0.018 70);
   background: linear-gradient(90deg, oklch(24% 0.018 62 / 0.5), transparent 85%);
@@ -738,9 +803,10 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   justify-items: center;
-  width: clamp(6.6rem, 5rem + 4.4vw, 9.2rem);
+  /* cqw — slip의 실제 폭을 따른다. 카드 두 장이 한 줄에 나란히 들어가는 몫으로 잡는다. */
+  width: clamp(6rem, 46cqw, 12rem);
   aspect-ratio: 3 / 4;
-  padding: 0.7rem 0.55rem 0.6rem;
+  padding: 0.85rem 0.65rem 0.7rem;
   border: 1px solid oklch(52% 0.05 78 / 0.55);
   border-radius: 0.16rem;
   overflow: hidden;
@@ -773,7 +839,58 @@
   z-index: -1;
 }
 
+/* 용의자·장소 카드는 실제 사진이 있다. 평소엔 사진 그대로 두고, 손 닿을 때만 어둡게 가라앉힌다. */
+.handcard__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.85) saturate(0.95);
+  transition: filter var(--duration-normal) var(--ease-in-out);
+}
+.handcard:hover .handcard__photo,
+.handcard:focus-visible .handcard__photo {
+  filter: brightness(0.4) saturate(0.75);
+}
+
+/* 사진 위로 이름·명패를 읽을 수 있게 깔리는 그늘. 사진이 없는 카드에는 아예 그리지 않는다. */
+.handcard__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    oklch(6% 0.02 250 / 0.6) 0%,
+    transparent 26%,
+    transparent 62%,
+    oklch(6% 0.02 250 / 0.82) 100%
+  );
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-in-out);
+}
+.handcard:hover .handcard__scrim,
+.handcard:focus-visible .handcard__scrim {
+  opacity: 1;
+}
+
+/* 사진이 있는 카드는 이름·명패를 평소엔 감추고 호버·포커스에만 드러낸다 — 사진이 안 보일 자리가 없다. */
+.handcard--has-art .handcard__kind,
+.handcard--has-art .handcard__name,
+.handcard--has-art .handcard__plate {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-in-out);
+}
+.handcard--has-art:hover .handcard__kind,
+.handcard--has-art:hover .handcard__name,
+.handcard--has-art:hover .handcard__plate,
+.handcard--has-art:focus-visible .handcard__kind,
+.handcard--has-art:focus-visible .handcard__name,
+.handcard--has-art:focus-visible .handcard__plate {
+  opacity: 1;
+}
+
 .handcard__kind {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 0.08rem;
@@ -790,6 +907,7 @@
 }
 
 .handcard__name {
+  position: relative;
   align-self: center;
   font-family: var(--font-display);
   font-size: clamp(1.05rem, 0.9rem + 0.7vw, 1.4rem);
@@ -802,6 +920,7 @@
 
 /* 명패. 이 카드가 «무엇을 확정하는가»가 여기 박힌다. */
 .handcard__plate {
+  position: relative;
   width: 100%;
   padding: 0.28rem 0.1rem 0.05rem;
   border-top: 1px solid oklch(52% 0.05 78 / 0.35);

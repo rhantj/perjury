@@ -5,8 +5,11 @@ import type { Scenario } from '../content/scenarios'
 import { cardLabel, suspectNameAt } from '../content/labels'
 import type { Role } from '../content/roles'
 import { ROLE_ART } from '../content/role-art'
+import { placeArtFor } from '../content/place-art'
+import { SCENARIO_ART } from '../content/scenario-art'
+import { suspectArtFor } from '../content/suspect-art'
 import { cardKind } from '../engine/cards'
-import type { CardKind } from '../engine/types'
+import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
 import SuspectCard, { NUMERALS } from './SuspectCard'
 import '../styles/briefing.css'
@@ -49,6 +52,8 @@ export default function Briefing({ seed, view, role, onEnter, onBack }: Props) {
   const [act, setAct] = useState<Act>('pick')
   const [scenario, setScenario] = useState<Scenario | null>(null)
   const [leaving, setLeaving] = useState(false)
+  /** 사건 카드를 훑는 동안만 쓴다 — 다른 막에서는 그냥 null. */
+  const [hoveredScenario, setHoveredScenario] = useState<string | null>(null)
 
   /**
    * 막을 넘기기 전에 먼저 물러나게 한다. 바로 갈아끼우면 화면이 «띡» 하고 튄다.
@@ -83,10 +88,17 @@ export default function Briefing({ seed, view, role, onEnter, onBack }: Props) {
 
   return (
     <main className={`briefing${tone}${leaving ? ' briefing--out' : ''}`}>
+      {showing === 'pick' && <ScenarioBackdrop activeId={hoveredScenario} />}
+
       {/* key가 막마다 바뀌어야 등장 애니메이션이 다시 돈다 — 같은 요소를 재사용하면 한 번만 돈다. */}
       <div className="briefing__stage" key={showing}>
         {showing === 'pick' && (
-          <PickAct seed={seed} onChoose={choose} onBack={() => leave(onBack)} />
+          <PickAct
+            seed={seed}
+            onChoose={choose}
+            onBack={() => leave(onBack)}
+            onHover={setHoveredScenario}
+          />
         )}
 
         {showing === 'suspects' && scenario && (
@@ -112,15 +124,36 @@ export default function Briefing({ seed, view, role, onEnter, onBack }: Props) {
   )
 }
 
+/**
+ * 사건 카드를 훑을 때 뒤로 까는 사진. 넷 다 한 자리에 겹쳐 두고 opacity만 바꾼다 —
+ * src를 갈아끼우면 매번 새로 받아오느라 처음 호버할 때 사진이 늦게 뜬다.
+ */
+function ScenarioBackdrop({ activeId }: { activeId: string | null }) {
+  return (
+    <div className="briefing__backdrop" aria-hidden="true">
+      {SCENARIOS.map((item) => (
+        <img
+          key={item.id}
+          className={`briefing__backdrop-img${activeId === item.id ? ' briefing__backdrop-img--active' : ''}`}
+          src={SCENARIO_ART[item.id]}
+          alt=""
+        />
+      ))}
+    </div>
+  )
+}
+
 /** 1막. 사건 넷 중 하나를 고른다. */
 function PickAct({
   seed,
   onChoose,
   onBack,
+  onHover,
 }: {
   seed: string
   onChoose: (s: Scenario) => void
   onBack: () => void
+  onHover: (id: string | null) => void
 }) {
   return (
     <>
@@ -130,10 +163,17 @@ function PickAct({
       </header>
       <h1 className="briefing__lede">어느 사건을 맡겠는가.</h1>
 
-      <ul className="picker">
+      <ul className="picker" onMouseLeave={() => onHover(null)}>
         {SCENARIOS.map((item, i) => (
           <li key={item.id} className="picker__item" style={{ '--i': i } as CSSProperties}>
-            <button type="button" className="case" onClick={() => onChoose(item)}>
+            <button
+              type="button"
+              className="case"
+              onClick={() => onChoose(item)}
+              onMouseEnter={() => onHover(item.id)}
+              onFocus={() => onHover(item.id)}
+              onBlur={() => onHover(null)}
+            >
               <span className="case__hanja">{item.hanja}</span>
               <span className="case__body">
                 <span className="case__title">{item.title}</span>
@@ -317,7 +357,13 @@ function RoleAct({
           <h2 className="slip__title">손패 — 당신만 아는 사실</h2>
           <ul className="slip__cards">
             {hand.map((id) => (
-              <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} />
+              <HandCard
+                key={id}
+                id={id}
+                scenario={scenario}
+                kind={cardKind(id)}
+                name={cardLabel(scenario, id)}
+              />
             ))}
           </ul>
           <p className="slip__note">
@@ -330,7 +376,14 @@ function RoleAct({
             <h2 className="slip__title">봉인된 정답</h2>
             <ul className="slip__cards">
               {[solution.suspect, solution.weapon, solution.place].map((id) => (
-                <HandCard key={id} kind={cardKind(id)} name={cardLabel(scenario, id)} sealed />
+                <HandCard
+                  key={id}
+                  id={id}
+                  scenario={scenario}
+                  kind={cardKind(id)}
+                  name={cardLabel(scenario, id)}
+                  sealed
+                />
               ))}
             </ul>
             <p className="slip__note">당신만 안다. 지키는 것이 아니라 감추는 것이 목적이다.</p>
@@ -347,12 +400,34 @@ function RoleAct({
  *
  * 그림이 들어오면 .handcard__art 자리에 얹으면 되고, 이 조판은 그대로 위에 남는다.
  */
-function HandCard({ kind, name, sealed = false }: { kind: CardKind; name: string; sealed?: boolean }) {
+function HandCard({
+  id,
+  scenario,
+  kind,
+  name,
+  sealed = false,
+}: {
+  id: CardId
+  scenario: Scenario
+  kind: CardKind
+  name: string
+  sealed?: boolean
+}) {
   const meta = KIND[kind]
+  const art = suspectArtFor(id) ?? placeArtFor(scenario, id)
 
   return (
-    <li className={`handcard handcard--${kind}${sealed ? ' handcard--sealed' : ''}`}>
-      <span className="handcard__art" aria-hidden="true" />
+    <li
+      className={`handcard handcard--${kind}${sealed ? ' handcard--sealed' : ''}${art ? ' handcard--has-art' : ''}`}
+      tabIndex={0}
+    >
+      {art ? (
+        <img className="handcard__photo" src={art} alt="" width={340} height={456} />
+      ) : (
+        <span className="handcard__art" aria-hidden="true" />
+      )}
+      {/* 사진이 있으면 이름·명패는 평소엔 숨어 있다가 손 닿을 때만 이 스크림 위로 뜬다. */}
+      {art && <span className="handcard__scrim" aria-hidden="true" />}
       <span className="handcard__kind">
         {meta.hanja}
         <em>{meta.label}</em>
