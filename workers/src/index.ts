@@ -5,6 +5,8 @@
  * 앱은 정적 번들이라 브라우저가 Anthropic을 직접 부르면 키가 번들에 실린다(설계 §1.2).
  */
 
+import { parseDecideRequest } from './schema'
+
 /** 실패 응답의 code. 프론트는 이 값만 보고 폴백 여부를 정한다(설계 §3.3). */
 type ErrorCode = 'invalid_request' | 'forbidden_origin' | 'not_found' | 'not_implemented'
 
@@ -71,8 +73,12 @@ export default {
 
     if (pathname === '/decide' && request.method === 'POST') {
       if (!origin) return fail('forbidden_origin', '허용되지 않은 요청 출처다', 403, null)
-      // 2차에서 스키마 검증·예산 캡·결정 반환으로 교체한다.
-      return fail('not_implemented', '아직 판단이 붙지 않았다', 501, origin)
+
+      const parsed = parseDecideRequest(await request.text())
+      if (!parsed.ok) return fail('invalid_request', parsed.message, 400, origin)
+
+      // 예산 캡과 LLM 호출이 붙을 자리다.
+      return fail('not_implemented', `${parsed.value.kind} 판단이 아직 붙지 않았다`, 501, origin)
     }
 
     return fail('not_found', '없는 경로다', 404, origin)
