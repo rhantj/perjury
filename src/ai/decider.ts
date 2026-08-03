@@ -46,8 +46,10 @@ export function createRoundFallback(
     try {
       return await pick(preferred)
     } catch {
-      fallen = true
-      onFallback?.()
+      if (!fallen) {
+        fallen = true
+        onFallback?.()
+      }
       return pick(fallback)
     }
   }
@@ -72,8 +74,9 @@ export function perRound(make: DeciderForRound): DeciderForRound {
 
   return (round) => {
     if (cachedRound !== round || !cached) {
+      const made = make(round)
       cachedRound = round
-      cached = make(round)
+      cached = made
     }
     return cached
   }

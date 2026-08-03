@@ -78,6 +78,20 @@ describe('createRoundFallback — 라운드 단위 폴백', () => {
 
     expect(await fresh.chooseSuggestion(VIEW)).toEqual(PREFERRED)
   })
+
+  it('동시에 들어온 여러 호출에서도 onFallback은 정확히 한 번만 불린다', async () => {
+    const onFallback = vi.fn()
+    const decider = createRoundFallback(stub(PREFERRED, true), stub(FALLBACK), onFallback)
+
+    await Promise.all([
+      decider.chooseSuggestion(VIEW),
+      decider.chooseClaim(VIEW),
+      decider.chooseChallengeTarget(VIEW),
+      decider.chooseAccusation(VIEW),
+    ])
+
+    expect(onFallback).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('perRound — 라운드마다 인스턴스 하나', () => {
@@ -99,5 +113,33 @@ describe('perRound — 라운드마다 인스턴스 하나', () => {
     forRound(2)
 
     expect(forRound(1)).not.toBe(first)
+  })
+
+  it('make가 던져도 캐시는 오염되지 않는다', () => {
+    let callCount = 0
+    const forRound = perRound((round) => {
+      callCount++
+      if (round === 2) throw new Error('라운드 2에서 실패')
+      return stub(PREFERRED)
+    })
+
+    const first = forRound(1)
+    expect(callCount).toBe(1)
+
+    try {
+      forRound(2)
+    } catch {
+      // 예외가 올라오는 것이 맞다
+    }
+    expect(callCount).toBe(2)
+
+    // 다시 라운드 2를 부르면 make를 다시 시도한다 (round 1의 인스턴스가 새어 나오지 않음)
+    try {
+      forRound(2)
+    } catch {
+      // 예외가 올라오는 것이 맞다
+    }
+    expect(callCount).toBe(3)
+    expect(forRound(1)).toBe(first)
   })
 })
