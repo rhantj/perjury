@@ -45,6 +45,8 @@ export default function GameScreen() {
   /** 착석 직후 게임판 위에 얹히는 도입 세 문장. */
   const [opening, setOpening] = useState(false)
   const closeOpening = useCallback(() => setOpening(false), [])
+  /** 기록은 상시 옆에 두지 않는다 — 그 폭을 보드·추리표·내 패에 돌려주고, 필요할 때만 연다. */
+  const [logOpen, setLogOpen] = useState(false)
 
   /**
    * 브리핑이 손패·진영을 보여주므로 판을 «먼저» 만들고 브리핑을 띄운다.
@@ -116,9 +118,13 @@ export default function GameScreen() {
             {PHASE_LABEL[view.phase]}
           </span>
           <span className="bar__case">
-          {scenario.hanja} · {scenario.title}
-        </span>
-      </header>
+            {scenario.hanja} · {scenario.title}
+          </span>
+          <button type="button" className="bar__log-toggle" onClick={() => setLogOpen(true)}>
+            記 기록
+            {view.rounds.length > 0 && <em>{view.rounds.length}</em>}
+          </button>
+        </header>
 
         <main className="board">
           <MyPlate view={view} scenario={scenario} role={role} />
@@ -147,11 +153,6 @@ export default function GameScreen() {
           />
         </main>
 
-        <aside className="side">
-          <h2 className="side__title">기록</h2>
-          <Log view={view} scenario={scenario} />
-        </aside>
-
         <footer className="actions">
           {store.error && <p className="actions__error">{store.error}</p>}
           {view.outcome ? null : view.phase === 'suggest' ? (
@@ -179,7 +180,53 @@ export default function GameScreen() {
           ) : null}
         </footer>
       </div>
+
+      {logOpen && <LogDrawer view={view} scenario={scenario} onClose={() => setLogOpen(false)} />}
     </>
+  )
+}
+
+/**
+ * 기록 팝업. 상시 옆에 붙은 패널이 아니라 눌러야 열리는 창으로 바꿨다 —
+ * 폭을 상시 점유하지 않아야 보드·추리표·내 패가 그만큼 커질 수 있다.
+ * body에 직접 붙이는 이유는 Opening·Verdict와 같다: .screen 안에 두면 쌓임 맥락에 갇힌다.
+ */
+function LogDrawer({
+  view,
+  scenario,
+  onClose,
+}: {
+  view: GameView
+  scenario: Scenario
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return createPortal(
+    <div className="log-drawer" role="dialog" aria-label="기록">
+      <button
+        type="button"
+        className="log-drawer__backdrop"
+        onClick={onClose}
+        aria-label="기록 닫기"
+      />
+      <div className="log-drawer__panel">
+        <header className="log-drawer__head">
+          <h2>기록</h2>
+          <button type="button" className="log-drawer__close" onClick={onClose}>
+            ✕
+          </button>
+        </header>
+        <Log view={view} scenario={scenario} />
+      </div>
+    </div>,
+    document.body,
   )
 }
 
