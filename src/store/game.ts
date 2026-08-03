@@ -2,8 +2,7 @@ import { create } from 'zustand'
 import { createRoundFallback, perRound } from '../ai/decider'
 import type { DeciderForRound, FallbackReason } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
-import { llmDeciderForRound } from '../ai/llm-decider'
-import { createRuleDecider } from '../ai/rule-decider'
+import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
@@ -38,7 +37,10 @@ interface GameStore {
 
   /**
    * 판을 시작한다.
-   * makeDeciders는 C 단계에서 LLM 팩토리를 넣는 지점이자, 테스트가 지연을 주입하는 지점이다.
+   *
+   * makeDeciders의 기본값은 **규칙 기반**이다. store가 네트워크를 기본으로 물면
+   * 단위 테스트가 서버 없이는 못 돌고, 어떤 판단자를 쓸지는 앱이 정할 일이다.
+   * 실제 LLM은 GameScreen이 넣는다.
    */
   start: (
     seed: string,
@@ -76,14 +78,6 @@ function humanId(state: GameState): PlayerId {
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
-}
-
-/**
- * 기본 판단자는 LLM이다. seed를 받지 않는 이유는 LLM 판단이 시드로 재현되지 않기 때문이다.
- * 실패하면 start()가 감싸는 폴백이 같은 seed의 규칙 기반으로 받아낸다.
- */
-function defaultDeciders(_seed: string): DeciderForRound {
-  return llmDeciderForRound()
 }
 
 export const useGame = create<GameStore>((set, get) => {
@@ -134,7 +128,7 @@ export const useGame = create<GameStore>((set, get) => {
     fallbackRound: false,
     fallbackReason: null,
 
-    start: async (seed, humanIndex = 0, makeDeciders = defaultDeciders) => {
+    start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
       gameId += 1
       const myGameId = gameId
       const chosen = makeDeciders(seed)

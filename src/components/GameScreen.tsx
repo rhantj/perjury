@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
+import { llmDeciderForRound } from '../ai/llm-decider'
 import { cardLabel, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
@@ -51,10 +52,13 @@ export default function GameScreen() {
   /**
    * 브리핑이 손패·진영을 보여주므로 판을 «먼저» 만들고 브리핑을 띄운다.
    * 순서를 뒤집으면 3막에서 보여줄 신분이 아직 없다.
+   *
+   * **어떤 판단자를 쓸지도 여기서 정한다.** store 기본값은 규칙 기반이라 단위 테스트가
+   * 네트워크를 타지 않고, 프록시가 실패하면 store가 감싸는 폴백이 같은 시드로 받아낸다.
    */
   const open = (next: string) => {
     setSeed(next)
-    store.start(next)
+    store.start(next, 0, () => llmDeciderForRound())
     setStage('briefing')
   }
 
