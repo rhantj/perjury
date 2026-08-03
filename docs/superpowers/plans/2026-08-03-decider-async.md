@@ -349,14 +349,20 @@ describe('createRuleDecider — rules.ts와 같은 결과', () => {
     expect(await createRuleDecider(SEED).chooseAccusation(view)).toEqual(expected)
   })
 
-  it('시드가 다르면 제안도 달라진다', async () => {
+  it('시드가 제안에 실제로 반영된다', async () => {
     const game = createGame({ seed: SEED, humanIndex: 0 })
     const view = viewFor(game, firstPlayerId(1))
 
-    const a = await createRuleDecider('seed-a').chooseSuggestion(view)
-    const b = await createRuleDecider('seed-b').chooseSuggestion(view)
+    // 후보가 5×3×5로 좁아 특정 두 시드가 우연히 같은 조합을 내는 일이 있다.
+    // 두 개만 비교하면 그 우연에 테스트가 걸린다. 여러 시드를 훑어 판단한다.
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        createRuleDecider(`seed-${i}`).chooseSuggestion(view),
+      ),
+    )
+    const distinct = new Set(results.map((r) => `${r.suspect}/${r.weapon}/${r.place}`))
 
-    expect(a).not.toEqual(b)
+    expect(distinct.size).toBeGreaterThan(1)
   })
 })
 
