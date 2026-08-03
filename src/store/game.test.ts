@@ -8,17 +8,26 @@ const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
 
 const game = () => useGame.getState()
 
-/** 모든 판단에 지연을 넣은 Decider. 비동기 경로를 눈에 보이게 만든다. */
-function slowDeciders(ms: number): (seed: string) => DeciderForRound {
-  return (seed) => {
+/**
+ * 테스트용 Decider 프로브.
+ *
+ * 지연은 비동기 창을 만들어 대기 상태를 관측 가능하게 하고,
+ * 호출 카운터는 대기 가드가 두 번째 진행을 실제로 막았는지 보여준다.
+ * 가드가 막지 못하면 같은 라운드의 판단이 두 벌 돌아 횟수가 배가 된다.
+ */
+function probeDeciders(ms: number) {
+  let claims = 0
+
+  const source = (seed: string): DeciderForRound => {
     const base = createRuleDecider(seed)
     const wait = () => new Promise((resolve) => setTimeout(resolve, ms))
-    const slow: Decider = {
+    const probe: Decider = {
       chooseSuggestion: async (view) => {
         await wait()
         return base.chooseSuggestion(view)
       },
       chooseClaim: async (view) => {
+        claims += 1
         await wait()
         return base.chooseClaim(view)
       },
@@ -31,8 +40,10 @@ function slowDeciders(ms: number): (seed: string) => DeciderForRound {
         return base.chooseAccusation(view)
       },
     }
-    return () => slow
+    return () => probe
   }
+
+  return { source, claims: () => claims }
 }
 
 describe('useGame', () => {
@@ -125,7 +136,7 @@ describe('useGame', () => {
   })
 
   it('AI가 판단하는 동안 aiThinking이 true이고 조작이 잠긴다', async () => {
-    const started = game().start('think', 3, slowDeciders(5))
+    const started = game().start('think', 3, probeDeciders(5).source)
 
     expect(game().aiThinking).toBe(true)
     expect(game().awaitingHuman()).toBe(false)
@@ -137,18 +148,23 @@ describe('useGame', () => {
   })
 
   it('대기 중에 들어온 조작은 무시된다', async () => {
-    await game().start('busy', 0, slowDeciders(5))
+    const probe = probeDeciders(5)
+    await game().start('busy', 0, probe.source)
+    expect(game().view().phase).toBe('suggest')
 
+    const before = probe.claims()
     const first = game().suggest(SUGGESTION)
     const ignored = game().suggest(SUGGESTION)
     await Promise.all([first, ignored])
 
-    expect(game().error).toBeNull()
+    // 제안 한 번이면 제안자를 뺀 사람들이 한 번씩 반증을 고른다.
+    // 가드가 없으면 두 번째 apply가 같은 상태에서 또 돌아 이 수가 배가 된다.
+    expect(probe.claims() - before).toBe(5)
     expect(game().view().rounds).toHaveLength(1)
   })
 
   it('reset 뒤에 도착한 결과는 버려진다', async () => {
-    const started = game().start('late', 3, slowDeciders(5))
+    const started = game().start('late', 3, probeDeciders(5).source)
     game().reset()
     await started
 
