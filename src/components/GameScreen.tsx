@@ -76,6 +76,8 @@ export default function GameScreen() {
     )
 
   const picking = view.phase === 'suggest' || view.phase === 'accuse'
+  /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
+  const isMyTurn = view.phase === 'suggest' && view.players[view.turnIndex]?.isMe === true
 
   const submit = (action: (s: Suggestion) => void) => {
     const suggestion = toSuggestion(picked)
@@ -95,8 +97,15 @@ export default function GameScreen() {
         <Verdict view={view} scenario={scenario} seed={seed} onRestart={() => open(newSeed())} />
       )}
 
+      {/* 라운드 1은 착석 컷이 이미 «시작» 신호를 준다 — 2라운드부터만 넘어감을 알린다. */}
+      {view.round > 1 && (
+        <div key={view.round} className="round-flash" aria-hidden="true">
+          <span>제{view.round}회 신문</span>
+        </div>
+      )}
+
       <div
-        className={`screen${opening ? ' screen--entering' : ''}`}
+        className={`screen${opening ? ' screen--entering' : ''}${isMyTurn ? ' screen--my-turn' : ''}`}
         data-scenario={scenario.id}
       >
         <header className="bar">

@@ -34,7 +34,7 @@ export default function Table({ view, scenario }: Props) {
       player={player}
       slot={slot}
       live={live}
-      isTurn={player.id === turnId}
+      isTurn={player.id === turnId && view.phase === 'suggest'}
       scenario={scenario}
       label={label}
     />
@@ -145,6 +145,7 @@ function Seat({
           공개 {player.revealed.map((c) => label(c)).join(' · ')}
         </span>
       )}
+      {isTurn && <span className="seat__turn-badge">차례</span>}
       {caught && <span className="seat__badge">위증</span>}
     </li>
   )
