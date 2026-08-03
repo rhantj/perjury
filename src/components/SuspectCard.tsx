@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { SUSPECT_ART } from '../content/suspect-art'
 import type { Title } from '../content/scenarios'
 import '../styles/suspect-card.css'
 
@@ -38,10 +39,7 @@ export default function SuspectCard({ title, index, active = false }: Props) {
 
       {/* 창살 낀 장지문 너머로 사람을 보는 구도. 격자가 경성 인테리어의 핵심 조형이다. */}
       <span className="dossier__portrait">
-        <svg viewBox="0 0 100 120" aria-hidden="true" focusable="false">
-          <circle className="dossier__head-shape" cx="50" cy="44" r="21" />
-          <path className="dossier__body-shape" d="M10 120c0-25 18-42 40-42s40 17 40 42z" />
-        </svg>
+        <img className="dossier__photo" src={SUSPECT_ART[index]} alt="" width={340} height={456} />
         <span className="dossier__hanja">{title.hanja}</span>
         <span className="dossier__lattice" />
         <span className="dossier__scan" />
