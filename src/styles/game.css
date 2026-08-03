@@ -120,7 +120,12 @@
 .board {
   grid-area: board;
   display: grid;
-  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr) minmax(25rem, 32rem);
+  /*
+   * 내 패는 이제 상시 폭을 안 먹는다 — 탭 하나(3.6rem)만 자리를 잡고,
+   * 그 나머지는 원탁·추리표가 나눠 갖는다. 호버·포커스에서 패널이
+   * position:fixed로 «위에» 뜨므로 이 트랙 폭 자체가 늘어날 필요는 없다.
+   */
+  grid-template-columns: minmax(3.4rem, 3.8rem) minmax(0, 1fr) minmax(28rem, 38rem);
   gap: 1.5rem;
   padding: 1.5rem 1.6rem;
   align-items: start;
@@ -146,14 +151,75 @@
   align-content: start;
 }
 
-/* ---- 내 패 ---- */
-.plate {
+/*
+ * ---- 내 패 (호버 플라이아웃) ----
+ * grid-area: board의 첫 트랙은 이제 탭 하나(3.4~3.8rem)만 차지한다. 패널은
+ * position:fixed로 그 위에 뜬다 — 트랙 자체를 넓히면 원탁·추리표가 다시 좁아진다.
+ */
+.plate-flyout {
   position: relative;
+  height: 100%;
+}
+.plate-flyout__tab {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: min(22rem, 70vh);
+  display: grid;
+  place-items: center;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.28em;
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  color: oklch(78% 0.1 27);
+  border: 1px solid oklch(48% 0.13 27 / 0.55);
+  border-radius: 0.2rem;
+  background: linear-gradient(160deg, oklch(24% 0.04 26 / 0.4), oklch(15% 0.016 260 / 0.6));
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-in-out),
+    border-color var(--duration-fast) var(--ease-in-out);
+}
+.plate-flyout:hover .plate-flyout__tab,
+.plate-flyout:focus-within .plate-flyout__tab {
+  color: var(--color-seal, oklch(58% 0.16 27));
+  border-color: var(--color-seal, oklch(58% 0.16 27));
+}
+
+.plate-flyout__panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 18;
+  width: min(27rem, 92vw);
+  height: 100dvh;
+  overflow-y: auto;
+  border-radius: 0;
+  box-shadow: 18px 0 44px oklch(4% 0.01 250 / 0.55);
+  opacity: 0;
+  transform: translateX(-100%);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-normal) var(--ease-out-expo),
+    transform var(--duration-normal) var(--ease-out-expo);
+}
+.plate-flyout:hover .plate-flyout__panel,
+.plate-flyout:focus-within .plate-flyout__panel {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate-flyout__panel {
+    transition-duration: 0.01ms;
+  }
+}
+
+.plate {
   display: grid;
   gap: 1.15rem;
   padding: 1.35rem 1.25rem 1.4rem;
   border: 1px solid oklch(48% 0.13 27 / 0.55);
-  border-radius: 0.2rem;
   /* 붉은 봉인선. 이 화면에서 유일하게 «남이 못 보는» 판때기다. */
   background:
     linear-gradient(160deg, oklch(24% 0.04 26 / 0.5), oklch(15% 0.016 260 / 0.72));
