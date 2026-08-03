@@ -1,7 +1,9 @@
+import type { CSSProperties } from 'react'
 import { cardLabel, participantInitial, participantLabel, suspectTitle } from '../content/labels'
 import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
+import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
 import type { CardId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
@@ -23,6 +25,7 @@ export default function Table({ view, scenario }: Props) {
   const live = record?.round === view.round ? record : null
   const turnId = view.players[view.turnIndex]?.id
   const label = (id: CardId) => cardLabel(scenario, id)
+  const tableArt = tableArtFor(scenario)
 
   const me = view.players.find((p) => p.isMe)
   const others = view.players.filter((p) => !p.isMe)
@@ -41,7 +44,10 @@ export default function Table({ view, scenario }: Props) {
   )
 
   return (
-    <ul className="seats">
+    <ul
+      className={`seats${tableArt ? ' seats--photo' : ''}`}
+      style={tableArt ? ({ '--table-art': `url(${tableArt})` } as CSSProperties) : undefined}
+    >
       {others.map((player, i) => seat(player, SLOTS[i] ?? 'p5'))}
 
       {/* 상 한가운데. 이번 라운드에 올라온 제안이 여기 놓인다. */}
