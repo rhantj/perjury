@@ -36,6 +36,14 @@ function toSuggestion(picked: Picked): Suggestion | null {
   return suspect && weapon && place ? { suspect, weapon, place } : null
 }
 
+/** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, 나머지는 제안·반증 제출 때 큐에 들어간다. */
+interface FlashEvent {
+  kind: 'round' | 'suggest' | 'refute' | 'perjury'
+  text: string
+  /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
+  ms: number
+}
+
 export default function GameScreen() {
   const store = useGame()
   const [picked, setPicked] = useState<Picked>({})
@@ -48,19 +56,49 @@ export default function GameScreen() {
   const closeOpening = useCallback(() => setOpening(false), [])
   /** 기록은 상시 옆에 두지 않는다 — 그 폭을 보드·추리표·내 패에 돌려주고, 필요할 때만 연다. */
   const [logOpen, setLogOpen] = useState(false)
+
+  /*
+   * 화면 전체 알림(라운드 전환·제안·반증·위증)을 한 큐로 세운다. 예전엔 라운드 전환과
+   * 제출 알림이 각자 따로 뜨는 레이어라, 타이밍이 겹치면 두 문구가 한 화면에 포개졌다 —
+   * 큐에 쌓았다가 이전 알림의 CSS 애니메이션이 끝난 뒤에만 다음 걸 마운트한다.
+   */
+  const [activeFlash, setActiveFlash] = useState<{ id: number; event: FlashEvent } | null>(null)
+  const flashQueueRef = useRef<FlashEvent[]>([])
+  const flashBusyRef = useRef(false)
+  const flashSeqRef = useRef(0)
+  const runFlashQueue = useCallback(() => {
+    if (flashBusyRef.current) return
+    const next = flashQueueRef.current.shift()
+    if (!next) return
+    flashBusyRef.current = true
+    flashSeqRef.current += 1
+    setActiveFlash({ id: flashSeqRef.current, event: next })
+    window.setTimeout(() => {
+      flashBusyRef.current = false
+      runFlashQueue()
+    }, next.ms)
+  }, [])
+  const enqueueFlash = useCallback(
+    (event: FlashEvent) => {
+      flashQueueRef.current.push(event)
+      runFlashQueue()
+    },
+    [runFlashQueue],
+  )
+
   /*
    * 제안·반증을 제출하는 순간의 화면 전체 신호. «위증」은 남의 위증 여부를 화면이
    * 대신 판정해 보여주면 안 된다(엔진 view.ts 주석 — isPerjury는 시야 밖이다) —
    * 하지만 «내가 지금 내 손패에 없는 카드로 반증한다»는 나 스스로 이미 아는 사실이라,
    * 그것만 감지해서 극적으로 띄운다. 남의 반증에는 이 판정을 절대 쓰지 않는다.
    */
-  const [flash, setFlash] = useState<{ id: number; kind: 'suggest' | 'refute' | 'perjury' } | null>(
-    null,
-  )
-  const flashSeq = useRef(0)
-  const fireFlash = (kind: 'suggest' | 'refute' | 'perjury') => {
-    flashSeq.current += 1
-    setFlash({ id: flashSeq.current, kind })
+  const fireActionFlash = (kind: 'suggest' | 'refute' | 'perjury') => {
+    const byKind: Record<typeof kind, FlashEvent> = {
+      suggest: { kind: 'suggest', text: '제안', ms: 1000 },
+      refute: { kind: 'refute', text: '반증합니다', ms: 900 },
+      perjury: { kind: 'perjury', text: '위증!!!', ms: 1900 },
+    }
+    enqueueFlash(byKind[kind])
   }
 
   /**
@@ -76,9 +114,26 @@ export default function GameScreen() {
     setStage('briefing')
   }
 
-  if (!store.state) return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
+  /*
+   * store.state가 있을 때만 view가 존재한다 — 훅은 항상 같은 순서로 불러야 하므로
+   * (Rules of Hooks) «없으면 여기서 바로 return」을 이 지점보다 앞에 두지 않는다.
+   * 아래 라운드 전환 감지 useEffect가 이 view를 참조하기 때문이다.
+   */
+  const view = store.state ? store.view() : null
 
-  const view = store.view()
+  /* 라운드가 바뀔 때마다 큐에 신문 알림을 넣는다. 1라운드는 착석 컷이 이미 시작을 알린다. */
+  const lastRoundRef = useRef(0)
+  useEffect(() => {
+    if (!view || view.round === lastRoundRef.current) return
+    lastRoundRef.current = view.round
+    if (view.round > 1) {
+      enqueueFlash({ kind: 'round', text: `제${view.round}회 신문`, ms: 1400 })
+    }
+  }, [view?.round, enqueueFlash])
+
+  if (!store.state || !view)
+    return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
+
   const role = store.role()
   if (stage === 'briefing' || !scenario)
     return (
@@ -115,7 +170,7 @@ export default function GameScreen() {
       : []
     const lying =
       claim.kind === 'refute' ? !hand.includes(claim.cardId) : suggested.some((c) => hand.includes(c))
-    fireFlash(lying ? 'perjury' : 'refute')
+    fireActionFlash(lying ? 'perjury' : 'refute')
     store.declare(claim)
   }
 
@@ -130,18 +185,13 @@ export default function GameScreen() {
         <Verdict view={view} scenario={scenario} seed={seed} onRestart={() => open(newSeed())} />
       )}
 
-      {/* 라운드 1은 착석 컷이 이미 «시작» 신호를 준다 — 2라운드부터만 넘어감을 알린다. */}
-      {view.round > 1 && (
-        <div key={view.round} className="round-flash" aria-hidden="true">
-          <span>제{view.round}회 신문</span>
-        </div>
-      )}
-
-      {flash && (
-        <div key={flash.id} className={`action-flash action-flash--${flash.kind}`} aria-hidden="true">
-          <span>
-            {flash.kind === 'suggest' ? '제안' : flash.kind === 'perjury' ? '위증!!!' : '반증합니다'}
-          </span>
+      {activeFlash && (
+        <div
+          key={activeFlash.id}
+          className={`action-flash action-flash--${activeFlash.event.kind}`}
+          aria-hidden="true"
+        >
+          <span>{activeFlash.event.text}</span>
         </div>
       )}
 
@@ -208,7 +258,7 @@ export default function GameScreen() {
               className="btn btn--go"
               disabled={!toSuggestion(picked)}
               onClick={() => {
-                fireFlash('suggest')
+                fireActionFlash('suggest')
                 submit(store.suggest)
               }}
             >

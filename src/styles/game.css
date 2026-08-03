@@ -1407,82 +1407,10 @@
 }
 
 /*
- * 라운드가 넘어갈 때의 화면 전체 신호. 라운드 1은 착석 컷이 이미 «시작»을 알리므로
- * GameScreen.tsx가 2라운드부터만 이 노드를 마운트한다 — round가 바뀔 때마다 key로
- * 새로 마운트되어 한 번만 재생되고, 끝나면 투명한 채로 화면을 막지 않고 남는다.
- */
-.round-flash {
-  position: fixed;
-  inset: 0;
-  z-index: 6;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-.round-flash::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: oklch(4% 0.01 250 / 0.55);
-  opacity: 0;
-  animation: round-flash-dim 1400ms var(--ease-in-out) forwards;
-}
-.round-flash span {
-  position: relative;
-  font-family: var(--font-display);
-  font-size: clamp(1.8rem, 1.2rem + 3vw, 3.2rem);
-  letter-spacing: 0.3em;
-  color: oklch(94% 0.01 84);
-  text-shadow:
-    0 0 40px oklch(0% 0 0 / 0.8),
-    0 0 80px var(--tone-key, oklch(70% 0.1 60));
-  opacity: 0;
-  animation: round-flash-text 1400ms var(--ease-out-expo) forwards;
-}
-@keyframes round-flash-dim {
-  0% {
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes round-flash-text {
-  0% {
-    opacity: 0;
-    transform: scale(0.85);
-  }
-  18% {
-    opacity: 1;
-    transform: scale(1.02);
-  }
-  30% {
-    transform: scale(1);
-  }
-  78% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .round-flash::before,
-  .round-flash span {
-    animation-duration: 0.01ms;
-  }
-}
-
-/*
- * 제안·반증 제출 신호. round-flash와 같은 구조(GameScreen.tsx가 매 제출마다 id로
- * key를 걸어 새로 마운트한다)지만 세 종류로 갈린다 — 위증은 «내가 지금 내 손패에
- * 없는 카드로 우긴다»는 걸 나 스스로 아는 순간에만 뜬다(GameScreen.tsx 주석 참고).
+ * 화면 전체 알림. 라운드 전환·제안·반증·위증 네 종류가 전부 이 한 틀을 쓴다 —
+ * GameScreen.tsx가 큐로 하나씩만 마운트해 넘겨주므로 여기서는 겹칠 걱정 없이
+ * 종류별 스타일만 갈라주면 된다. 위증은 «내가 지금 내 손패에 없는 카드로
+ * 우긴다»는 걸 나 스스로 아는 순간에만 뜬다(GameScreen.tsx 주석 참고) —
  * 남의 위증 여부는 화면이 절대 미리 판정해 보여주지 않는다.
  */
 .action-flash {
@@ -1505,6 +1433,20 @@
   font-weight: 700;
   text-align: center;
   opacity: 0;
+}
+
+.action-flash--round::before {
+  background: oklch(4% 0.01 250 / 0.55);
+  animation: flash-dim 1400ms var(--ease-in-out) forwards;
+}
+.action-flash--round span {
+  font-size: clamp(1.8rem, 1.2rem + 3vw, 3.2rem);
+  letter-spacing: 0.3em;
+  color: oklch(94% 0.01 84);
+  text-shadow:
+    0 0 40px oklch(0% 0 0 / 0.8),
+    0 0 80px var(--tone-key, oklch(70% 0.1 60));
+  animation: flash-text 1400ms var(--ease-out-expo) forwards;
 }
 
 .action-flash--suggest::before {
@@ -1531,17 +1473,41 @@
 }
 
 .action-flash--perjury::before {
-  background: oklch(18% 0.1 25 / 0.6);
-  animation: flash-dim-hard 1600ms var(--ease-in-out) forwards;
+  background: oklch(18% 0.1 25 / 0.68);
+  animation: flash-dim-hard 1900ms var(--ease-in-out) forwards;
+}
+/* «쿠쾅» — 카메라 플래시처럼 아주 짧게 밝게 터졌다가 사라지는 충격 프레임. 텍스트보다 위에 깐다. */
+.action-flash--perjury::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: oklch(96% 0.04 25 / 0.95);
+  animation: perjury-impact 1900ms var(--ease-out-expo) forwards;
 }
 .action-flash--perjury span {
-  font-size: clamp(3rem, 1.6rem + 6vw, 6.4rem);
+  font-size: clamp(3.4rem, 1.6rem + 7.5vw, 7.6rem);
   letter-spacing: 0.1em;
   color: var(--color-seal);
   text-shadow:
-    0 0 50px oklch(56% 0.2 27 / 0.9),
-    0 0 120px oklch(56% 0.2 27 / 0.6);
-  animation: flash-text-perjury 1600ms var(--ease-out-expo) forwards;
+    0 0 16px oklch(98% 0.02 25 / 0.9),
+    0 0 60px oklch(56% 0.2 27 / 0.95),
+    0 0 140px oklch(56% 0.2 27 / 0.7);
+  animation: flash-text-perjury 1900ms var(--ease-out-expo) forwards;
+}
+@keyframes perjury-impact {
+  0% {
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  9% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 @keyframes flash-dim {
@@ -1596,34 +1562,40 @@
 @keyframes flash-text-perjury {
   0% {
     opacity: 0;
-    transform: scale(0.6) rotate(-2deg);
+    transform: scale(0.5) rotate(-3deg);
   }
-  16% {
+  14% {
     opacity: 1;
-    transform: scale(1.2) rotate(1.5deg);
+    transform: scale(1.42) rotate(2deg);
   }
-  24% {
-    transform: scale(0.95) rotate(-1deg);
+  22% {
+    transform: scale(0.9) rotate(-1.4deg);
   }
-  32% {
-    transform: scale(1.05) rotate(0.6deg);
+  30% {
+    transform: scale(1.12) rotate(0.8deg);
   }
-  40% {
+  38% {
     transform: scale(1) rotate(0deg) translateX(0);
   }
-  46% {
-    transform: translateX(-8px);
+  43% {
+    transform: translateX(-14px);
   }
-  52% {
-    transform: translateX(8px);
+  48% {
+    transform: translateX(13px);
+  }
+  53% {
+    transform: translateX(-10px);
   }
   58% {
-    transform: translateX(-5px);
+    transform: translateX(8px);
   }
-  64% {
+  63% {
+    transform: translateX(-4px);
+  }
+  68% {
     transform: translateX(0);
   }
-  86% {
+  88% {
     opacity: 1;
   }
   100% {
@@ -1632,6 +1604,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .action-flash::before,
+  .action-flash::after,
   .action-flash span {
     animation-duration: 0.01ms;
   }
