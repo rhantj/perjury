@@ -92,7 +92,10 @@ export default function Briefing({ seed, view, role, onEnter, onBack }: Props) {
       {showing === 'pick' && <ScenarioBackdrop activeId={hoveredScenario} />}
 
       {/* key가 막마다 바뀌어야 등장 애니메이션이 다시 돈다 — 같은 요소를 재사용하면 한 번만 돈다. */}
-      <div className="briefing__stage" key={showing}>
+      <div
+        className={`briefing__stage${showing === 'role' ? ' briefing__stage--role' : ''}`}
+        key={showing}
+      >
         {showing === 'pick' && (
           <PickAct
             seed={seed}

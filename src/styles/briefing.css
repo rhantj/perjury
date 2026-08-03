@@ -488,6 +488,11 @@
  * 왼쪽 글은 짧으니 폭을 적게 주고, 나머지를 전부 오른쪽(직업패·손패)에 몰아준다 —
  * 여기서 위아래로 접히면 화면이 스크롤 없이 안 들어간다.
  */
+/* 3막은 카드가 주인공이다 — 표지·조서의 76rem 폭을 그대로 쓰면 카드 옆이 빈 벽으로 남는다. */
+.briefing__stage--role {
+  width: min(104rem, 97%);
+}
+
 .role {
   display: grid;
   grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
@@ -655,7 +660,7 @@
   position: relative;
   display: block;
   /* cqw — duty의 실제 그리드 열 폭을 따른다. vw만 쓰면 옆 칸(손패)이 얼마나 남았는지 모르고 커진다. */
-  width: clamp(8rem, 46cqw, 22rem);
+  width: clamp(8rem, 46cqw, 28rem);
   aspect-ratio: 340 / 475;
   overflow: hidden;
   border-radius: 0.12rem;
@@ -687,7 +692,7 @@
   display: grid;
   gap: 0.2rem;
   min-width: 0;
-  max-width: clamp(7rem, 44cqw, 19rem);
+  max-width: clamp(7rem, 44cqw, 24rem);
 }
 .duty__kicker {
   font-family: var(--font-display);
@@ -804,7 +809,7 @@
   grid-template-rows: auto 1fr auto;
   justify-items: center;
   /* cqw — slip의 실제 폭을 따른다. 카드 두 장이 한 줄에 나란히 들어가는 몫으로 잡는다. */
-  width: clamp(8rem, 48cqw, 16rem);
+  width: clamp(8rem, 48cqw, 21rem);
   aspect-ratio: 3 / 4;
   padding: 0.85rem 0.65rem 0.7rem;
   border: 1px solid oklch(52% 0.05 78 / 0.55);
