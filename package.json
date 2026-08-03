@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "worker:dev": "wrangler dev --config workers/wrangler.toml",
+    "worker:dev": "wrangler dev --config workers/wrangler.toml --var LLM_BASE_URL:http://127.0.0.1:11434/v1 --var LLM_MODEL:gemma4:e2b",
     "worker:typecheck": "tsc --noEmit -p workers/tsconfig.json",
     "worker:deploy": "wrangler deploy --config workers/wrangler.toml"
   },
