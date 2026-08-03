@@ -354,6 +354,7 @@
 
 /* ---- 원탁 ---- */
 .seats {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -364,6 +365,24 @@
     'p4 tt p5'
     '.. me ..';
   gap: 0.9rem;
+}
+/*
+ * 원탁 사진. 의자 6개짜리 손그림에 좌석 카드를 픽셀 단위로 맞춰 얹으면
+ * 화면 폭·글자 길이가 바뀔 때마다 깨진다 — 그래서 사진은 «방의 분위기»로
+ * 뒤에 깔고, 좌석 카드는 지금처럼 반응형 그리드 그대로 그 위에 얹는다.
+ * Table.tsx가 --table-art로 사건별 사진을 넘긴다(없으면 이 층 자체가 없다).
+ */
+.seats--photo::before {
+  content: '';
+  position: absolute;
+  inset: -1.5rem;
+  background-image: var(--table-art);
+  background-size: cover;
+  background-position: center 40%;
+  border-radius: 1.4rem;
+  opacity: 0.7;
+  filter: brightness(0.6) saturate(0.9);
+  pointer-events: none;
 }
 .seat--p1 { grid-area: p1; }
 .seat--p2 { grid-area: p2; }
