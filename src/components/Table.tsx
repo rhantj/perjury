@@ -5,6 +5,7 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
+import { cardName } from '../engine/cards'
 import type { CardId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
 
@@ -141,10 +142,12 @@ function Seat({
       <span className="seat__id">
         <span className="seat__name">{participantLabel(view, player.id)}</span>
         {/*
-          직업(검시관·순사 등 마피아 능력)과 헷갈리기 쉽다 — 이건 능력이 아니라
-          이 사건 속에서 이 좌석이 맡은 배역(장남·안주인 등)이다. 접두어로 구분한다.
+          누가 누군지 몰라 헷갈린다는 피드백 — 참가N은 그대로 두고(추리표·기록·이의제기가
+          전부 이 번호로 부른다) 실명은 덧붙이기만 한다. 실명은 조서·진영 확인에서 이미
+          공개했던 정보라 여기 다시 적어도 손패 소지와는 무관하다(둘은 원래 별개).
         */}
         <span className="seat__title">
+          <strong className="seat__title-name">{cardName(player.characterId)}</strong>
           <em>이 사건 속</em>
           {suspectTitle(scenario, player.characterId)}
         </span>

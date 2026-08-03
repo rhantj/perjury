@@ -62,6 +62,15 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
   const self = view.players.find((p) => p.isMe)
   const myHand = self?.hand ?? []
 
+  /* 세 칸을 한 번에 안내하지 않고 지금 뭘 골라야 하는지 한 단계씩만 짚어준다. */
+  const pickGuide = !picked.suspect
+    ? '범인을 선택하세요'
+    : !picked.weapon
+      ? '이제 수단을 선택하세요'
+      : !picked.place
+        ? '이제 장소를 선택하세요'
+        : '다 골랐다 — 아래 버튼을 눌러 제출한다'
+
   useEffect(() => {
     if (!warning) return
     const id = window.setTimeout(() => setWarning(null), 2600)
@@ -162,9 +171,9 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
           {warning}
         </p>
       )}
-      <p className="nb__hint">
+      <p key={pickGuide} className="nb__hint">
         {picking
-          ? '카드 이름을 눌러 범인·수단·장소를 하나씩 고른다.'
+          ? pickGuide
           : '칸을 눌러 ✓ 있음 → ✕ 없음 → ? 의심 순으로 바꾼다. 칸에 커서를 올리면 뜻이 뜬다. 확정된 칸은 잠긴다.'}
       </p>
     </div>
