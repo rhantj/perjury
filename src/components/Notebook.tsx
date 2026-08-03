@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { cardLabel } from '../content/labels'
+import { cardLabel, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import { CARDS } from '../engine/cards'
 import type { CardId, CardKind } from '../engine/types'
@@ -74,8 +74,10 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
           <tr>
             <th className="nb__corner" />
             {view.players.map((p) => (
-              <th key={p.id} className="nb__head" title={p.name}>
-                <span className={p.isMe ? 'nb__head--me' : undefined}>{p.name.slice(1)}</span>
+              <th key={p.id} className="nb__head">
+                <span className={p.isMe ? 'nb__head--me' : undefined}>
+                  {participantLabel(view, p.id)}
+                </span>
               </th>
             ))}
           </tr>
@@ -114,7 +116,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                         className={`nb__cell nb__cell--${mark || 'blank'}${known ? ' nb__cell--fixed' : ''}`}
                         disabled={known}
                         onClick={() => toggle(card.id, player.id)}
-                        aria-label={`${label(card.id)} / ${player.name}`}
+                        aria-label={`${label(card.id)} / ${participantLabel(view, player.id)}`}
                       >
                         {mark === 'o' ? '●' : mark === 'x' ? '×' : mark}
                       </button>

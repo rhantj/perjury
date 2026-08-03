@@ -1,5 +1,6 @@
 import { cardName } from '../engine/cards'
-import type { CardId } from '../engine/types'
+import type { CardId, PlayerId } from '../engine/types'
+import type { GameView } from '../engine/view'
 import type { Scenario, Title } from './scenarios'
 
 /**
@@ -50,4 +51,25 @@ export function suspectTitleFull(scenario: Scenario, characterId: CardId): Title
   const index = SUSPECTS.indexOf(characterId)
   if (index < 0) return null
   return scenario.titles[index] ?? null
+}
+
+/**
+ * 좌석 표시 이름. 게임판에서는 player.name(용의자 이름)을 그대로 보여주지 않는다 —
+ * 카드 내용(«강도윤 카드»)과 좌석 정체성(«이 사람이 강도윤이다»)이 같은 글자라
+ * "이 사람이 무슨 카드를 쥐고 있나"처럼 읽혀 헷갈린다. 그래서 판이 도는 동안은
+ * 좌석을 참가 번호로 부르고, 용의자 이름은 카드 내용으로만 남긴다.
+ * 조서(SuspectsAct)와 판결문(Verdict)은 각각 사건 소개·사후 공개라 이 대상이 아니다.
+ */
+export function participantLabel(view: GameView, playerId: PlayerId): string {
+  const player = view.players.find((p) => p.id === playerId)
+  if (player?.isMe) return '나'
+  const others = view.players.filter((p) => !p.isMe)
+  const index = others.findIndex((p) => p.id === playerId)
+  return index >= 0 ? `참가${index + 1}` : '참가?'
+}
+
+/** 좌석 얼굴칸에 쓰는 한 글자/숫자. participantLabel과 짝이다. */
+export function participantInitial(view: GameView, playerId: PlayerId): string {
+  const full = participantLabel(view, playerId)
+  return full === '나' ? '나' : full.slice(2)
 }

@@ -1,4 +1,4 @@
-import { cardLabel } from '../content/labels'
+import { cardLabel, participantInitial, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId } from '../engine/types'
 import type { GameView, RoundView } from '../engine/view'
@@ -18,12 +18,14 @@ interface Line {
   tone: string
   /** 있으면 말풍선, 없으면 지문. */
   who: string | null
+  /** 말풍선 얼굴칸에 쓰는 글자. who와 짝이다. */
+  face: string | null
   text: string
   mine: boolean
 }
 
 function nameOf(view: GameView, id: string): string {
-  return view.players.find((p) => p.id === id)?.name ?? id
+  return participantLabel(view, id)
 }
 
 function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
@@ -33,6 +35,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
     {
       tone: 'suggest',
       who: null,
+      face: null,
       mine: false,
       text: `${nameOf(view, round.suggesterId)}가 ${label(round.suggestion.suspect)} · ${label(
         round.suggestion.weapon,
@@ -46,12 +49,14 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
         ? {
             tone: 'refute',
             who: nameOf(view, d.playerId),
+            face: participantInitial(view, d.playerId),
             mine: d.playerId === view.viewerId,
             text: `${label(d.claim.cardId)}로 반증합니다.`,
           }
         : {
             tone: 'pass',
             who: nameOf(view, d.playerId),
+            face: participantInitial(view, d.playerId),
             mine: d.playerId === view.viewerId,
             text: '없습니다.',
           },
@@ -63,6 +68,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
     out.push({
       tone: success ? 'caught' : 'failed',
       who: null,
+      face: null,
       mine: false,
       text: success
         ? `${nameOf(view, challengerId)}가 ${nameOf(view, targetId)}의 위증을 잡았다 — ${label(cardId)}는 자신이 갖고 있다.`
@@ -72,6 +78,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       out.push({
         tone: 'reveal',
         who: null,
+        face: null,
         mine: false,
         text: `${nameOf(view, r.playerId)}의 ${label(r.cardId)}가 공개됐다.`,
       })
@@ -105,7 +112,7 @@ export default function Log({ view, scenario }: Props) {
               >
                 {line.who ? (
                   <>
-                    <span className="say__face">{line.who.slice(1, 2)}</span>
+                    <span className="say__face">{line.face}</span>
                     <span className="say__body">
                       <span className="say__who">{line.who}</span>
                       <span className="say__bubble">{line.text}</span>

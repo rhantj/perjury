@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { cardLabel } from '../content/labels'
+import { cardLabel, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -103,7 +103,9 @@ export default function GameScreen() {
           <span className="bar__round">
             라운드 <b>{view.round}</b> / {view.totalRounds}
           </span>
-          <span className="bar__phase">{PHASE_LABEL[view.phase]}</span>
+          <span key={view.phase} className="bar__phase">
+            {PHASE_LABEL[view.phase]}
+          </span>
           <span className="bar__case">
           {scenario.hanja} · {scenario.title}
         </span>
@@ -278,7 +280,7 @@ function ChallengeBar({
             className={`btn${provable ? ' btn--held' : ''}`}
             onClick={() => onChallenge(d.playerId)}
           >
-            {view.players.find((p) => p.id === d.playerId)?.name} 위증
+            {participantLabel(view, d.playerId)} 위증
             {provable && <small>증명 가능</small>}
           </button>
         )

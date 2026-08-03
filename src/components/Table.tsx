@@ -1,5 +1,8 @@
-import { cardLabel, suspectTitle } from '../content/labels'
+import { cardLabel, participantInitial, participantLabel, suspectTitle } from '../content/labels'
+import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
+import { suspectArtFor } from '../content/suspect-art'
+import { weaponArtFor } from '../content/weapon-art'
 import type { CardId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
 
@@ -27,6 +30,7 @@ export default function Table({ view, scenario }: Props) {
   const seat = (player: PlayerView, slot: string) => (
     <Seat
       key={player.id}
+      view={view}
       player={player}
       slot={slot}
       live={live}
@@ -43,18 +47,22 @@ export default function Table({ view, scenario }: Props) {
       {/* 상 한가운데. 이번 라운드에 올라온 제안이 여기 놓인다. */}
       <li className="seats__centre">
         {live ? (
-          <>
-            <span className="centre__by">
-              {view.players.find((p) => p.id === live.suggesterId)?.name}의 제안
-            </span>
-            <span className="centre__claim">
-              <b>{label(live.suggestion.suspect)}</b>
-              <i>·</i>
-              <b>{label(live.suggestion.weapon)}</b>
-              <i>·</i>
-              <b>{label(live.suggestion.place)}</b>
-            </span>
-          </>
+          // round로 키를 걸어 «새 제안이 올라올 때만» 카드가 탁자에 놓이는 연출이 돈다 —
+          // 같은 라운드 안에서 반증이 쌓일 때마다 다시 놓이면 산만해진다.
+          <div className="centre__claim" key={live.round}>
+            <span className="centre__by">{participantLabel(view, live.suggesterId)}의 제안</span>
+            <ul className="centre__cards">
+              <CentreCard art={suspectArtFor(live.suggestion.suspect)} name={label(live.suggestion.suspect)} />
+              <CentreCard
+                art={weaponArtFor(scenario, live.suggestion.weapon)}
+                name={label(live.suggestion.weapon)}
+              />
+              <CentreCard
+                art={placeArtFor(scenario, live.suggestion.place)}
+                name={label(live.suggestion.place)}
+              />
+            </ul>
+          </div>
         ) : (
           <span className="centre__idle">상 위에 아직 아무것도 오르지 않았다</span>
         )}
@@ -65,7 +73,18 @@ export default function Table({ view, scenario }: Props) {
   )
 }
 
+/** 제안 카드 한 장. 손패의 HandCard와 같은 3:4 비례를 써서 «같은 카드»로 읽히게 한다. */
+function CentreCard({ art, name }: { art: string | undefined; name: string }) {
+  return (
+    <li className="centre-card">
+      {art && <img className="centre-card__art" src={art} alt="" />}
+      <span className="centre-card__name">{name}</span>
+    </li>
+  )
+}
+
 function Seat({
+  view,
   player,
   slot,
   live,
@@ -73,6 +92,7 @@ function Seat({
   scenario,
   label,
 }: {
+  view: GameView
   player: PlayerView
   slot: string
   live: RoundView | null
@@ -104,18 +124,21 @@ function Seat({
         .join(' ')
         .trim()}
     >
-      <span className="seat__face">{player.name.slice(1, 2)}</span>
+      <span className="seat__face">{participantInitial(view, player.id)}</span>
 
       <span className="seat__id">
-        <span className="seat__name">
-          {player.name}
-          {player.isMe && <em>나</em>}
-        </span>
+        <span className="seat__name">{participantLabel(view, player.id)}</span>
         <span className="seat__title">{suspectTitle(scenario, player.characterId)}</span>
       </span>
 
-      {/* 말이 없으면 칸을 비우지 않고 «침묵»을 적는다 — 빈칸은 아직 안 물어본 것처럼 보인다. */}
-      <span className={`seat__say${say ? '' : ' seat__say--mute'}`}>{say ?? '…'}</span>
+      {/*
+        말이 없으면 칸을 비우지 않고 «침묵»을 적는다 — 빈칸은 아직 안 물어본 것처럼 보인다.
+        key를 내용에 걸어 두면 발언이 바뀔 때마다 이 span이 새로 마운트돼 등장 애니메이션이
+        다시 돈다 — 그냥 텍스트만 바꾸면 DOM 노드가 그대로라 아무 움직임도 안 보인다.
+      */}
+      <span key={say ?? 'silence'} className={`seat__say${say ? '' : ' seat__say--mute'}`}>
+        {say ?? '…'}
+      </span>
 
       {player.revealed.length > 0 && (
         <span className="seat__revealed">
