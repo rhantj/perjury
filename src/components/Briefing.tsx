@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
-import { cardLabel, suspectNameAt } from '../content/labels'
+import { cardLabel, suspectNameAt, suspectTitleFull } from '../content/labels'
 import type { Role } from '../content/roles'
 import { ROLE_ART } from '../content/role-art'
 import { placeArtFor } from '../content/place-art'
@@ -416,6 +416,8 @@ function HandCard({
 }) {
   const meta = KIND[kind]
   const art = suspectArtFor(id) ?? placeArtFor(scenario, id) ?? weaponArtFor(scenario, id)
+  /** 이 인물이 그 자리에서 «무엇»이었나 — 이름만으론 안 열리는 정보라 호버에서 같이 보여준다. */
+  const title = kind === 'suspect' ? suspectTitleFull(scenario, id) : null
 
   return (
     <li
@@ -433,7 +435,15 @@ function HandCard({
         {meta.hanja}
         <em>{meta.label}</em>
       </span>
-      <span className="handcard__name">{name}</span>
+      <span className="handcard__body">
+        <span className="handcard__name">{name}</span>
+        {title && (
+          <span className="handcard__title">
+            {title.ko}
+            <em>{title.hanja}</em>
+          </span>
+        )}
+      </span>
       <span className="handcard__plate">{sealed ? meta.truth : meta.fact}</span>
     </li>
   )
