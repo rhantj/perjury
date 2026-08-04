@@ -185,8 +185,12 @@ function Seat({
       : null
 
   const art = suspectArtFor(player.characterId)
+  /*
+   * 카드는 스포트라이트가 지나가도 사라지지 않는다 — revealing(그 순간)이 아니라
+   * revealed(공개된 뒤 쭉)에 건다. 사라지면 «나온다더니 없어졌다»는 피드백이 다시 나온다.
+   */
   const revealCard =
-    revealing && declaration?.claim.kind === 'refute'
+    revealed && declaration?.claim.kind === 'refute'
       ? { art: revealArtFor(scenario, declaration.claim.cardId), name: label(declaration.claim.cardId) }
       : null
 
@@ -199,6 +203,7 @@ function Seat({
         player.isMe ? 'seat--me' : '',
         caught ? 'seat--caught' : '',
         revealing ? 'seat--reveal' : '',
+        isSuggester ? 'seat--suggester' : '',
       ]
         .join(' ')
         .trim()}
@@ -244,6 +249,7 @@ function Seat({
         </span>
       )}
       {isTurn && <span className="seat__turn-badge">차례</span>}
+      {isSuggester && <span className="seat__suggest-badge">제안</span>}
       {caught && <span className="seat__badge">위증</span>}
     </li>
   )

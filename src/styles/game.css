@@ -826,7 +826,13 @@
   border-radius: 0.18rem;
   background: var(--tone-panel);
   box-shadow: 0 14px 30px oklch(4% 0.02 250 / 0.65);
-  animation: seat-reveal-card-pop 520ms var(--ease-out-expo) backwards;
+  /*
+   * both — 시작 전(backwards)뿐 아니라 끝난 뒤(forwards)의 키프레임 값도 유지한다.
+   * forwards가 없으면 애니메이션이 끝나자마자 transform이 초기값(none)으로 돌아가
+   * top/left:50%만 남아 카드가 엉뚱한 자리로 튀어 보인다 — 카드를 계속 고정해야
+   * 하는 지금은 이 튐이 눈에 바로 띈다.
+   */
+  animation: seat-reveal-card-pop 520ms var(--ease-out-expo) both;
   animation-delay: 160ms;
 }
 .seat__reveal-card img {
@@ -859,10 +865,47 @@
   }
 }
 
+/*
+ * 이번 라운드 제안자 — 누가 올렸는지가 반증·이의제기 내내(그 라운드가 지나가기 전까지)
+ * 한눈에 남아야 한다는 피드백. seat--turn(지금 차례)과는 시기가 겹치지 않는다 —
+ * turn은 다음 제안을 «누가 할지», suggester는 이번 걸 «누가 했는지»라 서로 다른 라운드를 가리킨다.
+ */
+.seat--suggester {
+  border-color: var(--tone-key);
+  box-shadow: 0 0 0 1px var(--tone-key) inset, 0 0 22px oklch(74% 0.13 60 / 0.32);
+  animation: seat-suggester-in 520ms var(--ease-out-expo);
+}
+@keyframes seat-suggester-in {
+  0% {
+    box-shadow: 0 0 0 0 oklch(74% 0.13 60 / 0) inset, 0 0 0 oklch(74% 0.13 60 / 0);
+  }
+  45% {
+    box-shadow: 0 0 0 3px var(--tone-key) inset, 0 0 44px oklch(74% 0.13 60 / 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 1px var(--tone-key) inset, 0 0 22px oklch(74% 0.13 60 / 0.32);
+  }
+}
+.seat__suggest-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.6rem;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  color: var(--tone-key);
+  border: 1px solid var(--tone-key);
+  border-radius: 0.1rem;
+  padding: 0.1rem 0.36rem;
+  background: oklch(14% 0.02 250 / 0.7);
+  animation: seat-badge-in 360ms var(--ease-out-expo);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seat__say,
   .seat__revealed,
-  .seat__badge {
+  .seat__badge,
+  .seat__suggest-badge {
     animation-duration: 0.01ms;
   }
   .seat--reveal {
@@ -872,6 +915,9 @@
   .seat__reveal-card {
     animation-duration: 0.01ms;
     animation-delay: 0ms;
+  }
+  .seat--suggester {
+    animation-duration: 0.01ms;
   }
 }
 
