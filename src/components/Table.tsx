@@ -253,18 +253,20 @@ function Seat({
       </span>
 
       {/*
-        말이 없으면 칸을 비우지 않고 «침묵»을 적는다 — 빈칸은 아직 안 물어본 것처럼 보인다.
+        고정 문구(say)와 LLM 대사(spoken)를 동시에 띄우면 한 좌석에 줄이 두 개 겹쳐 헷갈린다는
+        피드백 — 대사가 있으면 그것만 보여주고, 없을 때(사람·규칙 기반 판단자·폴백)만 고정
+        문구로 대체한다. 고정 문구 자체는 지우지 않는다 — 그게 절대 규칙 4의 폴백 표시다.
         key를 내용에 걸어 두면 발언이 바뀔 때마다 이 span이 새로 마운트돼 등장 애니메이션이
         다시 돈다 — 그냥 텍스트만 바꾸면 DOM 노드가 그대로라 아무 움직임도 안 보인다.
       */}
-      <span key={say ?? 'silence'} className={`seat__say${say ? '' : ' seat__say--mute'}`}>
-        {say ?? '…'}
-      </span>
-
-      {/* 텍스트로만 그린다 — 이건 모델이 만든 문자열이다(절대 규칙 3). */}
-      {spoken && (
+      {spoken ? (
+        // 텍스트로만 그린다 — 이건 모델이 만든 문자열이다(절대 규칙 3).
         <span key={spoken} className="seat__line">
           “{spoken}”
+        </span>
+      ) : (
+        <span key={say ?? 'silence'} className={`seat__say${say ? '' : ' seat__say--mute'}`}>
+          {say ?? '…'}
         </span>
       )}
 
