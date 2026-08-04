@@ -32,12 +32,18 @@ export const LIMITS = {
    * 프론트가 이미 60자로 자르지만(llm-decider.ts), 프론트는 위조 가능하므로 여기가 진짜 벽이다.
    */
   lineLength: 80,
+  /**
+   * 밀담의 세 문자열(요청의 ask, 기록의 askLine·replyLine).
+   * 좌석 대사보다 길다 — 두어 문장이 자연스러운 자리다(설계 §7).
+   * **여기가 플레이어 자유 입력이 LLM에 닿는 유일한 통로다.**
+   */
+  parleyLength: 200,
 } as const
 
-/** Decider의 네 메서드와 1:1이다. */
-export type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse'
+/** Decider의 다섯 메서드와 1:1이다. */
+export type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley'
 
-const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse']
+const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse', 'parley']
 const PHASES: readonly Phase[] = ['suggest', 'refute', 'challenge', 'whisper', 'accuse', 'over']
 const FACTIONS: readonly Faction[] = ['citizen', 'culprit']
 
@@ -46,6 +52,8 @@ export interface DecideRequest {
   readonly kind: DecideKind
   /** 로그 상관관계 전용. 위조 가능하므로 신뢰하지 않는다. */
   readonly sessionId: string
+  /** 밀담에서 플레이어가 한 말. 다른 kind에서는 반드시 null이다. */
+  readonly ask: string | null
   readonly view: GameView
 }
 
@@ -186,10 +194,31 @@ function challengeRecord(value: unknown, where: string) {
   }
 }
 
+/** 밀담 기록. viewFor가 이미 낀 두 사람에게만 실었으므로, 여기서는 모양과 길이만 본다. */
+function parleyRecord(value: unknown, where: string) {
+  const obj = record(value, where)
+  onlyKeys(obj, ['targetId', 'askLine', 'replyLine'], where)
+  const bounded = (key: string) => {
+    const text = obj[key]
+    if (typeof text !== 'string') bad(where, `${key}가 문자열이 아니다`)
+    if (text.length > LIMITS.parleyLength) bad(where, `${key}가 ${LIMITS.parleyLength}자를 넘는다`)
+    return text
+  }
+  return {
+    targetId: text(obj, 'targetId', where),
+    askLine: bounded('askLine'),
+    replyLine: bounded('replyLine'),
+  }
+}
+
 function roundView(value: unknown, index: number) {
   const where = `rounds[${index}]`
   const obj = record(value, where)
-  onlyKeys(obj, ['round', 'suggesterId', 'suggestion', 'suggestionLine', 'declarations', 'challenge'], where)
+  onlyKeys(
+    obj,
+    ['round', 'suggesterId', 'suggestion', 'suggestionLine', 'declarations', 'challenge', 'parley'],
+    where,
+  )
   return {
     round: count(obj, 'round', where),
     suggesterId: text(obj, 'suggesterId', where),
@@ -206,6 +235,11 @@ function roundView(value: unknown, index: number) {
       }
     }),
     challenge: obj['challenge'] === null ? null : challengeRecord(obj['challenge'], `${where}.challenge`),
+    // 없는 것과 null을 같게 읽는다 — 밀담이 없는 라운드가 기본이다.
+    parley:
+      obj['parley'] === null || obj['parley'] === undefined
+        ? null
+        : parleyRecord(obj['parley'], `${where}.parley`),
   }
 }
 
@@ -252,14 +286,34 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
 
   try {
     const obj = record(raw, 'body')
-    onlyKeys(obj, ['v', 'kind', 'sessionId', 'view'], 'body')
+    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view'], 'body')
     if (obj['v'] !== 1) bad('body', '모르는 계약 버전이다')
+
+    const kind = oneOf(obj, 'kind', KINDS, 'body')
+
+    /*
+     * ask는 밀담에서만 존재한다. 다른 kind에 실려 오면 거부한다 —
+     * 「어떤 kind가 무엇을 실을 수 있는가」를 느슨하게 두면 프롬프트에 들어갈 자유 텍스트의
+     * 경로가 늘어나고, 그 경로마다 인젝션 표면이 생긴다.
+     */
+    const said = obj['ask']
+    let ask: string | null = null
+    if (kind === 'parley') {
+      if (typeof said !== 'string') bad('body', '밀담에는 ask가 있어야 한다')
+      if (said.length === 0) bad('body', 'ask가 비었다')
+      if (said.length > LIMITS.parleyLength) bad('body', `ask가 ${LIMITS.parleyLength}자를 넘는다`)
+      ask = said
+    } else if (said !== undefined && said !== null) {
+      bad('body', '밀담이 아닌 요청에는 ask를 실을 수 없다')
+    }
+
     return {
       ok: true,
       value: {
         v: 1,
-        kind: oneOf(obj, 'kind', KINDS, 'body'),
+        kind,
         sessionId: text(obj, 'sessionId', 'body'),
+        ask,
         view: gameView(obj['view']),
       },
     }
