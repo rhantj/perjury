@@ -63,6 +63,7 @@ export function challenge(
   state: GameState,
   challengerId: PlayerId,
   targetId: PlayerId,
+  line: string | null = null,
 ): GameState {
   if (state.phase !== 'challenge') throw new Error(`이의제기 페이즈가 아니다: ${state.phase}`)
   if (challengerId === targetId) throw new Error('자기 자신에게 이의제기할 수 없다')
@@ -96,7 +97,7 @@ export function challenge(
   return closeRound(
     state,
     record,
-    { challengerId, targetId, cardId, success, reveals },
+    { challengerId, targetId, cardId, success, reveals, line },
     applyReveals(state, reveals),
   )
 }

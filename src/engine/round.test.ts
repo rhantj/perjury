@@ -214,3 +214,65 @@ describe('declareAll — 동시 반증 선언', () => {
     ).toThrow()
   })
 })
+
+/**
+ * 대사는 «그 자리에서 소리내어 한 말»이다. 룰에는 관여하지 않지만 기록에는 남아야 한다 —
+ * 반증 선언이 원래 발화 행위이기 때문이다(설계 §1.4.1). LLM만 대사를 만들고
+ * 사람과 규칙 기반 판단자는 만들지 않으므로, **없는 것이 정상 상태**다.
+ */
+describe('대사 기록', () => {
+  const staged = withHands([
+    ['s2', 'p4'],
+    ['w1', 'p3'],
+    ['p1', 'w2'],
+    ['s3', 's4'],
+    ['w3', 'p2'],
+    ['s5', 's1'],
+  ])
+
+  const allPass = claims([
+    [1, { kind: 'pass' }],
+    [2, { kind: 'pass' }],
+    [3, { kind: 'pass' }],
+    [4, { kind: 'pass' }],
+    [5, { kind: 'pass' }],
+  ])
+
+  it('제안 대사가 라운드 기록에 남는다', () => {
+    const game = suggest(staged, 'p0', SUGGESTION, '이 셋을 상 위에 올리겠소')
+
+    expect(game.rounds[0]?.suggestionLine).toBe('이 셋을 상 위에 올리겠소')
+  })
+
+  it('제안 대사를 주지 않으면 null이다', () => {
+    expect(suggest(staged, 'p0', SUGGESTION).rounds[0]?.suggestionLine).toBeNull()
+  })
+
+  it('반증 대사가 선언자별로 남는다', () => {
+    const game = declareAll(
+      suggest(staged, 'p0', SUGGESTION),
+      allPass,
+      new Map([['p2', '그 물건이라면 내 방에 있소']]),
+    )
+
+    const declarations = game.rounds[0]?.declarations ?? []
+    expect(declarations.find((d) => d.playerId === 'p2')?.line).toBe('그 물건이라면 내 방에 있소')
+    expect(declarations.find((d) => d.playerId === 'p1')?.line).toBeNull()
+  })
+
+  it('대사를 하나도 주지 않으면 전원 null이다', () => {
+    const game = declareAll(suggest(staged, 'p0', SUGGESTION), allPass)
+
+    expect((game.rounds[0]?.declarations ?? []).every((d) => d.line === null)).toBe(true)
+  })
+
+  it('선언하지 않은 사람의 대사는 버린다 — 기록은 선언을 따라간다', () => {
+    const game = declareAll(
+      suggest(staged, 'p0', SUGGESTION),
+      allPass,
+      new Map([['p0', '제안자는 선언하지 않는다']]),
+    )
+
+    expect((game.rounds[0]?.declarations ?? []).some((d) => d.playerId === 'p0')).toBe(false)
+  })
+})

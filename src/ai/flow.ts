@@ -148,6 +148,7 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
         citizens.map(async (p) => ({
           playerId: p.id,
           accusation: await decider.chooseAccusation(viewFor(state, p.id)),
+          line: null,
         })),
       )
       return accuseByCouncil(state, votes)

@@ -54,6 +54,13 @@ export interface Declaration {
    * UI와 AI 프롬프트에 노출하면 안 된다 — 그러면 이의제기가 무의미해진다.
    */
   readonly isPerjury: boolean
+  /**
+   * 그 자리에서 소리내어 한 말. 룰에는 전혀 관여하지 않는다 — isPerjury는 claim만 보고 정한다.
+   *
+   * 선언은 원래 «대사»이므로(설계 §1.4.1) 무엇을 말했는지가 기록의 일부다.
+   * **사람과 규칙 기반 판단자는 대사를 만들지 않으므로 null이 정상 상태다.**
+   */
+  readonly line: string | null
 }
 
 export interface Reveal {
@@ -68,12 +75,16 @@ export interface ChallengeRecord {
   readonly cardId: CardId
   readonly success: boolean
   readonly reveals: readonly Reveal[]
+  /** 잡으면서 한 말. 없으면 null(설명은 Declaration.line). */
+  readonly line: string | null
 }
 
 export interface RoundRecord {
   readonly round: number
   readonly suggesterId: PlayerId
   readonly suggestion: Suggestion
+  /** 제안하며 한 말. 없으면 null(설명은 Declaration.line). */
+  readonly suggestionLine: string | null
   readonly declarations: readonly Declaration[]
   readonly challenge: ChallengeRecord | null
 }
@@ -81,6 +92,8 @@ export interface RoundRecord {
 export interface Vote {
   readonly playerId: PlayerId
   readonly accusation: Suggestion
+  /** 고발에 표를 던지며 한 말. 없으면 null(설명은 Declaration.line). */
+  readonly line: string | null
 }
 
 /**

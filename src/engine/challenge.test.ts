@@ -155,3 +155,15 @@ describe('challenge — 상태 전이', () => {
     expect(record?.reveals).toHaveLength(2)
   })
 })
+
+describe('이의제기 대사', () => {
+  it('이의제기 대사가 기록에 남는다', () => {
+    const record = challenge(staged(), 'p2', 'p3', '거짓말이오').rounds[0]?.challenge
+
+    expect(record?.line).toBe('거짓말이오')
+  })
+
+  it('대사를 주지 않으면 null이다', () => {
+    expect(challenge(staged(), 'p2', 'p3').rounds[0]?.challenge?.line).toBeNull()
+  })
+})

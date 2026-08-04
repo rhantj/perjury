@@ -200,3 +200,41 @@ describe('viewFor — 검증', () => {
     expect(view.viewerId).toBe('p0')
   })
 })
+
+/**
+ * 대사는 소리내어 한 말이라 전원이 들었다. 그래서 시야에 실린다.
+ * 반면 isPerjury는 그 말이 «참인지»라서 계속 시야 밖이다 — 둘을 헷갈리면 이의제기가 무의미해진다.
+ */
+describe('viewFor — 대사', () => {
+  function spoken(): GameState {
+    const claims = new Map<PlayerId, Claim>([
+      ['p1', { kind: 'refute', cardId: 'w1' }],
+      ['p2', { kind: 'pass' }],
+      ['p3', { kind: 'refute', cardId: 'p1' }], // 위증
+      ['p4', { kind: 'pass' }],
+      ['p5', { kind: 'pass' }],
+    ])
+    return declareAll(
+      suggest(staged(), 'p0', SUGGESTION, '이 셋을 상 위에 올리겠소'),
+      claims,
+      new Map([['p3', '그 물건이라면 내 방에 있소']]),
+    )
+  }
+
+  it('제안 대사가 시야에 실린다', () => {
+    expect(viewFor(spoken(), 'p1').rounds[0]?.suggestionLine).toBe('이 셋을 상 위에 올리겠소')
+  })
+
+  it('남의 반증 대사도 보인다 — 모두가 들은 말이다', () => {
+    const declarations = viewFor(spoken(), 'p1').rounds[0]?.declarations ?? []
+
+    expect(declarations.find((d) => d.playerId === 'p3')?.line).toBe('그 물건이라면 내 방에 있소')
+    expect(declarations.find((d) => d.playerId === 'p2')?.line).toBeNull()
+  })
+
+  it('대사가 실려도 위증 여부는 여전히 새지 않는다', () => {
+    for (const declaration of viewFor(spoken(), 'p1').rounds[0]?.declarations ?? []) {
+      expect(declaration).not.toHaveProperty('isPerjury')
+    }
+  })
+})
