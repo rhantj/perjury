@@ -172,6 +172,32 @@
   color: oklch(58% 0.012 80);
 }
 
+/* ---- 합의 발언 ---- */
+.votes {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.votes__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.votes__who {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: oklch(58% 0.012 80);
+}
+.votes__line {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  font-style: italic;
+  color: oklch(76% 0.035 75);
+}
+
 .verdict__none,
 .verdict__tally {
   margin: 0.5rem 0 0;
