@@ -70,6 +70,13 @@ function corsHeaders(origin: string): Record<string, string> {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
+    /*
+     * 이게 없으면 브라우저가 X-Upstream-Tokens를 통째로 감춘다 — 워커가 붙여 보내도
+     * 프론트에서는 null로만 읽힌다. 캐시 적중을 볼 수 있는 창이 이 헤더 하나뿐이라,
+     * 노출하지 않으면 배포본에서 프리픽스 캐싱이 도는지 확인할 방법이 없다.
+     * 토큰 수는 비밀이 아니다.
+     */
+    'Access-Control-Expose-Headers': 'X-Upstream-Tokens',
     // 없으면 CDN이 한 오리진에 준 응답을 다른 오리진에도 준다.
     Vary: 'Origin',
   }
