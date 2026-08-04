@@ -39,6 +39,7 @@ function probeDeciders(ms: number) {
         await wait()
         return base.chooseAccusation(view)
       },
+      speakInParley: async () => null,
     }
     return () => probe
   }
@@ -61,6 +62,7 @@ function failingDeciders(reason: FallbackReason): DeciderForRound {
     chooseClaim: async () => boom(),
     chooseChallengeTarget: async () => boom(),
     chooseAccusation: async () => boom(),
+    speakInParley: async () => boom(),
   }
   return () => decider
 }

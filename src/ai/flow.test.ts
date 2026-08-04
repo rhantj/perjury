@@ -142,6 +142,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
         return Promise.resolve(silent(other ? other.id : null))
       },
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
     return () => decider
   }
@@ -184,6 +185,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
       chooseChallengeTarget: (view) =>
         Promise.resolve(silent(view.viewerId === first.id ? null : first.id)),
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
 
     const next = await stepAi(state, decider)
@@ -221,6 +223,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
           setTimeout(() => resolve(silent(target.id)), (state.players.length - seat) * 5)
         }),
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
 
     const next = await stepAi(state, decider)
@@ -249,6 +252,7 @@ describe('반증 — 제안에 없는 카드', () => {
     chooseClaim: () => Promise.resolve(silent<Claim>({ kind: 'refute', cardId: 's6' })),
     chooseChallengeTarget: () => Promise.resolve(silent(null)),
     chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+    speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
   }
 
   it('stepAi — 침묵으로 읽고 라운드를 계속 밀고 간다', async () => {
@@ -289,6 +293,7 @@ describe('대사 전달', () => {
         return Promise.resolve({ value: target ? target.id : null, line: `${view.viewerId} 이의` })
       },
       chooseAccusation: (view) => Promise.resolve({ value: suggestion, line: `${view.viewerId} 고발` }),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
   }
 

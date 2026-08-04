@@ -26,6 +26,11 @@ export function createRuleDecider(seed: string): Decider {
     chooseClaim: async (view) => silent(claimFrom(view, saltOf(seed, 'cl', view))),
     chooseChallengeTarget: async (view) => silent(challengeTargetFrom(view)),
     chooseAccusation: async (view) => silent(voteFrom(view, saltOf(seed, 'vote', view))),
+    /*
+     * 밀담에는 침묵한다. 사전생성 대사 풀은 D8 작업이고, 여기서 급조하면
+     * 폴백이 같은 문장을 8라운드 내내 반복한다. 화면은 «밀담이 이뤄지지 않았다»로 간다(설계 §6.6).
+     */
+    speakInParley: async () => null,
   }
 }
 

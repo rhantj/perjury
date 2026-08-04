@@ -186,3 +186,47 @@ describe('createLlmDecider — 대사 좁히기', () => {
     expect(spoken.line).toBeNull()
   })
 })
+
+describe('createLlmDecider — 밀담', () => {
+  it('kind: parley로 ask를 함께 보낸다', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, kind: 'parley', decision: null, line: '못 봤소' }),
+    } as unknown as Response)
+
+    await createLlmDecider().speakInParley(viewOf(), '왜 침묵했지')
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body.kind).toBe('parley')
+    expect(body.ask).toBe('왜 침묵했지')
+  })
+
+  it('대사만 돌려준다', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, kind: 'parley', decision: null, line: '  못  봤소  ' }),
+    } as unknown as Response)
+
+    expect(await createLlmDecider().speakInParley(viewOf(), '묻는다')).toBe('못 봤소')
+  })
+
+  it('밀담 응답은 대사보다 넉넉히 120자까지 남긴다', async () => {
+    const long = '가'.repeat(200)
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, kind: 'parley', decision: null, line: long }),
+    } as unknown as Response)
+
+    const reply = await createLlmDecider().speakInParley(viewOf(), '묻는다')
+
+    expect(reply).toBe(`${'가'.repeat(120)}…`)
+  })
+
+  it('실패하면 던진다 — 폴백 래퍼가 받는다', async () => {
+    fetchMock.mockRejectedValue(new Error('끊김'))
+
+    await expect(createLlmDecider().speakInParley(viewOf(), '묻는다')).rejects.toBeInstanceOf(
+      LlmUnavailableError,
+    )
+  })
+})

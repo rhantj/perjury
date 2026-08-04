@@ -41,7 +41,7 @@ export class LlmUnavailableError extends Error {
 /** 프록시(25초)보다 길게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1). */
 const REQUEST_TIMEOUT_MS = 30_000
 
-type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse'
+type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -79,12 +79,14 @@ function toClaim(value: unknown): Claim {
  *   길이   → 프롬프트가 40자를 «요구»할 뿐 강제하지 않는다. 좌석 칸을 넘기면 판이 가려진다
  */
 const LINE_MAX = 60
+/** 밀담은 두어 문장이 자연스러운 자리라 좌석 대사보다 넉넉하다(설계 §7). */
+const PARLEY_LINE_MAX = 120
 
-function toLine(value: unknown): string | null {
+function toLine(value: unknown, max: number = LINE_MAX): string | null {
   if (typeof value !== 'string') return null
   const flat = value.replace(/\s+/g, ' ').trim()
   if (flat.length === 0) return null
-  return flat.length > LINE_MAX ? `${flat.slice(0, LINE_MAX)}…` : flat
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat
 }
 
 function toTarget(value: unknown): PlayerId | null {
@@ -105,7 +107,7 @@ export function createLlmDecider(): Decider {
   /** 로그 상관관계 전용. 프록시가 신뢰하지 않는 값이다. */
   const sessionId = crypto.randomUUID()
 
-  async function ask(kind: DecideKind, view: GameView): Promise<Spoken<unknown>> {
+  async function ask(kind: DecideKind, view: GameView, said?: string): Promise<Spoken<unknown>> {
     if (exhausted) throw new LlmUnavailableError('budget_exhausted')
 
     let response: Response
@@ -113,7 +115,8 @@ export function createLlmDecider(): Decider {
       response = await fetch(`${PROXY_URL}/decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ v: 1, kind, sessionId, view }),
+        // said가 undefined면 JSON.stringify가 키를 통째로 지운다 — 다른 kind는 ask를 보내지 않는다.
+        body: JSON.stringify({ v: 1, kind, sessionId, view, ask: said }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     } catch {
@@ -134,12 +137,13 @@ export function createLlmDecider(): Decider {
       throw new LlmUnavailableError(code)
     }
 
-    return { value: payload['decision'], line: toLine(payload['line']) }
+    // 대사 상한은 kind마다 다르다. 여기서는 자르지 않고 원문을 넘겨 부르는 쪽이 정하게 한다.
+    return { value: payload['decision'], line: typeof payload['line'] === 'string' ? payload['line'] : null }
   }
 
-  /** 판단만 좁히고 대사는 그대로 통과시킨다. 대사는 룰에 관여하지 않으므로 검증 대상이 아니다. */
+  /** 판단만 좁히고 대사는 좌석 상한으로 자른다. 대사는 룰에 관여하지 않으므로 검증 대상이 아니다. */
   function decide<T>(spoken: Spoken<unknown>, narrow: (value: unknown) => T): Spoken<T> {
-    return { value: narrow(spoken.value), line: spoken.line }
+    return { value: narrow(spoken.value), line: toLine(spoken.line) }
   }
 
   return {
@@ -147,6 +151,8 @@ export function createLlmDecider(): Decider {
     chooseClaim: async (view) => decide(await ask('refute', view), toClaim),
     chooseChallengeTarget: async (view) => decide(await ask('challenge', view), toTarget),
     chooseAccusation: async (view) => decide(await ask('accuse', view), toSuggestion),
+    // 결정이 없는 유일한 kind다. decision은 null이고 line만 쓴다.
+    speakInParley: async (view, said) => toLine((await ask('parley', view, said)).line, PARLEY_LINE_MAX),
   }
 }
 
