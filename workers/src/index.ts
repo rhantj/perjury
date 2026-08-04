@@ -174,7 +174,7 @@ export default {
         timeoutMs: UPSTREAM_TIMEOUT_MS,
       }
 
-      const result = await decide(config, parsed.value.kind, parsed.value.view)
+      const result = await decide(config, parsed.value.kind, parsed.value.view, parsed.value.ask)
       if (!result.ok) {
         const status = result.code === 'upstream_timeout' ? 504 : result.code === 'invalid_upstream' ? 502 : 503
         return fail(result.code, result.detail, status, origin)
