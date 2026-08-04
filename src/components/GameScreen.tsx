@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { llmDeciderForRound } from '../ai/llm-decider'
 import { cardLabel, participantLabel } from '../content/labels'
+import { josa } from '../content/josa'
 import type { Scenario } from '../content/scenarios'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -453,7 +454,7 @@ function RefuteBar({
           className={`btn${hand.includes(cardId) ? ' btn--held' : ''}`}
           onClick={() => onRefute({ kind: 'refute', cardId })}
         >
-          {cardLabel(scenario, cardId)}로 반증
+          {josa(cardLabel(scenario, cardId), 'ro')} 반증
           {hand.includes(cardId) && <small>보유</small>}
         </button>
       ))}

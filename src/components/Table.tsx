@@ -6,6 +6,7 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
+import { josa } from '../content/josa'
 import { cardKind, cardName } from '../engine/cards'
 import type { CardId, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
@@ -179,7 +180,7 @@ function Seat({
     : declaration
       ? revealed
         ? declaration.claim.kind === 'refute'
-          ? `“${label(declaration.claim.cardId)}로 반증합니다”`
+          ? `“${josa(label(declaration.claim.cardId), 'ro')} 반증합니다”`
           : '“없습니다”'
         : '…'
       : null

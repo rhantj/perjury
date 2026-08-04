@@ -1,3 +1,4 @@
+import { josa } from '../content/josa'
 import { cardLabel, participantInitial, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId } from '../engine/types'
@@ -33,6 +34,17 @@ function nameOf(view: GameView, id: string): string {
   return participantLabel(view, id)
 }
 
+/**
+ * 「누가」에 해당하는 말. 조사까지 붙여 돌려준다.
+ *
+ * 나 자신은 「나가」가 아니라 **「내가」**다 — 조사 규칙이 아니라 대명사가 통째로 바뀌는
+ * 예외라서 josa()로는 못 만든다. 여기서 한 번만 갈라 둔다.
+ */
+function subject(view: GameView, id: string): string {
+  const name = nameOf(view, id)
+  return name === '나' ? '내가' : josa(name, 'i')
+}
+
 function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
   const label = (id: CardId) => cardLabel(scenario, id)
 
@@ -43,9 +55,9 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       face: null,
       quote: round.suggestionLine,
       mine: false,
-      text: `${nameOf(view, round.suggesterId)}가 ${label(round.suggestion.suspect)} · ${label(
+      text: `${subject(view, round.suggesterId)} ${label(round.suggestion.suspect)} · ${label(
         round.suggestion.weapon,
-      )} · ${label(round.suggestion.place)}를 올렸다.`,
+      )} · ${josa(label(round.suggestion.place), 'eul')} 올렸다.`,
     },
   ]
 
@@ -58,7 +70,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
             face: participantInitial(view, d.playerId),
             quote: d.line,
             mine: d.playerId === view.viewerId,
-            text: `${label(d.claim.cardId)}로 반증합니다.`,
+            text: `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`,
           }
         : {
             tone: 'pass',
@@ -80,7 +92,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       quote: line,
       mine: false,
       text: success
-        ? `${nameOf(view, challengerId)}가 ${nameOf(view, targetId)}의 위증을 잡았다 — ${label(cardId)}는 자신이 갖고 있다.`
+        ? `${subject(view, challengerId)} ${nameOf(view, targetId)}의 위증을 잡았다 — ${josa(label(cardId), 'eun')} 자신이 갖고 있다.`
         : `${nameOf(view, challengerId)}의 이의제기가 실패했다.`,
     })
     for (const r of reveals) {
@@ -90,7 +102,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
         face: null,
         quote: null,
         mine: false,
-        text: `${nameOf(view, r.playerId)}의 ${label(r.cardId)}가 공개됐다.`,
+        text: `${nameOf(view, r.playerId)}의 ${josa(label(r.cardId), 'i')} 공개됐다.`,
       })
     }
   }
