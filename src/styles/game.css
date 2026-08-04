@@ -1510,6 +1510,66 @@
   }
 }
 
+.action-flash small {
+  position: relative;
+  display: block;
+  margin-top: 0.5em;
+  font-weight: 500;
+  font-size: 0.32em;
+  letter-spacing: 0.14em;
+  opacity: 0;
+}
+
+/*
+ * 내 차례 안내 — 다른 알림처럼 «쾅» 터지지 않지만, 놓칠 만큼 은은해서도 안 된다.
+ * 촛불처럼 두어 번 깜빡인 뒤 확실하게 밝아져 오래 머문다. 배경은 다른 알림보다 짙고 길게 깔린다.
+ */
+.action-flash--myTurn::before {
+  background: oklch(4% 0.02 260 / 0.86);
+  animation: flash-dim-hard 2600ms var(--ease-in-out) forwards;
+}
+.action-flash--myTurn span {
+  font-size: clamp(2.1rem, 1.3rem + 3.8vw, 3.8rem);
+  letter-spacing: 0.3em;
+  color: oklch(92% 0.03 250);
+  text-shadow:
+    0 0 20px oklch(0% 0 0 / 0.95),
+    0 0 70px oklch(55% 0.1 250 / 0.85),
+    0 0 140px oklch(45% 0.09 250 / 0.6);
+  animation: myturn-flicker 2600ms var(--ease-out-expo) forwards;
+}
+.action-flash--myTurn small {
+  color: oklch(76% 0.02 250);
+  animation: myturn-flicker 2600ms var(--ease-out-expo) forwards;
+  animation-delay: 100ms;
+}
+@keyframes myturn-flicker {
+  0% {
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.35;
+  }
+  7% {
+    opacity: 0.08;
+  }
+  11% {
+    opacity: 0.7;
+  }
+  14% {
+    opacity: 0.25;
+  }
+  20% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes flash-dim {
   0% {
     opacity: 0;
