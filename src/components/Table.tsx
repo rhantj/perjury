@@ -7,6 +7,7 @@ import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
 import { josa } from '../content/josa'
+import { myPassLine, myRefuteLine } from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
 import type { CardId, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
@@ -175,13 +176,22 @@ function Seat({
   const isSuggester = live?.suggesterId === player.id
   const caught = live?.challenge?.targetId === player.id && live.challenge.success
 
+  /*
+   * 내 발언만 "~를 반증합니다"로 기계적으로 고정돼 있다는 피드백 — 다른 좌석은 LLM 대사가
+   * 성격을 대신 낸다. 사람은 LLM을 부르지 않아 declaration.line이 늘 null이므로(엔진
+   * types.ts 주석) 이 자리에서 캐릭터별 고정 대사(content/fallback-lines)로 갈음한다.
+   */
   const say = isSuggester
     ? '제안했다'
     : declaration
       ? revealed
         ? declaration.claim.kind === 'refute'
-          ? `“${josa(label(declaration.claim.cardId), 'ro')} 반증합니다”`
-          : '“없습니다”'
+          ? `“${
+              player.isMe
+                ? myRefuteLine(player.characterId, label(declaration.claim.cardId))
+                : `${josa(label(declaration.claim.cardId), 'ro')} 반증합니다`
+            }”`
+          : `“${player.isMe ? myPassLine(player.characterId) : '없습니다'}”`
         : '…'
       : null
 
@@ -239,7 +249,7 @@ function Seat({
         .trim()}
     >
       {revealCard && (
-        <span className="seat__reveal-card">
+        <span className="seat__reveal-card" tabIndex={0}>
           {revealCard.art && <img src={revealCard.art} alt="" />}
           <em>{revealCard.name}</em>
         </span>

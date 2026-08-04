@@ -44,11 +44,11 @@ function toSuggestion(picked: Picked): Suggestion | null {
 
 /** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, myTurn은 내 제안 차례가 될 때 큐에 들어간다. */
 interface FlashEvent {
-  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn' | 'caught' | 'challengeCall'
+  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn' | 'caught' | 'challengeCall' | 'wrongCall'
   text: string
   /** 주 문구 아래 작게 붙는 보조 문구. */
   detail?: string
-  /** 위증으로 공개된 카드 그림. caught 전용 — 있으면 문구와 함께 카드 실물을 크게 띄운다. */
+  /** 이의제기로 공개된 카드 그림. caught·wrongCall 전용 — 있으면 문구와 함께 카드 실물을 크게 띄운다. */
   art?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
   ms: number
@@ -147,32 +147,49 @@ export default function GameScreen() {
   }, [view?.round, enqueueFlash])
 
   /*
-   * 이의제기가 성공해 위증이 확정되는 순간을 화면 전체로 띄운다. 이전에는 좌석 위 작은
-   * «위증» 배지뿐이라 누가 언제 잡혔는지 놓치기 쉬웠다는 피드백 — AI끼리의 이의제기도
-   * 대상이라 view.round가 아니라 view.phase로 감지한다(같은 라운드 안에서 벌어지는 일이라
-   * round 값 자체는 안 바뀐다).
+   * 이의제기 결과(성공·실패 둘 다)를 화면 전체로 띄운다. 이전에는 성공(위증 확정)만
+   * 다뤘는데, 실패했을 때(내가 위증을 의심했지만 틀려서 내 패가 대신 열리는 순간)의
+   * 연출은 좌석 위 작은 팝업뿐이라 «누가 누구를 왜 의심했다가 무슨 카드를 잃었는지»가
+   * 안 보인다는 피드백 — 성공은 발각(금빛·확정), 실패는 오판(냉랭한 톤)으로 갈라 보여준다.
+   * AI끼리의 이의제기도 대상이라 view.round가 아니라 view.phase로 감지한다(같은 라운드
+   * 안에서 벌어지는 일이라 round 값 자체는 안 바뀐다).
    *
-   * reveals에는 증거로 쓰인 카드(challenge.cardId)와, 무작위로 추가 공개된 패널티 카드가
-   * 섞여 있다 — cardId와 다른 것만 패널티다. 패널티가 없을 수도 있다(공개할 패가 없을 때).
+   * reveals에는 성공 시 증거로 쓰인 카드(challenge.cardId)와, 무작위로 추가 공개된
+   * 패널티 카드가 섞여 있다 — cardId와 다른 것만 패널티다(실패 시엔 패널티 하나뿐이다).
+   * 패널티가 없을 수도 있다(공개할 패가 없을 때).
    */
   const lastCaughtRoundRef = useRef<number | null>(null)
   useEffect(() => {
     if (!view || !scenario) return
     const record = view.rounds[view.rounds.length - 1]
     const challenge = record?.round === view.round ? record.challenge : null
-    if (!challenge || !challenge.success) return
+    if (!challenge) return
     if (lastCaughtRoundRef.current === view.round) return
     lastCaughtRoundRef.current = view.round
 
     const penalty = challenge.reveals.find((r) => r.cardId !== challenge.cardId) ?? null
+    const challenger = participantLabel(view, challenge.challengerId)
+    const target = participantLabel(view, challenge.targetId)
 
-    enqueueFlash({
-      kind: 'caught',
-      text: `${participantLabel(view, challenge.targetId)} 위증 발각!`,
-      detail: penalty ? `${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
-      art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-      ms: 2200,
-    })
+    if (challenge.success) {
+      enqueueFlash({
+        kind: 'caught',
+        text: `${target} 위증 발각!`,
+        detail: penalty ? `${challenger}이(가) 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
+        art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
+        ms: 2200,
+      })
+    } else {
+      enqueueFlash({
+        kind: 'wrongCall',
+        text: `${challenger}의 오판`,
+        detail: penalty
+          ? `${target}은(는) 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
+          : `${target}은(는) 위증이 아니었다`,
+        art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
+        ms: 2200,
+      })
+    }
   }, [view?.phase, view?.round, scenario, enqueueFlash])
 
   /*
