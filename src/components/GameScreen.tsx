@@ -96,8 +96,8 @@ export default function GameScreen() {
    */
   const fireActionFlash = (kind: 'suggest' | 'refute' | 'perjury') => {
     const byKind: Record<typeof kind, FlashEvent> = {
-      suggest: { kind: 'suggest', text: '제안', ms: 1000 },
-      refute: { kind: 'refute', text: '반증합니다', ms: 900 },
+      suggest: { kind: 'suggest', text: '제안', ms: 700 },
+      refute: { kind: 'refute', text: '반증합니다', ms: 650 },
       perjury: { kind: 'perjury', text: '위증!!!', ms: 1900 },
     }
     enqueueFlash(byKind[kind])
@@ -129,7 +129,7 @@ export default function GameScreen() {
     if (!view || view.round === lastRoundRef.current) return
     lastRoundRef.current = view.round
     if (view.round > 1) {
-      enqueueFlash({ kind: 'round', text: `제${view.round}회 신문`, ms: 1400 })
+      enqueueFlash({ kind: 'round', text: `제${view.round}회 신문`, ms: 1000 })
     }
   }, [view?.round, enqueueFlash])
 
@@ -152,7 +152,7 @@ export default function GameScreen() {
       kind: 'myTurn',
       text: '당신의 차례다',
       detail: '범인 · 수단 · 장소 — 하나씩 지목하라',
-      ms: 2600,
+      ms: 1800,
     })
   }, [view, stage, opening, enqueueFlash])
 
