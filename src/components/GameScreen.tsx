@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
+import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
 import { cardLabel, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
@@ -253,6 +254,7 @@ export default function GameScreen() {
           <span className="bar__case">
             {scenario.hanja} · {scenario.title}
           </span>
+          {store.fallbackRound && <FallbackMark reason={store.fallbackReason} />}
           <button type="button" className="bar__log-toggle" onClick={() => setLogOpen(true)}>
             記 기록
             {view.rounds.length > 0 && <em>{view.rounds.length}</em>}
@@ -418,6 +420,25 @@ const PHASE_LABEL: Record<GameView['phase'], string> = {
  *
  * role="status"로 두어 화면을 못 보는 사람에게도 «지금 기다리는 중»이 전달되게 한다.
  */
+/**
+ * 이번 라운드가 규칙 기반 폴백으로 떨어졌다는 표시.
+ *
+ * **이건 편의 기능이 아니라 진단 장치다.** 폴백이 조용하면 LLM이 죽어도 판이 그대로
+ * 굴러가서 아무도 모른다 — 실제로 워커가 요청을 거부하던 동안 판은 멀쩡히 끝났고,
+ * 화면만 봐서는 «대사가 안 뜬다»로만 보였다.
+ *
+ * 문구를 사유로 가르는 이유는 **복구 가능성이 다르기** 때문이다.
+ * error는 다음 라운드에 나을 수 있지만 budget은 그날 안에 낫지 않는다.
+ */
+function FallbackMark({ reason }: { reason: FallbackReason | null }) {
+  return (
+    <span className="bar__fallback" role="status">
+      <b>代</b>
+      {reason === 'budget' ? '예산 소진 — 오늘은 규칙으로 진행' : '연결 끊김 — 규칙으로 진행'}
+    </span>
+  )
+}
+
 function Waiting() {
   return (
     <p className="actions__waiting" role="status">
