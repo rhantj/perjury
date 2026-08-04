@@ -36,10 +36,12 @@ function toSuggestion(picked: Picked): Suggestion | null {
   return suspect && weapon && place ? { suspect, weapon, place } : null
 }
 
-/** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, 나머지는 제안·반증 제출 때 큐에 들어간다. */
+/** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, myTurn은 내 제안 차례가 될 때 큐에 들어간다. */
 interface FlashEvent {
-  kind: 'round' | 'suggest' | 'refute' | 'perjury'
+  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn'
   text: string
+  /** 주 문구 아래 작게 붙는 보조 문구. */
+  detail?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
   ms: number
 }
@@ -131,6 +133,29 @@ export default function GameScreen() {
     }
   }, [view?.round, enqueueFlash])
 
+  /*
+   * 내 제안 차례가 될 때마다 큐에 안내를 넣는다. stage/opening으로 막는 이유 —
+   * 훅은 Briefing 화면일 때도 이미 돌고 있어서, 판 시작 즉시(1라운드는 항상 내 차례다)
+   * 게임판 진입 전에 애니메이션이 다 끝나버릴 수 있다. 실제로 화면에 뜨는 시점까지 미룬다.
+   */
+  const lastMyTurnKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!view || stage !== 'play' || opening) return
+    if (view.phase !== 'suggest') return
+    if (view.players[view.turnIndex]?.isMe !== true) return
+
+    const key = `${view.round}:${view.turnIndex}`
+    if (lastMyTurnKeyRef.current === key) return
+    lastMyTurnKeyRef.current = key
+
+    enqueueFlash({
+      kind: 'myTurn',
+      text: '당신의 차례다',
+      detail: '범인 · 수단 · 장소 — 하나씩 지목하라',
+      ms: 2600,
+    })
+  }, [view, stage, opening, enqueueFlash])
+
   if (!store.state || !view)
     return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
 
@@ -192,6 +217,7 @@ export default function GameScreen() {
           aria-hidden="true"
         >
           <span>{activeFlash.event.text}</span>
+          {activeFlash.event.detail && <small>{activeFlash.event.detail}</small>}
         </div>
       )}
 
