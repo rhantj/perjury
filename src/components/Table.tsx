@@ -186,10 +186,10 @@ function Seat({
       : null
 
   /*
-   * LLM이 쓴 대사. 위의 say를 «대체하지 않고» 밑에 덧붙인다 —
-   * 대사는 카드 이름을 말하지 않을 수도 있어서, 대체하면 무엇으로 반증했는지가 화면에서 사라진다.
+   * LLM이 쓴 대사. 있으면 say 대신 이것만 렌더한다(아래 JSX) — 둘을 같이 띄우면 한 좌석에
+   * 줄이 두 개 겹쳐 헷갈린다는 피드백 때문이다.
    *
-   * 없으면 null이다(사람·규칙 기반 판단자·폴백). 그때는 위의 고정 문구만 남는다 — 절대 규칙 4.
+   * 없으면 null이다(사람·규칙 기반 판단자·폴백). 그때는 say(고정 문구)로 대체한다 — 절대 규칙 4.
    * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
    */
   const challengeLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
