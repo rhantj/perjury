@@ -27,6 +27,11 @@ export const LIMITS = {
   votes: 6,
   /** 이름·카드 id 등 문자열 전반. */
   stringLength: 200,
+  /**
+   * 에이전트 대사. 다른 문자열보다 짧게 잡는다 — **이건 프롬프트로 되돌아간다.**
+   * 프론트가 이미 60자로 자르지만(llm-decider.ts), 프론트는 위조 가능하므로 여기가 진짜 벽이다.
+   */
+  lineLength: 80,
 } as const
 
 /** Decider의 네 메서드와 1:1이다. */
@@ -104,6 +109,20 @@ function list(obj: Record<string, unknown>, key: string, max: number, where: str
   return value
 }
 
+/**
+ * 에이전트 대사. 없을 수 있으므로 null을 허용하되, 있으면 짧아야 한다.
+ *
+ * 룰에는 관여하지 않는 값이라 «있으면 통과»로 두고 싶어지지만, 이 문자열은 다음 호출의
+ * 프롬프트에 그대로 실려 돌아간다. 길이 제한이 인젝션 표면을 좁히는 유일한 수단이다.
+ */
+function line(obj: Record<string, unknown>, key: string, where: string): string | null {
+  const value = obj[key]
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') bad(where, `${key}가 문자열이 아니다`)
+  if (value.length > LIMITS.lineLength) bad(where, `${key}가 ${LIMITS.lineLength}자를 넘는다`)
+  return value
+}
+
 function cardIds(obj: Record<string, unknown>, key: string, where: string): string[] {
   return list(obj, key, LIMITS.players * 3, where).map((entry, i) => {
     if (typeof entry !== 'string') bad(where, `${key}[${i}]가 문자열이 아니다`)
@@ -151,7 +170,7 @@ function player(value: unknown, index: number) {
 
 function challengeRecord(value: unknown, where: string) {
   const obj = record(value, where)
-  onlyKeys(obj, ['challengerId', 'targetId', 'cardId', 'success', 'reveals'], where)
+  onlyKeys(obj, ['challengerId', 'targetId', 'cardId', 'success', 'reveals', 'line'], where)
   return {
     challengerId: text(obj, 'challengerId', where),
     targetId: text(obj, 'targetId', where),
@@ -163,22 +182,28 @@ function challengeRecord(value: unknown, where: string) {
       onlyKeys(reveal, ['playerId', 'cardId'], at)
       return { playerId: text(reveal, 'playerId', at), cardId: text(reveal, 'cardId', at) }
     }),
+    line: line(obj, 'line', where),
   }
 }
 
 function roundView(value: unknown, index: number) {
   const where = `rounds[${index}]`
   const obj = record(value, where)
-  onlyKeys(obj, ['round', 'suggesterId', 'suggestion', 'declarations', 'challenge'], where)
+  onlyKeys(obj, ['round', 'suggesterId', 'suggestion', 'suggestionLine', 'declarations', 'challenge'], where)
   return {
     round: count(obj, 'round', where),
     suggesterId: text(obj, 'suggesterId', where),
     suggestion: suggestion(obj['suggestion'], `${where}.suggestion`),
+    suggestionLine: line(obj, 'suggestionLine', where),
     declarations: list(obj, 'declarations', LIMITS.declarations, where).map((entry, i) => {
       const at = `${where}.declarations[${i}]`
       const decl = record(entry, at)
-      onlyKeys(decl, ['playerId', 'claim'], at)
-      return { playerId: text(decl, 'playerId', at), claim: claim(decl['claim'], `${at}.claim`) }
+      onlyKeys(decl, ['playerId', 'claim', 'line'], at)
+      return {
+        playerId: text(decl, 'playerId', at),
+        claim: claim(decl['claim'], `${at}.claim`),
+        line: line(decl, 'line', at),
+      }
     }),
     challenge: obj['challenge'] === null ? null : challengeRecord(obj['challenge'], `${where}.challenge`),
   }

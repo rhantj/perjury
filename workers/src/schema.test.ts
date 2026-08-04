@@ -30,7 +30,8 @@ function validBody(patch: (body: Record<string, unknown>) => void = () => {}): s
           round: 1,
           suggesterId: 'p0',
           suggestion: { suspect: 's2', weapon: 'w1', place: 'p4' },
-          declarations: [{ playerId: 'p1', claim: { kind: 'refute', cardId: 's2' } }],
+          suggestionLine: null,
+          declarations: [{ playerId: 'p1', claim: { kind: 'refute', cardId: 's2' }, line: null }],
           challenge: null,
         },
       ],
@@ -174,5 +175,63 @@ describe('parseDecideRequest', () => {
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.message).toContain('cardId')
+  })
+})
+
+/**
+ * 대사는 시야를 타고 와서 프롬프트로 되돌아간다 — 인젝션 표면이다.
+ * 그래서 «받되 짧게»가 규칙이다. 아예 안 받으면 프론트의 정상 요청이 통째로 거부된다.
+ */
+describe('parseDecideRequest — 대사', () => {
+  it('제안·반증 대사를 받는다', () => {
+    const result = parseDecideRequest(
+      validBody((b) => {
+        const rounds = view(b)['rounds'] as Record<string, unknown>[]
+        const first = rounds[0]
+        if (!first) throw new Error('라운드가 없다')
+        first['suggestionLine'] = '이 셋을 상 위에 올리겠소'
+        const declarations = first['declarations'] as Record<string, unknown>[]
+        const one = declarations[0]
+        if (!one) throw new Error('선언이 없다')
+        one['line'] = '그 물건이라면 내 방에 있소'
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+  })
+
+  it('이의제기 대사를 받는다', () => {
+    const result = parseDecideRequest(
+      validBody((b) => {
+        const rounds = view(b)['rounds'] as Record<string, unknown>[]
+        const first = rounds[0]
+        if (!first) throw new Error('라운드가 없다')
+        first['challenge'] = {
+          challengerId: 'p2',
+          targetId: 'p1',
+          cardId: 's2',
+          success: true,
+          reveals: [],
+          line: '거짓말이오',
+        }
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+  })
+
+  it('긴 대사는 거부한다 — 프롬프트로 되돌아가는 문자열이다', () => {
+    const result = parseDecideRequest(
+      validBody((b) => {
+        const rounds = view(b)['rounds'] as Record<string, unknown>[]
+        const first = rounds[0]
+        if (!first) throw new Error('라운드가 없다')
+        first['suggestionLine'] = '가'.repeat(LIMITS.lineLength + 1)
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('거부해야 한다')
+    expect(result.message).toContain(`${LIMITS.lineLength}자`)
   })
 })
