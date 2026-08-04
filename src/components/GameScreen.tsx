@@ -43,7 +43,7 @@ function toSuggestion(picked: Picked): Suggestion | null {
 
 /** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, myTurn은 내 제안 차례가 될 때 큐에 들어간다. */
 interface FlashEvent {
-  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn' | 'caught'
+  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn' | 'caught' | 'challengeCall'
   text: string
   /** 주 문구 아래 작게 붙는 보조 문구. */
   detail?: string
@@ -349,7 +349,24 @@ export default function GameScreen() {
           ) : view.phase === 'refute' ? (
             <RefuteBar view={view} scenario={scenario} onRefute={handleRefute} />
           ) : view.phase === 'challenge' ? (
-            <ChallengeBar view={view} onChallenge={store.challenge} onPass={store.passChallenge} />
+            <ChallengeBar
+              view={view}
+              onChallenge={(targetId) => {
+                /*
+                 * 결과(caught 플래시)는 판정이 끝나야 뜬다 — 그 전에 «내가 지금 누구를
+                 * 위증으로 지목했는지»부터 먼저 보여 달라는 피드백. 큐에 먼저 넣어 두면
+                 * 결과 플래시보다 앞서 뜨고, 뒤이어 결과가 자연스레 이어진다.
+                 */
+                enqueueFlash({
+                  kind: 'challengeCall',
+                  text: `${participantLabel(view, targetId)} 위증 의심!`,
+                  detail: '이의를 제기한다',
+                  ms: 1200,
+                })
+                store.challenge(targetId)
+              }}
+              onPass={store.passChallenge}
+            />
           ) : view.phase === 'accuse' ? (
             <button
               type="button"

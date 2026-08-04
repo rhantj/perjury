@@ -145,6 +145,12 @@ export async function decide(config: LlmConfig, kind: DecideKind, view: GameView
       body: JSON.stringify({
         model: config.model,
         max_tokens: config.maxTokens,
+        /*
+         * 이 네 종류 판단은 정해진 후보 중 하나를 고르는 좁은 결정이라 확장 사고가
+         * 필요 없다 — 켜 두면 답을 내기 전에 사고 토큰부터 쓰느라 5~10초 안에 안 끝난다.
+         * 성격 차이는 어차피 temperature가 아니라 프롬프트로 낸다(CLAUDE.md LLM 사용 절).
+         */
+        thinking: { type: 'disabled' },
         system,
         messages: [{ role: 'user', content: user }],
         output_config: { format: { type: 'json_schema', schema: schemaFor(kind, view) } },
