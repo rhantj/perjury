@@ -1246,6 +1246,50 @@
   color: oklch(72% 0.15 25);
 }
 /*
+ * AI가 판단하는 동안 행동 버튼 자리를 대신한다.
+ *
+ * «비활성화»가 아니라 «교체»인 이유는 자리에 누를 것을 남기지 않기 위해서다.
+ * 판단이 끝나면 페이즈가 바뀌며 버튼이 통째로 갈리는데, 커서는 그대로 있으므로
+ * 비활성화만 해두면 다음 클릭이 «새로 들어온 다른 버튼»에 떨어진다.
+ *
+ * 높이를 버튼과 맞추는 것도 같은 이유다 — 자리가 흔들리면 그 자체가 오조작을 부른다.
+ */
+.actions__waiting {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+.actions__waiting i {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  opacity: 0.2;
+  animation: waiting-pulse 1.4s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--i) * 0.18s);
+}
+@keyframes waiting-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.75);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions__waiting i {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+/*
  * 버튼. 표지·브리핑과 같은 «차오르는 남포등» 규칙을 쓴다 —
  * 화면마다 누르는 감각이 다르면 같은 게임으로 안 읽힌다.
  * 모서리도 둥근 0.4rem에서 종이 각으로 낮췄다.

@@ -175,7 +175,16 @@ export default function GameScreen() {
       />
     )
 
-  const picking = view.phase === 'suggest' || view.phase === 'accuse'
+  /**
+   * 사람이 지금 조작할 수 있는가. AI가 판단 중이면 false다.
+   *
+   * store는 이미 이 값을 내주고 있었지만 화면이 읽지 않아서, 유일한 잠금이
+   * store `apply`의 «조용히 삼키는» 가드뿐이었다. 눌러도 아무 일이 없으니
+   * 멈춘 것처럼 보이고, 판단이 끝나 버튼이 갈리는 순간 클릭이 엉뚱한 곳에 떨어졌다.
+   */
+  const myMove = store.awaitingHuman()
+
+  const picking = (view.phase === 'suggest' || view.phase === 'accuse') && myMove
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
   const isMyTurn = view.phase === 'suggest' && view.players[view.turnIndex]?.isMe === true
 
@@ -278,7 +287,9 @@ export default function GameScreen() {
 
         <footer className="actions">
           {store.error && <p className="actions__error">{store.error}</p>}
-          {view.outcome ? null : view.phase === 'suggest' ? (
+          {view.outcome ? null : !myMove ? (
+            <Waiting />
+          ) : view.phase === 'suggest' ? (
             <button
               type="button"
               className="btn btn--go"
@@ -395,6 +406,26 @@ const PHASE_LABEL: Record<GameView['phase'], string> = {
   whisper: '밀담',
   accuse: '최종 고발',
   over: '종료',
+}
+
+/**
+ * AI가 판단하는 동안의 대기 표시.
+ *
+ * **페이즈별 문구를 쓰지 않는다.** 대기 중에는 상태가 아직 안 바뀌어 view가 «옛» 페이즈를
+ * 들고 있다 — 제안을 낸 직후에도 phase는 여전히 'suggest'다. 페이즈로 문구를 고르면
+ * 실제로 벌어지는 일과 다른 말을 하게 된다. 어느 상황에서도 참인 한 문장만 쓴다.
+ *
+ * role="status"로 두어 화면을 못 보는 사람에게도 «지금 기다리는 중»이 전달되게 한다.
+ */
+function Waiting() {
+  return (
+    <p className="actions__waiting" role="status">
+      다른 자리에서 답을 고르는 중
+      {[0, 1, 2].map((i) => (
+        <i key={i} style={{ '--i': i } as CSSProperties} aria-hidden="true" />
+      ))}
+    </p>
+  )
 }
 
 /** 반증 선언. 갖고 있지 않은 카드도 고를 수 있다 — 그것이 위증이다. */
