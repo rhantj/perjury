@@ -214,19 +214,33 @@ describe('useGame', () => {
     expect(game().fallbackReason).toBeNull()
   })
 
-  it('판단자가 실패하면 규칙 기반으로 받아내고 사유를 남긴다', async () => {
-    // humanIndex 1이라 사람 차례 전에 AI가 먼저 제안한다 — 여기서 실패가 일어난다.
+  /**
+   * humanIndex 1이라 사람 차례 전에 AI가 한 번 제안한다 — 실패는 여기 한 번뿐이다.
+   * 낙오 하나로는 배너를 띄우지 않는다(결정 006). 띄우면 멀쩡한 밀담까지 막힌다.
+   */
+  it('실패가 한 번뿐이면 받아내되 폴백 표시는 서지 않는다', async () => {
     await game().start('fallback', 1, () => failingDeciders('error'))
+
+    expect(game().fallbackRound).toBe(false)
+    // 폴백이 받아냈으므로 판은 살아 있어야 한다.
+    expect(game().state).not.toBeNull()
+    expect(game().error).toBeNull()
+  })
+
+  it('같은 라운드에서 실패가 이어지면 라운드를 접고 사유를 남긴다', async () => {
+    await game().start('fallback', 1, () => failingDeciders('error'))
+    // 사람이 선언하면 나머지 좌석의 판단이 한꺼번에 나간다 — 여기서 차단기가 내려간다.
+    await game().declare({ kind: 'pass' })
 
     expect(game().fallbackRound).toBe(true)
     expect(game().fallbackReason).toBe('error')
-    // 폴백이 받아냈으므로 판은 살아 있어야 한다.
     expect(game().state).not.toBeNull()
     expect(game().error).toBeNull()
   })
 
   it('예산 소진은 사유가 budget으로 구분된다', async () => {
     await game().start('fallback', 1, () => failingDeciders('budget'))
+    await game().declare({ kind: 'pass' })
 
     expect(game().fallbackReason).toBe('budget')
   })

@@ -37,7 +37,7 @@ function stub(suggestion: Suggestion, fails = false): Decider {
   }
 }
 
-describe('createRoundFallback — 라운드 단위 폴백', () => {
+describe('createRoundFallback — 호출 단위 폴백 + 라운드 차단기', () => {
   it('preferred가 정상이면 fallback은 불리지 않는다', async () => {
     const fallback = stub(FALLBACK)
     const spy = vi.spyOn(fallback, 'chooseSuggestion')
@@ -53,17 +53,51 @@ describe('createRoundFallback — 라운드 단위 폴백', () => {
     expect((await decider.chooseSuggestion(VIEW)).value).toEqual(FALLBACK)
   })
 
-  it('한 번 넘어지면 이후 호출은 preferred를 시도하지 않는다', async () => {
+  /**
+   * 낙오 하나로 라운드를 접지 않는 것이 이 래퍼의 존재 이유다(결정 006).
+   * 접어 버리면 호출당 3.6%인 실패율이 라운드 40%로 증폭된다.
+   */
+  it('한 번 실패해도 다음 호출은 preferred를 다시 시도한다', async () => {
+    const preferred = stub(PREFERRED)
+    let firstCall = true
+    vi.spyOn(preferred, 'chooseSuggestion').mockImplementation(async () => {
+      if (firstCall) {
+        firstCall = false
+        throw new Error('낙오')
+      }
+      return silent(PREFERRED)
+    })
+    const decider = createRoundFallback(preferred, stub(FALLBACK))
+
+    expect((await decider.chooseSuggestion(VIEW)).value).toEqual(FALLBACK)
+    expect((await decider.chooseSuggestion(VIEW)).value).toEqual(PREFERRED)
+  })
+
+  it('두 번 실패하면 라운드를 접고 이후 호출은 preferred를 시도하지 않는다', async () => {
     const preferred = stub(PREFERRED, true)
-    const spy = vi.spyOn(preferred, 'chooseClaim')
+    const spy = vi.spyOn(preferred, 'chooseAccusation')
     const decider = createRoundFallback(preferred, stub(FALLBACK))
 
     await decider.chooseSuggestion(VIEW)
-    expect((await decider.chooseClaim(VIEW)).value).toEqual({ kind: 'pass' })
+    await decider.chooseClaim(VIEW)
+
+    expect((await decider.chooseAccusation(VIEW)).value).toEqual(FALLBACK)
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('onFallback은 넘어진 순간 한 번만 불린다', async () => {
+  /** 배너가 뜨면 밀담 패널이 닫힌다. 낙오 하나로 멀쩡한 밀담을 막으면 안 된다. */
+  it('실패가 한 번뿐이면 onFallback을 부르지 않는다', async () => {
+    const onFallback = vi.fn()
+    const preferred = stub(PREFERRED)
+    vi.spyOn(preferred, 'chooseSuggestion').mockRejectedValueOnce(new Error('낙오'))
+    const decider = createRoundFallback(preferred, stub(FALLBACK), onFallback)
+
+    await decider.chooseSuggestion(VIEW)
+
+    expect(onFallback).not.toHaveBeenCalled()
+  })
+
+  it('onFallback은 라운드를 접는 순간 한 번만 불린다', async () => {
     const onFallback = vi.fn()
     const decider = createRoundFallback(stub(PREFERRED, true), stub(FALLBACK), onFallback)
 
