@@ -5,6 +5,7 @@ import type {
   Claim,
   Faction,
   GameState,
+  ParleyRecord,
   Phase,
   PlayerId,
   Solution,
@@ -43,6 +44,13 @@ export interface RoundView {
   readonly suggestionLine: string | null
   readonly declarations: readonly DeclarationView[]
   readonly challenge: ChallengeRecord | null
+  /**
+   * 밀담. **낀 두 사람에게만 채워진다** — 나머지에게는 null이다.
+   *
+   * 내용만 감추고 「누가 누구와 따로 이야기했다」를 남길 수도 있지만 그러지 않는다.
+   * 상대가 보이면 그것만으로 정보가 되고, 그걸 의도적으로 설계하려면 규칙이 하나 더 필요하다(설계 §5.1).
+   */
+  readonly parley: ParleyRecord | null
 }
 
 export interface OutcomeView {
@@ -82,6 +90,7 @@ export interface GameView {
  *   - 남의 hand     → 공개된 카드만
  *   - 남의 faction  → 그것이 추리 대상이다
  *   - isPerjury    → 보이면 이의제기가 무의미해진다
+ *   - 남의 밀담     → 낀 두 사람만. 있었다는 사실도 감춘다
  */
 export function viewFor(state: GameState, viewerId: PlayerId): GameView {
   const viewer = state.players.find((p) => p.id === viewerId)
@@ -114,6 +123,11 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
       line: d.line,
     })),
     challenge: record.challenge,
+    // 언제나 사람이 걸었으므로, 볼 수 있는 사람은 «사람»과 «지목당한 상대» 둘뿐이다.
+    parley:
+      record.parley && (viewer.isHuman || record.parley.targetId === viewerId)
+        ? record.parley
+        : null,
   }))
 
   const outcome: OutcomeView | null = state.outcome
