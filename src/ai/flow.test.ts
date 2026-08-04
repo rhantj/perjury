@@ -188,6 +188,45 @@ describe('이의제기 — 성립하지 않는 지목', () => {
 
     expect(next.rounds[next.rounds.length - 1]?.challenge?.targetId).toBe(first.id)
   })
+
+  /**
+   * 묻는 것은 병렬이어도 «먼저 잡는 사람»은 좌석 순서로 정해야 한다.
+   * 응답 도착 순서로 정하면 같은 판이 네트워크 운에 따라 다르게 끝난다.
+   */
+  it('여럿이 잡으려 하면 앞 좌석이 가져간다 — 응답 순서가 아니라', async () => {
+    const game = createGame({ seed: 'challenge-order', humanIndex: 1 })
+    const suggester = playerAt(game, game.turnIndex)
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const responders = suggested.players.filter((p) => p.id !== suggester.id)
+    const target = responders[0]
+    if (!target) throw new Error('응답자가 없다')
+    const claims = new Map<PlayerId, Claim>(
+      responders.map((p) => [
+        p.id,
+        p.id === target.id ? { kind: 'refute', cardId: 's1' } : { kind: 'pass' },
+      ]),
+    )
+    const state = declareAll(suggested, claims)
+
+    /** 전원이 같은 대상을 지목한다. 뒷좌석일수록 «빨리» 답한다. */
+    const seatOf = new Map(state.players.map((p, index) => [p.id, index]))
+    const decider: Decider = {
+      chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseChallengeTarget: (view) =>
+        new Promise((resolve) => {
+          const seat = seatOf.get(view.viewerId) ?? 0
+          setTimeout(() => resolve(target.id), (state.players.length - seat) * 5)
+        }),
+      chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+    }
+
+    const next = await stepAi(state, decider)
+
+    // 대상 본인은 자기를 못 잡으므로, 그를 제외한 가장 앞 좌석이 잡아야 한다.
+    const expected = state.players.find((p) => p.id !== target.id)
+    expect(next.rounds[next.rounds.length - 1]?.challenge?.challengerId).toBe(expected?.id)
+  })
 })
 
 /**

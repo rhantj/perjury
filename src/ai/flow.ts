@@ -74,8 +74,16 @@ function canChallenge(state: GameState, challengerId: PlayerId, targetId: Player
 }
 
 /**
- * 이의제기 기회를 좌석 순서로 돌린다. **먼저 잡는 사람 하나만 성립한다.**
- * 전원에게 물어볼 필요가 없어 순차로 둔다.
+ * 이의제기 기회를 돌린다. **먼저 잡는 사람 하나만 성립한다.**
+ *
+ * **묻는 것은 병렬로, 고르는 것은 좌석 순서로** 나눈다.
+ * 순차로 물으면 «먼저»가 좌석 순서로 정해져 결과는 맞지만, 판단자가 원격이면
+ * 5명 × 10초로 라운드마다 1분 넘게 멈춘 것처럼 보인다.
+ * 그렇다고 도착 순서로 채택하면 같은 판이 네트워크 운에 따라 다르게 끝난다 —
+ * 그래서 답을 «다 모은 뒤» 좌석 순서로 훑는다. 결과는 순차와 완전히 같다.
+ *
+ * 대가: 앞 좌석이 잡아도 뒷사람 몫까지 이미 호출했으므로 비용이 나간다(라운드당 약 $0.01).
+ * 조기 종료로 아끼는 것보다 «멈춘 것처럼 보이지 않는 것»이 크다고 봤다.
  *
  * except는 이미 넘긴 사람이다 — 사람이 «넘어가기»를 누른 뒤에는 사람을 건너뛴다.
  */
@@ -84,9 +92,16 @@ async function offerChallenge(
   decider: Decider,
   except: PlayerId | null,
 ): Promise<GameState> {
-  for (const player of state.players) {
-    if (player.id === except) continue
-    const targetId = await decider.chooseChallengeTarget(viewFor(state, player.id))
+  const askable = state.players.filter((player) => player.id !== except)
+  const answers = await Promise.all(
+    askable.map(async (player) => ({
+      player,
+      targetId: await decider.chooseChallengeTarget(viewFor(state, player.id)),
+    })),
+  )
+
+  // Promise.all은 «입력 순서»로 결과를 돌려준다. askable이 좌석 순서이므로 이 순회가 곧 좌석 순서다.
+  for (const { player, targetId } of answers) {
     if (targetId && canChallenge(state, player.id, targetId)) {
       return challenge(state, player.id, targetId)
     }
