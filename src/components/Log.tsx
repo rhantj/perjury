@@ -21,6 +21,11 @@ interface Line {
   /** 말풍선 얼굴칸에 쓰는 글자. who와 짝이다. */
   face: string | null
   text: string
+  /**
+   * LLM이 쓴 대사. text를 «대체하지 않는다» — 대사가 카드 이름을 말하지 않을 수도 있어서
+   * 대체하면 무엇으로 반증했는지가 기록에서 사라진다. 없으면 null이다(사람·규칙 기반·폴백).
+   */
+  quote: string | null
   mine: boolean
 }
 
@@ -36,6 +41,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       tone: 'suggest',
       who: null,
       face: null,
+      quote: round.suggestionLine,
       mine: false,
       text: `${nameOf(view, round.suggesterId)}가 ${label(round.suggestion.suspect)} · ${label(
         round.suggestion.weapon,
@@ -50,6 +56,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
             tone: 'refute',
             who: nameOf(view, d.playerId),
             face: participantInitial(view, d.playerId),
+            quote: d.line,
             mine: d.playerId === view.viewerId,
             text: `${label(d.claim.cardId)}로 반증합니다.`,
           }
@@ -57,6 +64,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
             tone: 'pass',
             who: nameOf(view, d.playerId),
             face: participantInitial(view, d.playerId),
+            quote: d.line,
             mine: d.playerId === view.viewerId,
             text: '없습니다.',
           },
@@ -64,11 +72,12 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
   }
 
   if (round.challenge) {
-    const { challengerId, targetId, cardId, success, reveals } = round.challenge
+    const { challengerId, targetId, cardId, success, reveals, line } = round.challenge
     out.push({
       tone: success ? 'caught' : 'failed',
       who: null,
       face: null,
+      quote: line,
       mine: false,
       text: success
         ? `${nameOf(view, challengerId)}가 ${nameOf(view, targetId)}의 위증을 잡았다 — ${label(cardId)}는 자신이 갖고 있다.`
@@ -79,6 +88,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
         tone: 'reveal',
         who: null,
         face: null,
+        quote: null,
         mine: false,
         text: `${nameOf(view, r.playerId)}의 ${label(r.cardId)}가 공개됐다.`,
       })
@@ -116,10 +126,15 @@ export default function Log({ view, scenario }: Props) {
                     <span className="say__body">
                       <span className="say__who">{line.who}</span>
                       <span className="say__bubble">{line.text}</span>
+                      {/* 텍스트로만 그린다 — 모델이 만든 문자열이다(절대 규칙 3). */}
+                      {line.quote && <span className="say__quote">“{line.quote}”</span>}
                     </span>
                   </>
                 ) : (
-                  line.text
+                  <>
+                    {line.text}
+                    {line.quote && <span className="say__quote">“{line.quote}”</span>}
+                  </>
                 )}
               </li>
             ))}

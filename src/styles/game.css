@@ -747,6 +747,19 @@
 .seat__say--mute {
   color: oklch(68% 0.01 80);
 }
+/*
+ * LLM이 쓴 대사. 바로 위의 seat__say(행동 요약)와 «다른 목소리»로 읽혀야 해서
+ * 기울임 + 흐린 색으로 낮춘다. 같은 무게로 두면 두 문장이 서로 경쟁한다.
+ */
+.seat__line {
+  margin-top: 0.15rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: oklch(80% 0.035 75);
+  text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
+  animation: seat-say-in var(--duration-normal) var(--ease-out-expo);
+}
 @keyframes seat-say-in {
   from {
     opacity: 0;
@@ -903,6 +916,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .seat__say,
+  .seat__line,
   .seat__revealed,
   .seat__badge,
   .seat__suggest-badge {
@@ -1292,6 +1306,24 @@
   font-size: 0.88rem;
   line-height: 1.6;
   color: oklch(90% 0.008 84);
+}
+
+/*
+ * LLM이 쓴 대사. 위의 say__bubble(무엇을 선언했나)과 다른 목소리로 읽혀야 하므로
+ * 말풍선 테두리를 주지 않고 기울임으로만 낮춘다. 두 개를 다 말풍선으로 만들면
+ * 한 사람이 두 번 말한 것처럼 보인다.
+ */
+.say__quote {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  font-style: italic;
+  color: oklch(76% 0.035 75);
+}
+/* 지문(say--note)에 붙는 대사는 화자가 없으므로 들여쓰기로 소속을 표시한다. */
+.say--note .say__quote {
+  margin-left: 0.6rem;
 }
 
 /* 「있다」는 주장. 판을 움직이는 말이라 데워 둔다. */
