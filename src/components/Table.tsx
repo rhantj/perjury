@@ -6,8 +6,7 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
-import { josa } from '../content/josa'
-import { myPassLine, myRefuteLine } from '../content/fallback-lines'
+import { challengeLine, passLine, refuteLine, suggestLine } from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
 import type { CardId, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
@@ -177,23 +176,26 @@ function Seat({
   const caught = live?.challenge?.targetId === player.id && live.challenge.success
 
   /*
-   * 내 발언만 "~를 반증합니다"로 기계적으로 고정돼 있다는 피드백 — 다른 좌석은 LLM 대사가
-   * 성격을 대신 낸다. 사람은 LLM을 부르지 않아 declaration.line이 늘 null이므로(엔진
-   * types.ts 주석) 이 자리에서 캐릭터별 고정 대사(content/fallback-lines)로 갈음한다.
+   * LLM 대사가 없을 때(사람·규칙 기반 판단자·폴백 — declaration.line 등이 늘 null인
+   * 자리, 엔진 types.ts 주석)의 캐릭터별 고정 대사. 예전엔 사람 좌석만 갈음하고 나머지는
+   * "~를 반증합니다"라는 로봇 문구 하나로 뭉뚱그렸는데, 로컬 워커가 죽어 전원이 폴백으로
+   * 떨어지면 여섯 명이 전부 같은 말투가 돼 "대사가 초기화됐다"는 피드백으로 이어졌다.
+   * isMe로 가르지 않고 characterId 하나로 모두 같은 표를 쓴다 — 사람이든 폴백 AI든
+   * 같은 인물이면 같은 말투여야 한다. 이의제기 순간은 그 좌석의 반증/넘김 발언보다
+   * 우선한다 — spoken의 challengeLine ?? … 순서와 같은 우선순위다.
    */
-  const say = isSuggester
-    ? '제안했다'
-    : declaration
-      ? revealed
-        ? declaration.claim.kind === 'refute'
-          ? `“${
-              player.isMe
-                ? myRefuteLine(player.characterId, label(declaration.claim.cardId))
-                : `${josa(label(declaration.claim.cardId), 'ro')} 반증합니다`
-            }”`
-          : `“${player.isMe ? myPassLine(player.characterId) : '없습니다'}”`
-        : '…'
-      : null
+  const say =
+    live?.challenge?.challengerId === player.id
+      ? `“${challengeLine(player.characterId, participantLabel(view, live.challenge.targetId))}”`
+      : isSuggester
+        ? `“${suggestLine(player.characterId)}”`
+        : declaration
+          ? revealed
+            ? declaration.claim.kind === 'refute'
+              ? `“${refuteLine(player.characterId, label(declaration.claim.cardId))}”`
+              : `“${passLine(player.characterId)}”`
+            : '…'
+          : null
 
   /*
    * LLM이 쓴 대사. 있으면 say 대신 이것만 렌더한다(아래 JSX) — 둘을 같이 띄우면 한 좌석에
@@ -202,9 +204,10 @@ function Seat({
    * 없으면 null이다(사람·규칙 기반 판단자·폴백). 그때는 say(고정 문구)로 대체한다 — 절대 규칙 4.
    * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
    */
-  const challengeLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
+  const challengeLLMLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
   const spoken =
-    challengeLine ?? (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null)
+    challengeLLMLine ??
+    (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null)
 
   const art = suspectArtFor(player.characterId)
   /*

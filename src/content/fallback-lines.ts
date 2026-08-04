@@ -2,13 +2,14 @@ import { josa } from './josa'
 import type { CardId } from '../engine/types'
 
 /**
- * 사람 플레이어 자신의 반증 대사.
+ * 캐릭터별 고정 대사.
  *
- * 규칙 기반 판단자·다른 참가자와 달리 사람은 LLM을 부르지 않아 declaration.line이
- * 늘 null이다(engine/types.ts 주석) — 그 자리를 그동안 "~를 반증합니다"라는 한 문구로만
- * 채웠는데, 남들은 말투가 다 다른데 내 말만 로봇 같다는 피드백. 용의자 이름 6개는
- * 시나리오와 무관하게 고정이므로(content/scenarios.ts) 성격도 이름에 붙여 둔다 —
- * 시나리오가 바뀌어도 같은 사람은 같은 말투로 남는다.
+ * declaration.line·suggestionLine·challenge.line은 LLM이 쓴다. 사람은 LLM을 안 불러
+ * 늘 null이고(engine/types.ts 주석), 프록시가 죽어 규칙 기반 폴백으로 떨어졌을 때도
+ * null이다(ai/rule-decider.ts — 사전생성 대사 풀은 D8 작업이라 여태 침묵 처리였다).
+ * 두 경우 다 같은 자리가 비므로 여기 한 곳에서 채운다. 용의자 이름 6개는 시나리오와
+ * 무관하게 고정이므로(content/scenarios.ts) 성격도 이름에 붙여 둔다 — 시나리오가
+ * 바뀌어도 같은 사람은 같은 말투로 남는다.
  */
 const REFUTE_LINE: Record<string, (card: string) => string> = {
   s1: (card) => `${josa(card, 'eul')} 내가 갖고 있소.`,
@@ -28,12 +29,39 @@ const PASS_LINE: Record<string, string> = {
   s6: '내겐 그런 거 없다.',
 }
 
+const SUGGEST_LINE: Record<string, string> = {
+  s1: '내가 한번 짚어보겠소.',
+  s2: '제가 짚어보겠습니다.',
+  s3: '…제가 말씀드려 보겠습니다.',
+  s4: '내가 짚어보지.',
+  s5: '제, 제가 말해보겠습니다.',
+  s6: '내가 짚는다.',
+}
+
+const CHALLENGE_LINE: Record<string, (target: string) => string> = {
+  s1: (target) => `${target}, 거짓을 고했소.`,
+  s2: (target) => `${target}님, 방금 거짓을 말씀하셨습니다.`,
+  s3: (target) => `…${target}, 그 말은 거짓입니다.`,
+  s4: (target) => `${target}, 거짓말이지, 그거.`,
+  s5: (target) => `${target}, 거, 거짓말이시죠.`,
+  s6: (target) => `${target}, 거짓이다.`,
+}
+
 /** characterId가 목록에 없으면(자료 누락 등) 예전 고정 문구로 떨어진다 — 화면이 비지 않게. */
-export function myRefuteLine(characterId: CardId, cardName: string): string {
+export function refuteLine(characterId: CardId, cardName: string): string {
   const make = REFUTE_LINE[characterId]
   return make ? make(cardName) : `${josa(cardName, 'ro')} 반증합니다`
 }
 
-export function myPassLine(characterId: CardId): string {
+export function passLine(characterId: CardId): string {
   return PASS_LINE[characterId] ?? '없습니다'
+}
+
+export function suggestLine(characterId: CardId): string {
+  return SUGGEST_LINE[characterId] ?? '제안한다'
+}
+
+export function challengeLine(characterId: CardId, target: string): string {
+  const make = CHALLENGE_LINE[characterId]
+  return make ? make(target) : `${target}, 거짓이다`
 }
