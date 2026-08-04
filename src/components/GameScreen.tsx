@@ -5,7 +5,10 @@ import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
 import { cardLabel, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
+import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
+import { suspectArtFor } from '../content/suspect-art'
+import { weaponArtFor } from '../content/weapon-art'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { useGame } from '../store/game'
@@ -40,12 +43,19 @@ function toSuggestion(picked: Picked): Suggestion | null {
 
 /** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, myTurn은 내 제안 차례가 될 때 큐에 들어간다. */
 interface FlashEvent {
-  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn'
+  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn' | 'caught'
   text: string
   /** 주 문구 아래 작게 붙는 보조 문구. */
   detail?: string
+  /** 위증으로 공개된 카드 그림. caught 전용 — 있으면 문구와 함께 카드 실물을 크게 띄운다. */
+  art?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
   ms: number
+}
+
+/** 손패 카드 사진. MyPlate.artFor와 같은 소스 — id 접두사가 종류별로 갈려 하나만 걸린다. */
+function cardArtFor(scenario: Scenario, id: CardId): string | undefined {
+  return suspectArtFor(id) ?? placeArtFor(scenario, id) ?? weaponArtFor(scenario, id)
 }
 
 export default function GameScreen() {
@@ -134,6 +144,35 @@ export default function GameScreen() {
       enqueueFlash({ kind: 'round', text: `제${view.round}회 신문`, ms: 1000 })
     }
   }, [view?.round, enqueueFlash])
+
+  /*
+   * 이의제기가 성공해 위증이 확정되는 순간을 화면 전체로 띄운다. 이전에는 좌석 위 작은
+   * «위증» 배지뿐이라 누가 언제 잡혔는지 놓치기 쉬웠다는 피드백 — AI끼리의 이의제기도
+   * 대상이라 view.round가 아니라 view.phase로 감지한다(같은 라운드 안에서 벌어지는 일이라
+   * round 값 자체는 안 바뀐다).
+   *
+   * reveals에는 증거로 쓰인 카드(challenge.cardId)와, 무작위로 추가 공개된 패널티 카드가
+   * 섞여 있다 — cardId와 다른 것만 패널티다. 패널티가 없을 수도 있다(공개할 패가 없을 때).
+   */
+  const lastCaughtRoundRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!view || !scenario) return
+    const record = view.rounds[view.rounds.length - 1]
+    const challenge = record?.round === view.round ? record.challenge : null
+    if (!challenge || !challenge.success) return
+    if (lastCaughtRoundRef.current === view.round) return
+    lastCaughtRoundRef.current = view.round
+
+    const penalty = challenge.reveals.find((r) => r.cardId !== challenge.cardId) ?? null
+
+    enqueueFlash({
+      kind: 'caught',
+      text: `${participantLabel(view, challenge.targetId)} 위증 발각!`,
+      detail: penalty ? `${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
+      art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
+      ms: 2200,
+    })
+  }, [view?.phase, view?.round, scenario, enqueueFlash])
 
   /*
    * 내 제안 차례가 될 때마다 큐에 안내를 넣는다. stage/opening으로 막는 이유 —
@@ -227,6 +266,9 @@ export default function GameScreen() {
           className={`action-flash action-flash--${activeFlash.event.kind}`}
           aria-hidden="true"
         >
+          {activeFlash.event.art && (
+            <img className="action-flash__art" src={activeFlash.event.art} alt="" />
+          )}
           <span>{activeFlash.event.text}</span>
           {activeFlash.event.detail && <small>{activeFlash.event.detail}</small>}
         </div>

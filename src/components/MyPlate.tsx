@@ -121,12 +121,22 @@ export default function MyPlate({ view, scenario, role }: Props) {
         <ul>
           {hand.map((id) => {
             const art = artFor(scenario, id)
+            /*
+             * 이의제기에 걸려 위증이 확정되면 이 카드가 강제로 열린다 — 그 순간의 화면 전체
+             * 연출(action-flash--caught)이 지나간 뒤에도 «내가 뭘 잃었는지»가 손패에 계속
+             * 남아 있어야 한다는 피드백. me.revealed에 있으면 여기서 계속 도장을 찍어 둔다.
+             */
+            const revealed = me?.revealed.includes(id) ?? false
             return (
-              <li key={id} className={`held held--${cardKind(id)}${art ? ' held--has-art' : ''}`}>
+              <li
+                key={id}
+                className={`held held--${cardKind(id)}${art ? ' held--has-art' : ''}${revealed ? ' held--revealed' : ''}`}
+              >
                 {art && <img className="held__art" src={art} alt="" />}
                 <span className="held__scrim" aria-hidden="true" />
                 <span className="held__kind">{KIND_LABEL[cardKind(id)]}</span>
                 <span className="held__name">{label(id)}</span>
+                {revealed && <span className="held__revealed-stamp">公開 공개됨</span>}
               </li>
             )
           })}

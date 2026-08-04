@@ -453,6 +453,64 @@
   color: oklch(90% 0.05 30);
 }
 
+/*
+ * 위증으로 강제 공개된 카드 — 판이 끝날 때까지 손패 안에서 계속 도드라져야 «내가 뭘
+ * 잃었는지» 잊히지 않는다. 도장을 찍듯 크게 눈에 띄게 하고, 등장할 때 한 번 임팩트를 준다.
+ */
+.held--revealed {
+  border-color: oklch(66% 0.19 27);
+  box-shadow:
+    0 0 0 2px oklch(66% 0.19 27 / 0.7),
+    0 0 34px oklch(60% 0.19 27 / 0.55);
+  animation: held-revealed-in 620ms var(--ease-out-expo);
+}
+.held--revealed .held__art {
+  filter: brightness(0.62) saturate(0.7);
+}
+.held__revealed-stamp {
+  position: absolute;
+  z-index: 2;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
+  color: oklch(94% 0.03 25);
+  border: 2px solid oklch(66% 0.19 27);
+  border-radius: 0.1rem;
+  padding: 0.24rem 0.6rem;
+  background: oklch(20% 0.06 25 / 0.72);
+  text-shadow: 0 0 10px oklch(60% 0.19 27 / 0.8);
+  box-shadow: 0 0 26px oklch(60% 0.19 27 / 0.55);
+}
+@keyframes held-revealed-in {
+  0% {
+    box-shadow:
+      0 0 0 0 oklch(66% 0.19 27 / 0),
+      0 0 0 oklch(60% 0.19 27 / 0);
+    transform: scale(1);
+  }
+  40% {
+    box-shadow:
+      0 0 0 4px oklch(66% 0.19 27 / 0.9),
+      0 0 50px oklch(60% 0.19 27 / 0.75);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px oklch(66% 0.19 27 / 0.7),
+      0 0 34px oklch(60% 0.19 27 / 0.55);
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .held--revealed {
+    animation-duration: 0.01ms;
+  }
+}
+
 /* ---- 원탁 ---- */
 .seats {
   position: relative;
@@ -1732,6 +1790,62 @@
 }
 
 /*
+ * 위증 «확정»(이의제기 성공) 전용 — perjury는 내가 거짓을 선언하는 순간이고,
+ * caught는 그게 들통나 카드가 열리는 순간이다. AI끼리 일어나도 똑같이 뜬다.
+ * perjury의 붉은 «충격»과 구분되게 금빛 «폭로» 느낌으로 다르게 간다.
+ */
+.action-flash--caught::before {
+  background: oklch(14% 0.03 90 / 0.72);
+  animation: flash-dim-hard 2200ms var(--ease-in-out) forwards;
+}
+.action-flash--caught span {
+  font-size: clamp(2.6rem, 1.4rem + 5.5vw, 5.6rem);
+  letter-spacing: 0.12em;
+  color: oklch(92% 0.12 90);
+  text-shadow:
+    0 0 16px oklch(98% 0.05 90 / 0.9),
+    0 0 60px oklch(70% 0.16 80 / 0.85),
+    0 0 130px oklch(70% 0.16 80 / 0.55);
+  animation: flash-text-perjury 2200ms var(--ease-out-expo) forwards;
+}
+.action-flash--caught small {
+  color: oklch(84% 0.06 85);
+}
+/* 위증으로 열린 카드 실물. 문구보다 먼저 튀어나와 «이게 공개됐다»가 한눈에 들어오게 한다. */
+.action-flash__art {
+  width: clamp(7rem, 5.5rem + 6vw, 11rem);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 0.2rem;
+  margin-bottom: 0.8rem;
+  box-shadow:
+    0 0 0 2px oklch(92% 0.1 90 / 0.9),
+    0 10px 50px oklch(0% 0 0 / 0.7),
+    0 0 80px oklch(70% 0.16 80 / 0.65);
+  opacity: 0;
+  animation: caught-art-pop 2200ms var(--ease-out-expo) forwards;
+}
+@keyframes caught-art-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-6deg);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(1.08) rotate(1deg);
+  }
+  32% {
+    transform: scale(1) rotate(0deg);
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/*
  * span과 small은 형제 요소라 em이 제목 글자 크기가 아니라 부모의 기본 크기를 기준으로
  * 계산된다 — 그래서 rem 기반 clamp로 명시한다. em으로 되돌리지 않는다.
  */
@@ -1890,7 +2004,8 @@
 @media (prefers-reduced-motion: reduce) {
   .action-flash::before,
   .action-flash::after,
-  .action-flash span {
+  .action-flash span,
+  .action-flash__art {
     animation-duration: 0.01ms;
   }
 }
