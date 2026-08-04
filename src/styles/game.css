@@ -788,11 +788,90 @@
     transform: scale(1) rotate(0deg);
   }
 }
+/*
+ * 반증 순차 공개 — 참가1부터 시계방향으로 한 명씩 스포트라이트를 받는다(Table.tsx).
+ * 좌석이 다가오듯 커지고, 반증 카드로 쓴 그림이 머리 위로 튀어 오른다.
+ */
+.seat--reveal {
+  z-index: 5;
+  border-color: var(--tone-key);
+  box-shadow:
+    0 0 0 2px var(--tone-key) inset,
+    0 20px 46px oklch(4% 0.02 250 / 0.6),
+    0 0 46px oklch(74% 0.13 60 / 0.4);
+  animation: seat-reveal-zoom 560ms var(--ease-out-expo) forwards;
+}
+@keyframes seat-reveal-zoom {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  55% {
+    transform: scale(1.22) translateY(-16px);
+  }
+  100% {
+    transform: scale(1.13) translateY(-9px);
+  }
+}
+.seat__reveal-card {
+  position: absolute;
+  top: -0.6rem;
+  left: 50%;
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 0.22rem;
+  width: 5rem;
+  padding: 0.4rem 0.45rem 0.5rem;
+  border: 1px solid var(--tone-key);
+  border-radius: 0.18rem;
+  background: var(--tone-panel);
+  box-shadow: 0 14px 30px oklch(4% 0.02 250 / 0.65);
+  animation: seat-reveal-card-pop 520ms var(--ease-out-expo) backwards;
+  animation-delay: 160ms;
+}
+.seat__reveal-card img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 0.12rem;
+  filter: brightness(0.92);
+}
+.seat__reveal-card em {
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: oklch(96% 0.01 84);
+}
+@keyframes seat-reveal-card-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -68%) scale(0.55) rotate(-8deg);
+  }
+  62% {
+    opacity: 1;
+    transform: translate(-50%, -108%) scale(1.1) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1) rotate(0deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seat__say,
   .seat__revealed,
   .seat__badge {
     animation-duration: 0.01ms;
+  }
+  .seat--reveal {
+    animation-duration: 0.01ms;
+    transform: scale(1.05);
+  }
+  .seat__reveal-card {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
   }
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { cardLabel, participantInitial, participantLabel, suspectTitle } from '../content/labels'
 import { placeArtFor } from '../content/place-art'
@@ -5,9 +6,24 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
-import { cardName } from '../engine/cards'
-import type { CardId } from '../engine/types'
+import { cardKind, cardName } from '../engine/cards'
+import type { CardId, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
+
+/** 반증 카드의 종류에 맞는 그림을 고른다 — 범인·수단·장소 중 어느 것이든 나올 수 있다. */
+function revealArtFor(scenario: Scenario, cardId: CardId): string | undefined {
+  switch (cardKind(cardId)) {
+    case 'suspect':
+      return suspectArtFor(cardId)
+    case 'weapon':
+      return weaponArtFor(scenario, cardId)
+    case 'place':
+      return placeArtFor(scenario, cardId)
+  }
+}
+
+/** 좌석 하나가 스포트라이트를 받는 시간. 다섯 명이면 한 라운드 공개가 총 5×이만큼 걸린다. */
+const REVEAL_STEP_MS = 1150
 
 interface Props {
   view: GameView
@@ -31,18 +47,59 @@ export default function Table({ view, scenario }: Props) {
   const me = view.players.find((p) => p.isMe)
   const others = view.players.filter((p) => !p.isMe)
 
-  const seat = (player: PlayerView, slot: string) => (
-    <Seat
-      key={player.id}
-      view={view}
-      player={player}
-      slot={slot}
-      live={live}
-      isTurn={player.id === turnId && view.phase === 'suggest'}
-      scenario={scenario}
-      label={label}
-    />
-  )
+  /*
+   * 반증은 동시 선언이라 엔진에는 한 번에 전부 도착한다(설계 §1.4.1) — 그걸 그대로
+   * 뿌리면 다섯 명이 한꺼번에 입을 여는 꼴이라 극이 안 산다. 그래서 표시만 참가1부터
+   * 시계방향으로(= others 배열 순서, SLOTS와 같은 순서다) 한 명씩 스포트라이트를 받게
+   * 미뤄서 보여준다 — 판정은 이미 끝나 있고 여기는 «어떻게 보여줄지»만 다룬다.
+   */
+  const [revealedIds, setRevealedIds] = useState<ReadonlySet<PlayerId>>(new Set())
+  const [activeRevealId, setActiveRevealId] = useState<PlayerId | null>(null)
+  const revealedRoundRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!live || live.declarations.length === 0) return
+    if (revealedRoundRef.current === live.round) return
+    revealedRoundRef.current = live.round
+
+    const order = others
+      .filter((p) => live.declarations.some((d) => d.playerId === p.id))
+      .map((p) => p.id)
+
+    setRevealedIds(new Set())
+    setActiveRevealId(order[0] ?? null)
+
+    const timers = order.map((id, i) =>
+      window.setTimeout(
+        () => {
+          setRevealedIds((prev) => new Set(prev).add(id))
+          setActiveRevealId(order[i + 1] ?? null)
+        },
+        REVEAL_STEP_MS * (i + 1),
+      ),
+    )
+
+    return () => timers.forEach((t) => window.clearTimeout(t))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- live.round/declarations.length가 바뀔 때만 새로 돌면 된다
+  }, [live?.round, live?.declarations.length])
+
+  const seat = (player: PlayerView, slot: string) => {
+    const hasDeclaration = !player.isMe && (live?.declarations.some((d) => d.playerId === player.id) ?? false)
+    return (
+      <Seat
+        key={player.id}
+        view={view}
+        player={player}
+        slot={slot}
+        live={live}
+        isTurn={player.id === turnId && view.phase === 'suggest'}
+        scenario={scenario}
+        label={label}
+        revealed={!hasDeclaration || revealedIds.has(player.id)}
+        revealing={activeRevealId === player.id}
+      />
+    )
+  }
 
   return (
     <ul
@@ -98,6 +155,8 @@ function Seat({
   isTurn,
   scenario,
   label,
+  revealed,
+  revealing,
 }: {
   view: GameView
   player: PlayerView
@@ -106,6 +165,10 @@ function Seat({
   isTurn: boolean
   scenario: Scenario
   label: (id: CardId) => string
+  /** 이 좌석의 이번 라운드 발언을 아직 감춰야 하는가 — 스포트라이트 차례가 오기 전이면 false. */
+  revealed: boolean
+  /** 지금 이 좌석이 스포트라이트를 받는 차례인가. */
+  revealing: boolean
 }) {
   const declaration = live?.declarations.find((d) => d.playerId === player.id)
   const isSuggester = live?.suggesterId === player.id
@@ -114,12 +177,18 @@ function Seat({
   const say = isSuggester
     ? '제안했다'
     : declaration
-      ? declaration.claim.kind === 'refute'
-        ? `“${label(declaration.claim.cardId)}로 반증합니다”`
-        : '“없습니다”'
+      ? revealed
+        ? declaration.claim.kind === 'refute'
+          ? `“${label(declaration.claim.cardId)}로 반증합니다”`
+          : '“없습니다”'
+        : '…'
       : null
 
   const art = suspectArtFor(player.characterId)
+  const revealCard =
+    revealing && declaration?.claim.kind === 'refute'
+      ? { art: revealArtFor(scenario, declaration.claim.cardId), name: label(declaration.claim.cardId) }
+      : null
 
   return (
     <li
@@ -129,10 +198,17 @@ function Seat({
         isTurn ? 'seat--turn' : '',
         player.isMe ? 'seat--me' : '',
         caught ? 'seat--caught' : '',
+        revealing ? 'seat--reveal' : '',
       ]
         .join(' ')
         .trim()}
     >
+      {revealCard && (
+        <span className="seat__reveal-card">
+          {revealCard.art && <img src={revealCard.art} alt="" />}
+          <em>{revealCard.name}</em>
+        </span>
+      )}
       {/* 참가N/나로 익명화했더라도 얼굴은 있어야 «사람」으로 읽힌다 — 손패 노출과는 무관하다. */}
       {art && <img className="seat__art" src={art} alt="" />}
       <span className="seat__scrim" aria-hidden="true" />
