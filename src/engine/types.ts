@@ -79,6 +79,20 @@ export interface ChallengeRecord {
   readonly line: string | null
 }
 
+/**
+ * 밀담 한 번. **룰은 이 값을 읽지 않는다** — 반증 대사와 같은 자리, 같은 성격이다.
+ *
+ * 「누가 걸었는가」를 담지 않는다. 언제나 사람이 건다(설계 §3).
+ * AI끼리 밀담을 열게 되면 그때 필드를 추가한다.
+ */
+export interface ParleyRecord {
+  readonly targetId: PlayerId
+  /** 사람이 한 말. */
+  readonly askLine: string
+  /** 상대가 한 말. */
+  readonly replyLine: string
+}
+
 export interface RoundRecord {
   readonly round: number
   readonly suggesterId: PlayerId
@@ -87,6 +101,8 @@ export interface RoundRecord {
   readonly suggestionLine: string | null
   readonly declarations: readonly Declaration[]
   readonly challenge: ChallengeRecord | null
+  /** 이 라운드에 오간 밀담. 라운드당 최대 하나다. 없으면 null이다. */
+  readonly parley: ParleyRecord | null
 }
 
 export interface Vote {
