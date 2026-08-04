@@ -17,7 +17,7 @@ describe('createRuleDecider — rules.ts와 같은 결과', () => {
     const view = viewFor(game, firstPlayerId(1))
     const expected = suggestionFrom(view, `${SEED}:sg:${game.round}:p1`)
 
-    expect(await createRuleDecider(SEED).chooseSuggestion(view)).toEqual(expected)
+    expect((await createRuleDecider(SEED).chooseSuggestion(view)).value).toEqual(expected)
   })
 
   it('반증 선언이 claimFrom과 일치한다', async () => {
@@ -29,7 +29,7 @@ describe('createRuleDecider — rules.ts와 같은 결과', () => {
     const view = viewFor(started, firstPlayerId(2))
     const expected = claimFrom(view, `${SEED}:cl:${started.round}:p2`)
 
-    expect(await createRuleDecider(SEED).chooseClaim(view)).toEqual(expected)
+    expect((await createRuleDecider(SEED).chooseClaim(view)).value).toEqual(expected)
   })
 
   it('최종 고발이 voteFrom과 일치한다', async () => {
@@ -37,7 +37,7 @@ describe('createRuleDecider — rules.ts와 같은 결과', () => {
     const view = viewFor(game, firstPlayerId(3))
     const expected = voteFrom(view, `${SEED}:vote:${game.round}:p3`)
 
-    expect(await createRuleDecider(SEED).chooseAccusation(view)).toEqual(expected)
+    expect((await createRuleDecider(SEED).chooseAccusation(view)).value).toEqual(expected)
   })
 
   it('시드가 제안에 실제로 반영된다', async () => {
@@ -51,7 +51,9 @@ describe('createRuleDecider — rules.ts와 같은 결과', () => {
         createRuleDecider(`seed-${i}`).chooseSuggestion(view),
       ),
     )
-    const distinct = new Set(results.map((r) => `${r.suspect}/${r.weapon}/${r.place}`))
+    const distinct = new Set(
+      results.map((r) => `${r.value.suspect}/${r.value.weapon}/${r.value.place}`),
+    )
 
     expect(distinct.size).toBeGreaterThan(1)
   })

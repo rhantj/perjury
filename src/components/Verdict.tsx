@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { cardLabel, suspectTitle } from '../content/labels'
+import { cardLabel, participantLabel, suspectTitle } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -88,6 +88,12 @@ export default function Verdict({ view, scenario, seed, onRestart }: Props) {
   const challenges = view.rounds.filter((r) => r.challenge)
   const caught = challenges.filter((r) => r.challenge?.success).length
 
+  /** 대사를 남긴 표만. 사람이 고발한 판(accuser.kind === 'player')에는 표 자체가 없다. */
+  const spokenVotes =
+    outcome.accuser.kind === 'council'
+      ? outcome.accuser.votes.filter((v) => v.line !== null)
+      : []
+
   /* 게임판 밖(body)에 붙인다 — 안에 두면 쌓임 맥락에 갇혀 추리표가 판결문 위로 올라온다. */
   return createPortal(
     <div className={`verdict verdict--${outcome.viewerWon ? 'win' : 'lose'}`}>
@@ -150,6 +156,26 @@ export default function Verdict({ view, scenario, seed, onRestart }: Props) {
             이의제기 {challenges.length}건 중 {caught}건 적중 · 전 {view.rounds.length}라운드
           </p>
         </section>
+
+        {/*
+          AI 시민들이 합의로 고발한 판에서만 나온다. 표가 어떻게 갈렸는지가 아니라
+          «각자 무슨 말을 하며 그 표를 던졌는지»가 이 게임의 결말이다.
+          대사 없는 표(폴백·규칙 기반)는 아예 걸러 낸다 — 빈 줄만 늘어난다.
+        */}
+        {spokenVotes.length > 0 && (
+          <section className="verdict__votes">
+            <h2 className="verdict__sub">합의 발언</h2>
+            <ul className="votes">
+              {spokenVotes.map((vote) => (
+                <li key={vote.playerId} className="votes__row">
+                  <span className="votes__who">{participantLabel(view, vote.playerId)}</span>
+                  {/* 텍스트로만 그린다 — 모델이 만든 문자열이다(절대 규칙 3). */}
+                  <span className="votes__line">“{vote.line}”</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <footer className="verdict__foot">
           <button type="button" className="btn btn--go" onClick={onRestart}>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createRoundFallback, perRound } from './decider'
+import { createRoundFallback, perRound, silent } from './decider'
 import type { Decider } from './decider'
 import type { Claim, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -16,19 +16,19 @@ function stub(suggestion: Suggestion, fails = false): Decider {
   return {
     chooseSuggestion: async () => {
       guard()
-      return suggestion
+      return silent(suggestion)
     },
-    chooseClaim: async (): Promise<Claim> => {
+    chooseClaim: async () => {
       guard()
-      return { kind: 'pass' }
+      return silent<Claim>({ kind: 'pass' })
     },
     chooseChallengeTarget: async () => {
       guard()
-      return null
+      return silent(null)
     },
     chooseAccusation: async () => {
       guard()
-      return suggestion
+      return silent(suggestion)
     },
   }
 }
@@ -39,14 +39,14 @@ describe('createRoundFallback — 라운드 단위 폴백', () => {
     const spy = vi.spyOn(fallback, 'chooseSuggestion')
     const decider = createRoundFallback(stub(PREFERRED), fallback)
 
-    expect(await decider.chooseSuggestion(VIEW)).toEqual(PREFERRED)
+    expect((await decider.chooseSuggestion(VIEW)).value).toEqual(PREFERRED)
     expect(spy).not.toHaveBeenCalled()
   })
 
   it('preferred가 던지면 그 호출이 fallback 결과를 낸다', async () => {
     const decider = createRoundFallback(stub(PREFERRED, true), stub(FALLBACK))
 
-    expect(await decider.chooseSuggestion(VIEW)).toEqual(FALLBACK)
+    expect((await decider.chooseSuggestion(VIEW)).value).toEqual(FALLBACK)
   })
 
   it('한 번 넘어지면 이후 호출은 preferred를 시도하지 않는다', async () => {
@@ -55,7 +55,7 @@ describe('createRoundFallback — 라운드 단위 폴백', () => {
     const decider = createRoundFallback(preferred, stub(FALLBACK))
 
     await decider.chooseSuggestion(VIEW)
-    expect(await decider.chooseClaim(VIEW)).toEqual({ kind: 'pass' })
+    expect((await decider.chooseClaim(VIEW)).value).toEqual({ kind: 'pass' })
     expect(spy).not.toHaveBeenCalled()
   })
 
@@ -76,7 +76,7 @@ describe('createRoundFallback — 라운드 단위 폴백', () => {
 
     const fresh = createRoundFallback(stub(PREFERRED), stub(FALLBACK))
 
-    expect(await fresh.chooseSuggestion(VIEW)).toEqual(PREFERRED)
+    expect((await fresh.chooseSuggestion(VIEW)).value).toEqual(PREFERRED)
   })
 
   it('동시에 들어온 여러 호출에서도 onFallback은 정확히 한 번만 불린다', async () => {

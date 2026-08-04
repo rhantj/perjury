@@ -29,12 +29,18 @@ export interface PlayerView {
 export interface DeclarationView {
   readonly playerId: PlayerId
   readonly claim: Claim
+  /**
+   * 그 자리에서 «소리내어» 한 말이라 전원이 들었다. 그래서 시야에서 뺄 이유가 없다.
+   * 오히려 실어야 에이전트가 남의 말에 반응할 수 있다. 없으면 null이다.
+   */
+  readonly line: string | null
 }
 
 export interface RoundView {
   readonly round: number
   readonly suggesterId: PlayerId
   readonly suggestion: Suggestion
+  readonly suggestionLine: string | null
   readonly declarations: readonly DeclarationView[]
   readonly challenge: ChallengeRecord | null
 }
@@ -101,7 +107,12 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     round: record.round,
     suggesterId: record.suggesterId,
     suggestion: record.suggestion,
-    declarations: record.declarations.map((d) => ({ playerId: d.playerId, claim: d.claim })),
+    suggestionLine: record.suggestionLine,
+    declarations: record.declarations.map((d) => ({
+      playerId: d.playerId,
+      claim: d.claim,
+      line: d.line,
+    })),
     challenge: record.challenge,
   }))
 

@@ -11,10 +11,10 @@ function viewOf() {
   return viewFor(game, first.id)
 }
 
-function ok(decision: unknown) {
+function ok(decision: unknown, line: unknown = '대사') {
   return {
     ok: true,
-    json: async () => ({ ok: true, kind: 'refute', decision, line: '대사', budget: { remaining: 9 } }),
+    json: async () => ({ ok: true, kind: 'refute', decision, line, budget: { remaining: 9 } }),
   } as unknown as Response
 }
 
@@ -41,27 +41,27 @@ describe('createLlmDecider', () => {
   it('성공 응답을 엔진 타입으로 돌려준다', async () => {
     fetchMock.mockResolvedValue(ok({ kind: 'refute', cardId: 's2' }))
 
-    const claim = await createLlmDecider().chooseClaim(viewOf())
+    const spoken = await createLlmDecider().chooseClaim(viewOf())
 
-    expect(claim).toEqual({ kind: 'refute', cardId: 's2' })
+    expect(spoken.value).toEqual({ kind: 'refute', cardId: 's2' })
   })
 
   it('pass 선언을 읽는다', async () => {
     fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
 
-    expect(await createLlmDecider().chooseClaim(viewOf())).toEqual({ kind: 'pass' })
+    expect((await createLlmDecider().chooseClaim(viewOf())).value).toEqual({ kind: 'pass' })
   })
 
   it('이의제기 없음을 null로 읽는다', async () => {
     fetchMock.mockResolvedValue(ok(null))
 
-    expect(await createLlmDecider().chooseChallengeTarget(viewOf())).toBeNull()
+    expect((await createLlmDecider().chooseChallengeTarget(viewOf())).value).toBeNull()
   })
 
   it('제안을 세 칸으로 읽는다', async () => {
     fetchMock.mockResolvedValue(ok({ suspect: 's1', weapon: 'w2', place: 'p3' }))
 
-    expect(await createLlmDecider().chooseSuggestion(viewOf())).toEqual({
+    expect((await createLlmDecider().chooseSuggestion(viewOf())).value).toEqual({
       suspect: 's1',
       weapon: 'w2',
       place: 'p3',
@@ -124,7 +124,7 @@ describe('createLlmDecider', () => {
 
     await expect(decider.chooseClaim(viewOf())).rejects.toThrow()
 
-    expect(await decider.chooseClaim(viewOf())).toEqual({ kind: 'pass' })
+    expect((await decider.chooseClaim(viewOf())).value).toEqual({ kind: 'pass' })
   })
 })
 
@@ -138,5 +138,51 @@ describe('llmDeciderForRound', () => {
     await expect(forRound(2).chooseClaim(viewOf())).rejects.toThrow()
 
     expect(fetchMock.mock.calls.length).toBe(afterFirst)
+  })
+})
+
+/**
+ * 대사는 화면에 그대로 오르는 외부 문자열이다. 여기가 좁히는 유일한 지점이라
+ * 이상한 값이 들어와도 **판단까지 폴백으로 넘기지 않는다** — 말 한 줄 때문에 룰 판단을 잃는다.
+ */
+describe('createLlmDecider — 대사 좁히기', () => {
+  const claimOf = () => createLlmDecider().chooseClaim(viewOf())
+
+  it('대사를 그대로 실어 온다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }, '그런 물건은 본 적 없소'))
+
+    expect((await claimOf()).line).toBe('그런 물건은 본 적 없소')
+  })
+
+  it('줄바꿈은 한 줄로 눌러 담는다 — 말풍선이 세로로 터지지 않게', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }, '없소\n\n  정말이오'))
+
+    expect((await claimOf()).line).toBe('없소 정말이오')
+  })
+
+  it('너무 길면 자른다 — 좌석 칸을 넘기면 판이 가려진다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }, '가'.repeat(200)))
+
+    const line = (await claimOf()).line
+
+    expect(line).toHaveLength(61)
+    expect(line?.endsWith('…')).toBe(true)
+  })
+
+  it('빈 대사와 문자열이 아닌 대사는 없는 것으로 읽는다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }, '   '))
+    expect((await claimOf()).line).toBeNull()
+
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }, 42))
+    expect((await claimOf()).line).toBeNull()
+  })
+
+  it('대사가 없어도 판단은 살아 있다 — 폴백으로 넘기지 않는다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'refute', cardId: 's2' }, null))
+
+    const spoken = await claimOf()
+
+    expect(spoken.value).toEqual({ kind: 'refute', cardId: 's2' })
+    expect(spoken.line).toBeNull()
   })
 })

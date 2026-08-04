@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { declareAll, suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
-import type { Claim, GameState, PlayerId } from '../engine/types'
+import type { Claim, GameState, PlayerId, Suggestion } from '../engine/types'
 import type { Decider, DeciderForRound } from './decider'
+import { silent } from './decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge, stepAi } from './flow'
 import { ruleDeciderForRound } from './rule-decider'
 
@@ -138,7 +139,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
       chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
       chooseChallengeTarget: (view) => {
         const other = state.players.find((p) => p.id !== view.viewerId)
-        return Promise.resolve(other ? other.id : null)
+        return Promise.resolve(silent(other ? other.id : null))
       },
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
     }
@@ -180,7 +181,8 @@ describe('이의제기 — 성립하지 않는 지목', () => {
     const decider: Decider = {
       chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
       chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
-      chooseChallengeTarget: (view) => Promise.resolve(view.viewerId === first.id ? null : first.id),
+      chooseChallengeTarget: (view) =>
+        Promise.resolve(silent(view.viewerId === first.id ? null : first.id)),
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
     }
 
@@ -216,7 +218,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
       chooseChallengeTarget: (view) =>
         new Promise((resolve) => {
           const seat = seatOf.get(view.viewerId) ?? 0
-          setTimeout(() => resolve(target.id), (state.players.length - seat) * 5)
+          setTimeout(() => resolve(silent(target.id)), (state.players.length - seat) * 5)
         }),
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
     }
@@ -244,8 +246,8 @@ describe('반증 — 제안에 없는 카드', () => {
   /** 제안에 없는 카드(s6)로 반증하겠다고 우긴다. */
   const stubborn: Decider = {
     chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
-    chooseClaim: () => Promise.resolve({ kind: 'refute', cardId: 's6' }),
-    chooseChallengeTarget: () => Promise.resolve(null),
+    chooseClaim: () => Promise.resolve(silent<Claim>({ kind: 'refute', cardId: 's6' })),
+    chooseChallengeTarget: () => Promise.resolve(silent(null)),
     chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
   }
 
@@ -267,5 +269,80 @@ describe('반증 — 제안에 없는 카드', () => {
     const mine = declarations.find((d) => d.playerId === human?.id)
     expect(mine?.claim).toEqual({ kind: 'refute', cardId: 's1' })
     expect(declarations.filter((d) => d.playerId !== human?.id).every((d) => d.claim.kind === 'pass')).toBe(true)
+  })
+})
+
+/**
+ * 대사가 판단자에서 엔진 기록까지 실제로 닿는가. 중간에 한 군데만 빠져도 화면에는 아무것도 안 뜬다.
+ * 판단은 규칙 기반과 같게 두고 «대사만» 붙인 판단자로 확인한다.
+ */
+describe('대사 전달', () => {
+  /** 무엇을 고르든 좌석 이름이 섞인 대사를 함께 낸다. */
+  function talkative(state: GameState): Decider {
+    const suggestion: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
+    return {
+      chooseSuggestion: (view) => Promise.resolve({ value: suggestion, line: `${view.viewerId} 제안` }),
+      chooseClaim: (view) =>
+        Promise.resolve({ value: { kind: 'pass' } as Claim, line: `${view.viewerId} 반증` }),
+      chooseChallengeTarget: (view) => {
+        const target = state.players.find((p) => p.id !== view.viewerId)
+        return Promise.resolve({ value: target ? target.id : null, line: `${view.viewerId} 이의` })
+      },
+      chooseAccusation: (view) => Promise.resolve({ value: suggestion, line: `${view.viewerId} 고발` }),
+    }
+  }
+
+  it('제안 대사가 라운드 기록에 남는다', async () => {
+    const game = createGame({ seed: 'line-suggest', humanIndex: 3 })
+
+    const next = await stepAi(game, talkative(game))
+
+    expect(next.rounds[0]?.suggestionLine).toBe(`${next.rounds[0]?.suggesterId} 제안`)
+  })
+
+  it('반증 대사가 선언자별로 남는다', async () => {
+    const game = createGame({ seed: 'line-refute', humanIndex: 3 })
+    const suggested = await stepAi(game, talkative(game))
+
+    const next = await stepAi(suggested, talkative(suggested))
+
+    const declarations = next.rounds[0]?.declarations ?? []
+    expect(declarations).not.toHaveLength(0)
+    expect(declarations.every((d) => d.line === `${d.playerId} 반증`)).toBe(true)
+  })
+
+  it('사람의 선언에는 대사가 붙지 않는다', async () => {
+    const game = createGame({ seed: 'line-human', humanIndex: 3 })
+    const suggested = await advanceToHuman(game, () => talkative(game))
+
+    const next = await declareWithHuman(suggested, { kind: 'pass' }, () => talkative(suggested))
+
+    const human = next.players.find((p) => p.isHuman)
+    const mine = (next.rounds[0]?.declarations ?? []).find((d) => d.playerId === human?.id)
+    expect(mine?.line).toBeNull()
+  })
+
+  it('이의제기 대사는 «실제로 잡은 사람»의 것만 남는다', async () => {
+    const game = createGame({ seed: 'line-challenge', humanIndex: 1 })
+    const suggester = game.players[game.turnIndex]
+    if (!suggester) throw new Error('제안자가 없다')
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const responders = suggested.players.filter((p) => p.id !== suggester.id)
+    const target = responders[0]
+    if (!target) throw new Error('응답자가 없다')
+    const state = declareAll(
+      suggested,
+      new Map<PlayerId, Claim>(
+        responders.map((p) => [
+          p.id,
+          p.id === target.id ? { kind: 'refute', cardId: 's1' } : { kind: 'pass' },
+        ]),
+      ),
+    )
+
+    const next = await stepAi(state, talkative(state))
+
+    const record = next.rounds[next.rounds.length - 1]?.challenge
+    expect(record?.line).toBe(`${record?.challengerId} 이의`)
   })
 })

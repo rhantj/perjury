@@ -3,7 +3,7 @@ import { tally } from './vote'
 import type { Suggestion, Vote } from './types'
 
 function votes(entries: [string, Suggestion][]): Vote[] {
-  return entries.map(([playerId, accusation]) => ({ playerId, accusation }))
+  return entries.map(([playerId, accusation]) => ({ playerId, accusation, line: null }))
 }
 
 describe('tally — 칸별 다수결', () => {

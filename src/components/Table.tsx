@@ -184,6 +184,17 @@ function Seat({
         : '…'
       : null
 
+  /*
+   * LLM이 쓴 대사. 위의 say를 «대체하지 않고» 밑에 덧붙인다 —
+   * 대사는 카드 이름을 말하지 않을 수도 있어서, 대체하면 무엇으로 반증했는지가 화면에서 사라진다.
+   *
+   * 없으면 null이다(사람·규칙 기반 판단자·폴백). 그때는 위의 고정 문구만 남는다 — 절대 규칙 4.
+   * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
+   */
+  const challengeLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
+  const spoken =
+    challengeLine ?? (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null)
+
   const art = suspectArtFor(player.characterId)
   /*
    * 카드는 스포트라이트가 지나가도 사라지지 않는다 — revealing(그 순간)이 아니라
@@ -242,6 +253,13 @@ function Seat({
       <span key={say ?? 'silence'} className={`seat__say${say ? '' : ' seat__say--mute'}`}>
         {say ?? '…'}
       </span>
+
+      {/* 텍스트로만 그린다 — 이건 모델이 만든 문자열이다(절대 규칙 3). */}
+      {spoken && (
+        <span key={spoken} className="seat__line">
+          “{spoken}”
+        </span>
+      )}
 
       {player.revealed.length > 0 && (
         <span className="seat__revealed">

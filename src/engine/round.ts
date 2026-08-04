@@ -46,11 +46,16 @@ function currentRound(state: GameState): RoundRecord {
   return record
 }
 
-/** 제안한다. 라운드 기록을 열고 반증 페이즈로 넘긴다. */
+/**
+ * 제안한다. 라운드 기록을 열고 반증 페이즈로 넘긴다.
+ *
+ * line은 제안하며 한 말이다. 사람과 규칙 기반 판단자에겐 없으므로 기본이 null이다.
+ */
 export function suggest(
   state: GameState,
   suggesterId: PlayerId,
   suggestion: Suggestion,
+  line: string | null = null,
 ): GameState {
   if (state.phase !== 'suggest') throw new Error(`제안 페이즈가 아니다: ${state.phase}`)
 
@@ -72,7 +77,14 @@ export function suggest(
     phase: 'refute',
     rounds: [
       ...state.rounds,
-      { round: state.round, suggesterId, suggestion, declarations: [], challenge: null },
+      {
+        round: state.round,
+        suggesterId,
+        suggestion,
+        suggestionLine: line,
+        declarations: [],
+        challenge: null,
+      },
     ],
   }
 }
@@ -82,10 +94,15 @@ export function suggest(
  *
  * 순차형이 아니므로 침묵에 "앞사람이 이미 반증했다"는 변명이 없다.
  * 그래서 pass도 진술이고, 위증 판정 대상이 된다.
+ *
+ * lines는 선언자별 대사다. **claims와 별도로 받는 이유** — 대사는 룰에 관여하지 않아서
+ * 선언 수 검사·카드 검사가 전부 claims만 보면 끝나야 하기 때문이다. 없는 사람은 null이 되고,
+ * 선언하지 않은 사람의 대사는 기록이 선언을 따라가므로 그대로 버려진다.
  */
 export function declareAll(
   state: GameState,
   claims: ReadonlyMap<PlayerId, Claim>,
+  lines: ReadonlyMap<PlayerId, string> = new Map(),
 ): GameState {
   if (state.phase !== 'refute') throw new Error(`반증 페이즈가 아니다: ${state.phase}`)
 
@@ -107,6 +124,7 @@ export function declareAll(
       playerId: player.id,
       claim,
       isPerjury: isPerjury(player.hand, record.suggestion, claim),
+      line: lines.get(player.id) ?? null,
     }
   })
 

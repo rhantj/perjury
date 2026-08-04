@@ -147,7 +147,7 @@ describe('accuseByCouncil — AI 합의 고발 (플레이어가 범인일 때)',
   const CULPRIT_PLAYER = () => ready('council', 0)
 
   const allVote = (accusation: Suggestion): Vote[] =>
-    ['p1', 'p2', 'p3', 'p4', 'p5'].map((playerId) => ({ playerId, accusation }))
+    ['p1', 'p2', 'p3', 'p4', 'p5'].map((playerId) => ({ playerId, accusation, line: null }))
 
   it('AI 시민 전원의 표를 모아 고발한다', () => {
     const after = accuseByCouncil(
@@ -171,11 +171,11 @@ describe('accuseByCouncil — AI 합의 고발 (플레이어가 범인일 때)',
 
   it('표가 갈리면 칸별 다수결로 모은다', () => {
     const after = accuseByCouncil(CULPRIT_PLAYER(), [
-      { playerId: 'p1', accusation: { suspect: 's1', weapon: 'w2', place: 'p1' } },
-      { playerId: 'p2', accusation: { suspect: 's1', weapon: 'w1', place: 'p2' } },
-      { playerId: 'p3', accusation: { suspect: 's2', weapon: 'w1', place: 'p1' } },
-      { playerId: 'p4', accusation: { suspect: 's1', weapon: 'w1', place: 'p1' } },
-      { playerId: 'p5', accusation: { suspect: 's3', weapon: 'w3', place: 'p1' } },
+      { playerId: 'p1', accusation: { suspect: 's1', weapon: 'w2', place: 'p1' }, line: null },
+      { playerId: 'p2', accusation: { suspect: 's1', weapon: 'w1', place: 'p2' }, line: null },
+      { playerId: 'p3', accusation: { suspect: 's2', weapon: 'w1', place: 'p1' }, line: null },
+      { playerId: 'p4', accusation: { suspect: 's1', weapon: 'w1', place: 'p1' }, line: null },
+      { playerId: 'p5', accusation: { suspect: 's3', weapon: 'w3', place: 'p1' }, line: null },
     ])
 
     expect(after.outcome?.accusation).toEqual({ suspect: 's1', weapon: 'w1', place: 'p1' })
@@ -200,7 +200,7 @@ describe('accuseByCouncil — AI 합의 고발 (플레이어가 범인일 때)',
   it('사람은 합의 투표에 낄 수 없다', () => {
     const withHuman = [
       ...allVote({ suspect: 's1', weapon: 'w1', place: 'p1' }).slice(0, 4),
-      { playerId: 'p0', accusation: { suspect: 's1', weapon: 'w1', place: 'p1' } },
+      { playerId: 'p0', accusation: { suspect: 's1', weapon: 'w1', place: 'p1' }, line: null },
     ]
 
     expect(() => accuseByCouncil(CULPRIT_PLAYER(), withHuman)).toThrow()
@@ -209,7 +209,7 @@ describe('accuseByCouncil — AI 합의 고발 (플레이어가 범인일 때)',
   it('중복 투표는 거부된다', () => {
     const dup = [
       ...allVote({ suspect: 's1', weapon: 'w1', place: 'p1' }).slice(0, 4),
-      { playerId: 'p1', accusation: { suspect: 's1', weapon: 'w1', place: 'p1' } },
+      { playerId: 'p1', accusation: { suspect: 's1', weapon: 'w1', place: 'p1' }, line: null },
     ]
 
     expect(() => accuseByCouncil(CULPRIT_PLAYER(), dup)).toThrow()

@@ -2,6 +2,24 @@ import type { Claim, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 
 /**
+ * 판단과 «그때 한 말»을 함께 나르는 봉투.
+ *
+ * 대사를 따로 얻는 메서드를 두지 않는 이유 — Decider는 호출 사이에 상태를 들고 있을 수 없다
+ * (아래 계약). 「방금 뭐라고 말했나」를 나중에 물으면 그게 바로 인스턴스에 남는 상태다.
+ * 판단과 대사는 같은 호출에서 같이 나와야 한다.
+ */
+export interface Spoken<T> {
+  readonly value: T
+  /** 없으면 null. 규칙 기반 판단자와 사람에겐 대사가 없다. */
+  readonly line: string | null
+}
+
+/** 대사 없는 판단. 규칙 기반 구현이 쓴다. */
+export function silent<T>(value: T): Spoken<T> {
+  return { value, line: null }
+}
+
+/**
  * 에이전트가 무엇을 할지 고르는 것. 룰은 모른다 — 고른 행동은 엔진이 다시 검증한다.
  *
  * 입력이 GameView 하나로 고정된 것이 이 인터페이스의 핵심이다.
@@ -15,11 +33,11 @@ import type { GameView } from '../engine/view'
  * *입력* 격리를 보장할 뿐 *인스턴스* 격리를 보장하지 않는다.
  */
 export interface Decider {
-  chooseSuggestion(view: GameView): Promise<Suggestion>
-  chooseClaim(view: GameView): Promise<Claim>
-  chooseChallengeTarget(view: GameView): Promise<PlayerId | null>
+  chooseSuggestion(view: GameView): Promise<Spoken<Suggestion>>
+  chooseClaim(view: GameView): Promise<Spoken<Claim>>
+  chooseChallengeTarget(view: GameView): Promise<Spoken<PlayerId | null>>
   /** 최종 고발. 자료형은 제안과 같지만 판을 끝내는 행위라 이름을 나눈다. */
-  chooseAccusation(view: GameView): Promise<Suggestion>
+  chooseAccusation(view: GameView): Promise<Spoken<Suggestion>>
 }
 
 /**
