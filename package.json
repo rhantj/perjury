@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "worker:dev": "wrangler dev --config workers/wrangler.toml --var LLM_BASE_URL:http://127.0.0.1:11434/v1 --var LLM_MODEL:gemma4:e2b --var ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174",
+    "worker:dev": "wrangler dev --config workers/wrangler.toml --var DAILY_CALL_CAP:40 --var IP_DAILY_CALL_CAP:40 --var ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174",
     "worker:typecheck": "tsc --noEmit -p workers/tsconfig.json",
     "worker:deploy": "wrangler deploy --config workers/wrangler.toml"
   },

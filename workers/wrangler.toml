@@ -11,6 +11,14 @@ compatibility_date = "2026-08-03"
 DAILY_CALL_CAP = "250"
 IP_DAILY_CALL_CAP = "120"
 
+# 운영 모델. 2026-08-03 비용·품질 실측 후 결정 — docs/decisions/003-운영-llm-모델.md
+LLM_MODEL = "claude-sonnet-5"
+
+# 여기 없는 값 둘 — 시크릿으로만 넣는다(`wrangler secret put`).
+#   LLM_API_KEY   Anthropic 키. 이 워커가 존재하는 이유다.
+#   LLM_BASE_URL  Cloudflare AI Gateway 주소. Anthropic이 Workers 출구를 막아서 거쳐 간다.
+#                 인증 없는 게이트웨이라 public 리포에 두지 않는다 — docs/decisions/004
+
 # 호출 카운터. Workers는 상태가 없으므로 밖에 둔다.
 # id는 비밀이 아니다 — 이 네임스페이스는 계정 인증 없이 읽고 쓸 수 없다.
 [[kv_namespaces]]

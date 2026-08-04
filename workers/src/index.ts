@@ -28,11 +28,11 @@ interface Env {
   readonly IP_DAILY_CALL_CAP?: string
   /** 쉼표로 구분한 CORS 허용 오리진. 비면 배포용 기본값만 쓴다. */
   readonly ALLOWED_ORIGINS?: string
-  /** OpenAI 호환 엔드포인트. 로컬 올라마는 http://127.0.0.1:11434/v1 */
+  /** Anthropic Messages API 베이스. 비우면 기본값을 쓴다. */
   readonly LLM_BASE_URL?: string
   readonly LLM_MODEL?: string
   readonly LLM_MAX_TOKENS?: string
-  /** 시크릿. 로컬 올라마는 없어도 된다. */
+  /** 시크릿. `wrangler secret put LLM_API_KEY`로만 넣는다 — 이게 워커가 존재하는 이유다. */
   readonly LLM_API_KEY?: string
 }
 
@@ -41,6 +41,9 @@ const DEFAULT_DAILY_CAP = 250
 const DEFAULT_IP_CAP = 120
 /** thinking을 쓰는 모델은 응답 전에 상한을 다 쓸 수 있다. 넉넉히 잡는다. */
 const DEFAULT_MAX_TOKENS = 2500
+const DEFAULT_BASE_URL = 'https://api.anthropic.com/v1'
+/** 기본 모델은 프로젝트 규칙에 고정돼 있다. 바꾸려면 LLM_MODEL로 덮는다. */
+const DEFAULT_MODEL = 'claude-opus-5'
 /** 프론트(30초)보다 짧게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1). */
 const UPSTREAM_TIMEOUT_MS = 25_000
 
@@ -155,16 +158,17 @@ export default {
       }
 
       /**
-       * 설정이 없으면 조용히 성공하지 않고 503으로 끊는다.
+       * 키가 없으면 조용히 성공하지 않고 503으로 끊는다.
        * 프론트가 폴백으로 넘어가므로 게임은 계속 돈다 — 잘못 배포해도 판이 죽지 않게 하려는 것이다.
+       * 주소·모델은 기본값이 있지만 키는 없다. 시크릿을 안 넣은 배포가 여기서 걸린다.
        */
-      if (!env.LLM_BASE_URL || !env.LLM_MODEL) {
+      if (!env.LLM_API_KEY) {
         return fail('not_configured', 'LLM 설정이 없다', 503, origin)
       }
 
       const config: LlmConfig = {
-        baseUrl: env.LLM_BASE_URL,
-        model: env.LLM_MODEL,
+        baseUrl: env.LLM_BASE_URL ?? DEFAULT_BASE_URL,
+        model: env.LLM_MODEL ?? DEFAULT_MODEL,
         apiKey: env.LLM_API_KEY,
         maxTokens: capFrom(env.LLM_MAX_TOKENS, DEFAULT_MAX_TOKENS),
         timeoutMs: UPSTREAM_TIMEOUT_MS,
@@ -186,7 +190,10 @@ export default {
         },
         200,
         origin,
-        { 'X-Upstream-Tokens': `${result.usage.promptTokens}/${result.usage.completionTokens}` },
+        {
+          // 입력/출력/캐시적중. D5 비용 실측 때 캐싱이 도는지 보는 창이다.
+          'X-Upstream-Tokens': `${result.usage.promptTokens}/${result.usage.completionTokens}/${result.usage.cachedTokens}`,
+        },
       )
     }
 

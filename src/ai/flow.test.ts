@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { declareAll, suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
-import type { GameState } from '../engine/types'
-import { advanceToHuman, needsHuman, stepAi } from './flow'
+import type { Claim, GameState, PlayerId } from '../engine/types'
+import type { Decider, DeciderForRound } from './decider'
+import { advanceToHuman, declareWithHuman, needsHuman, passChallenge, stepAi } from './flow'
 import { ruleDeciderForRound } from './rule-decider'
 
 /** 사람이 지정한 진영인 판을 찾는다. 진영은 시드마다 다르다. */
@@ -101,5 +103,130 @@ describe('advanceToHuman — AI 자동 진행', () => {
 
     expect(game.phase).toBe('accuse')
     expect(needsHuman(game)).toBe(true)
+  })
+})
+
+/**
+ * LLM은 스키마상 «누구든» 지목할 수 있다 — 룰을 스키마에 복제하지 않기로 했기 때문이다(설계 §5.3).
+ * 그래서 성립하지 않는 지목이 실제로 올라온다. 그것을 엔진에 그대로 넣으면 엔진이 던지고,
+ * 라운드가 그 자리에 멈춘다. 배포본에서 이의제기 페이즈가 안 넘어간 원인이 이것이다.
+ */
+describe('이의제기 — 성립하지 않는 지목', () => {
+  function playerAt(state: GameState, index: number) {
+    const player = state.players[index]
+    if (!player) throw new Error('플레이어가 없다')
+    return player
+  }
+
+  /** 제안 뒤 전원이 침묵을 선언한 이의제기 페이즈. 잡을 대상이 하나도 없는 판이다. */
+  function allPassed(): GameState {
+    const game = createGame({ seed: 'challenge-illegal', humanIndex: 1 })
+    const suggester = playerAt(game, game.turnIndex)
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const claims = new Map<PlayerId, Claim>(
+      suggested.players
+        .filter((p) => p.id !== suggester.id)
+        .map((p) => [p.id, { kind: 'pass' } as Claim]),
+    )
+    return declareAll(suggested, claims)
+  }
+
+  /** 항상 «앞사람»을 지목한다. 전원이 침묵했으므로 어느 지목도 성립하지 않는다. */
+  function alwaysPoints(state: GameState): DeciderForRound {
+    const decider: Decider = {
+      chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseChallengeTarget: (view) => {
+        const other = state.players.find((p) => p.id !== view.viewerId)
+        return Promise.resolve(other ? other.id : null)
+      },
+      chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+    }
+    return () => decider
+  }
+
+  it('stepAi — 성립하지 않는 지목은 «안 잡는다»로 읽고 라운드를 닫는다', async () => {
+    const state = allPassed()
+
+    const next = await stepAi(state, alwaysPoints(state)(state.round))
+
+    expect(next.phase).toBe('whisper')
+    expect(next.rounds[next.rounds.length - 1]?.challenge).toBeNull()
+  })
+
+  it('passChallenge — 사람이 넘긴 뒤에도 라운드가 멈추지 않는다', async () => {
+    const state = allPassed()
+
+    const next = await passChallenge(state, alwaysPoints(state))
+
+    expect(next.phase).toBe('whisper')
+  })
+
+  it('성립하는 지목은 그대로 이의제기가 된다', async () => {
+    const game = createGame({ seed: 'challenge-legal', humanIndex: 1 })
+    const suggester = playerAt(game, game.turnIndex)
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const responders = suggested.players.filter((p) => p.id !== suggester.id)
+    const first = responders[0]
+    if (!first) throw new Error('응답자가 없다')
+    const claims = new Map<PlayerId, Claim>(
+      responders.map((p) => [
+        p.id,
+        p.id === first.id ? { kind: 'refute', cardId: 's1' } : { kind: 'pass' },
+      ]),
+    )
+    const state = declareAll(suggested, claims)
+
+    const decider: Decider = {
+      chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseChallengeTarget: (view) => Promise.resolve(view.viewerId === first.id ? null : first.id),
+      chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+    }
+
+    const next = await stepAi(state, decider)
+
+    expect(next.rounds[next.rounds.length - 1]?.challenge?.targetId).toBe(first.id)
+  })
+})
+
+/**
+ * 같은 결함이 반증 경로에도 있다. 스키마는 전체 카드를 허용하지만 엔진은 제안된 3장만 받는다.
+ * 반증은 라운드마다 5번 나가므로 이쪽이 더 자주 터진다.
+ */
+describe('반증 — 제안에 없는 카드', () => {
+  function suggested() {
+    const game = createGame({ seed: 'refute-illegal', humanIndex: 1 })
+    const suggester = game.players[game.turnIndex]
+    if (!suggester) throw new Error('제안자가 없다')
+    return suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+  }
+
+  /** 제안에 없는 카드(s6)로 반증하겠다고 우긴다. */
+  const stubborn: Decider = {
+    chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
+    chooseClaim: () => Promise.resolve({ kind: 'refute', cardId: 's6' }),
+    chooseChallengeTarget: () => Promise.resolve(null),
+    chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+  }
+
+  it('stepAi — 침묵으로 읽고 라운드를 계속 밀고 간다', async () => {
+    const next = await stepAi(suggested(), stubborn)
+
+    expect(next.phase).toBe('challenge')
+    const declarations = next.rounds[next.rounds.length - 1]?.declarations ?? []
+    expect(declarations.every((d) => d.claim.kind === 'pass')).toBe(true)
+  })
+
+  it('declareWithHuman — AI 선언만 좁히고 사람 선언은 그대로 낸다', async () => {
+    const state = suggested()
+
+    const next = await declareWithHuman(state, { kind: 'refute', cardId: 's1' }, () => stubborn)
+
+    const declarations = next.rounds[next.rounds.length - 1]?.declarations ?? []
+    const human = next.players.find((p) => p.isHuman)
+    const mine = declarations.find((d) => d.playerId === human?.id)
+    expect(mine?.claim).toEqual({ kind: 'refute', cardId: 's1' })
+    expect(declarations.filter((d) => d.playerId !== human?.id).every((d) => d.claim.kind === 'pass')).toBe(true)
   })
 })
