@@ -235,3 +235,146 @@ describe('parseDecideRequest — 대사', () => {
     expect(result.message).toContain(`${LIMITS.lineLength}자`)
   })
 })
+
+/** 밀담 요청 테스트용 시야 조각의 모양. validBody()의 view와 같은 모양이다. */
+interface TestRound {
+  round: number
+  suggesterId: string
+  suggestion: { suspect: string; weapon: string; place: string }
+  suggestionLine: string | null
+  declarations: { playerId: string; claim: { kind: string; cardId?: string }; line: string | null }[]
+  challenge: null
+  parley: null
+}
+
+interface TestView {
+  viewerId: string
+  round: number
+  totalRounds: number
+  phase: string
+  turnIndex: number
+  players: unknown[]
+  rounds: TestRound[]
+  solution: null
+  outcome: null
+}
+
+/**
+ * 밀담 요청 테스트에서 쓰는 최소 시야. `validBody()`가 만드는 view와 같은 모양이지만,
+ * `kind: 'refute'` 요청 안에 박혀 있지 않은 시야 자체가 필요할 때 이걸 쓴다.
+ */
+function validView(): TestView {
+  const players = Array.from({ length: 6 }, (_, i) => ({
+    id: `p${i}`,
+    characterId: `s${i + 1}`,
+    name: `이름${i}`,
+    isHuman: i === 0,
+    isMe: i === 1,
+    revealed: [],
+    hand: i === 1 ? ['s2', 'w3', 'p1'] : null,
+    faction: i === 1 ? 'citizen' : null,
+  }))
+
+  return {
+    viewerId: 'p1',
+    round: 2,
+    totalRounds: 8,
+    phase: 'refute',
+    turnIndex: 0,
+    players,
+    rounds: [
+      {
+        round: 1,
+        suggesterId: 'p0',
+        suggestion: { suspect: 's2', weapon: 'w1', place: 'p4' },
+        suggestionLine: null,
+        declarations: [{ playerId: 'p1', claim: { kind: 'refute', cardId: 's2' }, line: null }],
+        challenge: null,
+        parley: null,
+      },
+    ],
+    solution: null,
+    outcome: null,
+  }
+}
+
+describe('parseDecideRequest — 밀담', () => {
+  it('kind parley와 ask를 받는다', () => {
+    const parsed = parseDecideRequest(
+      JSON.stringify({ v: 1, kind: 'parley', sessionId: 's', ask: '왜 침묵했지', view: validView() }),
+    )
+
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.value.kind).toBe('parley')
+      expect(parsed.value.ask).toBe('왜 침묵했지')
+    }
+  })
+
+  it('ask가 200자를 넘으면 거부한다', () => {
+    const parsed = parseDecideRequest(
+      JSON.stringify({
+        v: 1,
+        kind: 'parley',
+        sessionId: 's',
+        ask: '가'.repeat(201),
+        view: validView(),
+      }),
+    )
+
+    expect(parsed.ok).toBe(false)
+  })
+
+  it('parley인데 ask가 없으면 거부한다', () => {
+    const parsed = parseDecideRequest(
+      JSON.stringify({ v: 1, kind: 'parley', sessionId: 's', view: validView() }),
+    )
+
+    expect(parsed.ok).toBe(false)
+  })
+
+  it('밀담이 아닌 kind에 ask를 실으면 거부한다', () => {
+    const parsed = parseDecideRequest(
+      JSON.stringify({ v: 1, kind: 'refute', sessionId: 's', ask: '몰래', view: validView() }),
+    )
+
+    expect(parsed.ok).toBe(false)
+  })
+
+  it('라운드 기록의 밀담을 통과시킨다', () => {
+    const view = validView()
+    const round = view.rounds[0]
+    if (!round) throw new Error('테스트 시야에 라운드가 없다')
+    const withParley = {
+      ...view,
+      rounds: [{ ...round, parley: { targetId: 'p1', askLine: '묻는다', replyLine: '답한다' } }],
+    }
+
+    const parsed = parseDecideRequest(
+      JSON.stringify({ v: 1, kind: 'refute', sessionId: 's', view: withParley }),
+    )
+
+    expect(parsed.ok).toBe(true)
+  })
+
+  it('밀담 기록에 모르는 필드가 있으면 거부한다', () => {
+    const view = validView()
+    const round = view.rounds[0]
+    if (!round) throw new Error('테스트 시야에 라운드가 없다')
+    const forged = {
+      ...view,
+      rounds: [
+        {
+          ...round,
+          parley: { targetId: 'p1', askLine: 'a', replyLine: 'b', hand: ['s1'] },
+        },
+      ],
+    }
+
+    const parsed = parseDecideRequest(
+      JSON.stringify({ v: 1, kind: 'refute', sessionId: 's', view: forged }),
+    )
+
+    expect(parsed.ok).toBe(false)
+  })
+})

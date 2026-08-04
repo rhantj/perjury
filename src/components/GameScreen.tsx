@@ -17,6 +17,7 @@ import Landing from './Landing'
 import Log from './Log'
 import MyPlate from './MyPlate'
 import Notebook from './Notebook'
+import Parley from './Parley'
 import Table from './Table'
 import Verdict from './Verdict'
 import '../styles/game.css'
@@ -310,15 +311,17 @@ export default function GameScreen() {
             <Table view={view} scenario={scenario} />
 
             {/*
-              밀담 자리. 아직 비었지만 «검은 여백»으로 두면 미완성으로 읽히고,
-              자리를 잡아 두면 «여기 뭐가 온다»로 읽힌다.
+              라운드마다 새로 마운트한다 — 지난 라운드에 고른 상대·쓴 말이 남지 않게 한다.
             */}
-            <section className="parley">
-              <span className="parley__kicker">密談 · 밀담</span>
-              <p className="parley__note">
-                1:1 대화로 정보를 거래하고 알리바이를 압박하는 자리다. 아직 열리지 않았다.
-              </p>
-            </section>
+            <Parley
+              key={view.round}
+              view={view}
+              open={view.phase === 'whisper' && myMove}
+              blocked={store.fallbackRound}
+              onAsk={store.askParley}
+              onDone={store.parley}
+              onSkip={store.skipParley}
+            />
           </div>
 
           <Notebook
@@ -376,6 +379,10 @@ export default function GameScreen() {
             >
               최종 고발
             </button>
+          ) : view.phase === 'whisper' ? (
+            <p className="actions__waiting" role="status">
+              밀담 자리에서 한 사람을 고른다
+            </p>
           ) : null}
         </footer>
       </div>

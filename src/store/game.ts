@@ -6,6 +6,7 @@ import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
+import { parley, skipParley } from '../engine/parley'
 import { accuse } from '../engine/progress'
 import { suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
@@ -63,6 +64,19 @@ interface GameStore {
   challenge: (targetId: PlayerId) => Promise<void>
   passChallenge: () => Promise<void>
   accuse: (accusation: Suggestion) => Promise<void>
+
+  /**
+   * 밀담 응답을 받아온다. **엔진을 건드리지 않는다.**
+   *
+   * 실패하면 던지지 않고 null을 돌려주는 것이 §9의 오류 정책 그 자체다 —
+   * 밀담은 진행에 필수가 아니므로 실패의 최선은 «어떻게든 응답을 만든다»가 아니라
+   * «솔직히 닫고 넘어간다»이다. 화면은 null을 받으면 밀담을 닫고 건너뛰기만 남긴다.
+   */
+  askParley: (targetId: PlayerId, ask: string) => Promise<string | null>
+  /** 오간 말을 기록하고 라운드를 넘긴다. 화면이 응답을 다 받은 뒤에만 부른다. */
+  parley: (targetId: PlayerId, askLine: string, replyLine: string) => Promise<void>
+  /** 밀담 없이 라운드를 넘긴다. */
+  skipParley: () => Promise<void>
 }
 
 function requireState(state: GameState | null): GameState {
@@ -188,5 +202,24 @@ export const useGame = create<GameStore>((set, get) => {
     challenge: (targetId) => apply((s) => challenge(s, humanId(s), targetId)),
     passChallenge: () => apply((s, deciders) => passChallenge(s, deciders)),
     accuse: (accusation) => apply((s) => accuse(s, accusation, humanId(s))),
+
+    askParley: async (targetId, ask) => {
+      const deciders = deciderForRound
+      const current = get().state
+      if (!deciders || !current) return null
+
+      const myGameId = gameId
+      try {
+        const reply = await deciders(current.round).speakInParley(viewFor(current, targetId), ask)
+        // 표지로 나갔다가 새 판을 시작했으면 이 응답은 버려진 판의 것이다.
+        return myGameId === gameId ? reply : null
+      } catch {
+        return null
+      }
+    },
+
+    parley: (targetId, askLine, replyLine) =>
+      apply((s) => parley(s, targetId, askLine, replyLine)),
+    skipParley: () => apply((s) => skipParley(s)),
   }
 })

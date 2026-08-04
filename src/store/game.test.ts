@@ -39,6 +39,7 @@ function probeDeciders(ms: number) {
         await wait()
         return base.chooseAccusation(view)
       },
+      speakInParley: async () => null,
     }
     return () => probe
   }
@@ -61,6 +62,7 @@ function failingDeciders(reason: FallbackReason): DeciderForRound {
     chooseClaim: async () => boom(),
     chooseChallengeTarget: async () => boom(),
     chooseAccusation: async () => boom(),
+    speakInParley: async () => boom(),
   }
   return () => decider
 }
@@ -120,10 +122,22 @@ describe('useGame', () => {
     expect(game().error).toBeNull()
   })
 
-  it('사람이 이의제기를 넘기면 라운드가 넘어간다', async () => {
+  it('사람이 이의제기를 넘기면 밀담에서 멈춘다', async () => {
     await game().start('pass', 0)
     await game().suggest(SUGGESTION)
     await game().passChallenge()
+
+    // 라운드를 넘기는 것은 이제 밀담의 두 출구뿐이다 — 건너뛰는 것도 사람의 결정이다.
+    expect(game().view().phase).toBe('whisper')
+    expect(game().view().round).toBe(1)
+  })
+
+  it('밀담을 건너뛰면 라운드가 넘어간다', async () => {
+    await game().start('pass', 0)
+    await game().suggest(SUGGESTION)
+    await game().passChallenge()
+
+    await game().skipParley()
 
     expect(game().view().round).toBe(2)
   })
@@ -146,6 +160,8 @@ describe('useGame', () => {
       if (view.phase === 'suggest') await game().suggest(SUGGESTION)
       else if (view.phase === 'refute') await game().declare({ kind: 'pass' })
       else if (view.phase === 'challenge') await game().passChallenge()
+      // 밀담은 매 라운드 사람을 기다린다. 완주 경로에서는 건너뛴다.
+      else if (view.phase === 'whisper') await game().skipParley()
       else if (view.phase === 'accuse') await game().accuse(SUGGESTION)
       else break
     }
@@ -213,5 +229,39 @@ describe('useGame', () => {
     await game().start('fallback', 1, () => failingDeciders('budget'))
 
     expect(game().fallbackReason).toBe('budget')
+  })
+})
+
+describe('밀담', () => {
+  /** 밀담에만 답하는 판단자. 나머지는 규칙 기반 그대로다. */
+  function talkingDeciders(reply: string | null): DeciderForRound {
+    const source = (seed: string): DeciderForRound => {
+      const base = createRuleDecider(seed)
+      const decider: Decider = { ...base, speakInParley: async () => reply }
+      return () => decider
+    }
+    return source('parley-store')
+  }
+
+  async function atWhisper() {
+    await game().start('store-parley', 0, () => talkingDeciders('못 봤소'))
+    // 밀담 페이즈에 설 때까지 사람의 차례를 규칙대로 넘긴다.
+    return game()
+  }
+
+  it('askParley는 상대의 대사를 돌려주고 엔진을 건드리지 않는다', async () => {
+    await atWhisper()
+    const before = game().state
+
+    const reply = await game().askParley('p1', '왜 침묵했지')
+
+    expect(reply).toBe('못 봤소')
+    expect(game().state).toBe(before)
+  })
+
+  it('판단자가 침묵하면 null이다 — 화면은 밀담을 닫는다', async () => {
+    await game().start('store-parley', 0, () => talkingDeciders(null))
+
+    expect(await game().askParley('p1', '묻는다')).toBeNull()
   })
 })

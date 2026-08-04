@@ -38,6 +38,16 @@ export interface Decider {
   chooseChallengeTarget(view: GameView): Promise<Spoken<PlayerId | null>>
   /** 최종 고발. 자료형은 제안과 같지만 판을 끝내는 행위라 이름을 나눈다. */
   chooseAccusation(view: GameView): Promise<Spoken<Suggestion>>
+  /**
+   * 밀담 응답. **대사만 돌려준다** — 고를 것이 없으므로 Spoken 봉투를 쓰지 않는다.
+   *
+   * **GameView 외의 인자를 받는 유일한 메서드다.** 위 원칙의 목적은 전지적 정보가 새는
+   * 통로를 막는 것인데, ask는 플레이어가 방금 자기 입으로 한 말이라 그 목적을 해치지 않는다.
+   * 아직 엔진에 들어가지 않았으므로 view에 실을 수도 없다.
+   *
+   * 할 말이 없으면 null이다. 규칙 기반 구현은 언제나 null을 돌려준다.
+   */
+  speakInParley(view: GameView, ask: string): Promise<string | null>
 }
 
 /**
@@ -104,6 +114,7 @@ export function createRoundFallback(
     chooseClaim: (view) => run((d) => d.chooseClaim(view)),
     chooseChallengeTarget: (view) => run((d) => d.chooseChallengeTarget(view)),
     chooseAccusation: (view) => run((d) => d.chooseAccusation(view)),
+    speakInParley: (view, ask) => run((d) => d.speakInParley(view, ask)),
   }
 }
 

@@ -33,6 +33,8 @@ export type Decision =
   | { readonly kind: 'suggest' | 'accuse'; readonly decision: Suggestion }
   | { readonly kind: 'refute'; readonly decision: Claim }
   | { readonly kind: 'challenge'; readonly decision: PlayerId | null }
+  /** 밀담은 고를 것이 없다. line만 쓴다. */
+  | { readonly kind: 'parley'; readonly decision: null }
 
 export type LlmResult =
   | { readonly ok: true; readonly decision: Decision; readonly line: string; readonly usage: Usage }
@@ -83,6 +85,8 @@ function toDecision(kind: DecideKind, parsed: Record<string, unknown>): Decision
       const targetId = textField(parsed, 'targetId')
       return { kind, decision: !targetId || targetId === 'none' ? null : targetId }
     }
+    case 'parley':
+      return { kind, decision: null }
   }
 }
 
@@ -130,8 +134,13 @@ function firstText(content: unknown): string | null {
   return null
 }
 
-export async function decide(config: LlmConfig, kind: DecideKind, view: GameView): Promise<LlmResult> {
-  const { system, user } = toRequestShape(buildMessages(kind, view))
+export async function decide(
+  config: LlmConfig,
+  kind: DecideKind,
+  view: GameView,
+  ask: string | null = null,
+): Promise<LlmResult> {
+  const { system, user } = toRequestShape(buildMessages(kind, view, ask))
 
   let response: Response
   try {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { challenge, skipChallenge } from './challenge'
+import { parley } from './parley'
 import { accuse, nextRound } from './progress'
 import { declareAll, suggest } from './round'
 import { createGame } from './setup'
@@ -236,5 +237,63 @@ describe('viewFor — 대사', () => {
     for (const declaration of viewFor(spoken(), 'p1').rounds[0]?.declarations ?? []) {
       expect(declaration).not.toHaveProperty('isPerjury')
     }
+  })
+})
+
+describe('viewFor — 밀담은 낀 두 사람에게만 보인다', () => {
+  /** 사람(p0)이 상대 하나와 밀담한 직후의 «그 라운드» 기록을 만든다. */
+  function afterParley() {
+    const base = createGame({ seed: 'parley-view', humanIndex: 0 })
+    const hands: CardId[][] = [
+      ['s2', 's3'],
+      ['s4', 's5'],
+      ['s6', 'w2'],
+      ['w3', 'w4'],
+      ['p2', 'p3'],
+      ['p4', 'p5'],
+    ]
+    const state: GameState = {
+      ...base,
+      solution: { suspect: 's1', weapon: 'w1', place: 'p1' },
+      players: base.players.map((p, i) => ({ ...p, isHuman: i === 0, hand: hands[i] ?? [] })),
+    }
+    const suggesterId = state.players[state.turnIndex]?.id
+    if (!suggesterId) throw new Error('제안자가 없다')
+    const claims = new Map<PlayerId, Claim>(
+      state.players.filter((p) => p.id !== suggesterId).map((p) => [p.id, { kind: 'pass' }]),
+    )
+    const whisper = skipChallenge(
+      declareAll(suggest(state, suggesterId, { suspect: 's1', weapon: 'w1', place: 'p1' }), claims),
+    )
+
+    const human = whisper.players[0]
+    const target = whisper.players[1]
+    const bystander = whisper.players[2]
+    if (!human || !target || !bystander) throw new Error('자리가 모자란다')
+
+    return {
+      state: parley(whisper, target.id, '왜 침묵했지', '아무것도 못 봤소'),
+      humanId: human.id,
+      targetId: target.id,
+      bystanderId: bystander.id,
+    }
+  }
+
+  it('사람에게는 자기가 건 밀담이 보인다', () => {
+    const { state, humanId } = afterParley()
+
+    expect(viewFor(state, humanId).rounds[0]?.parley?.replyLine).toBe('아무것도 못 봤소')
+  })
+
+  it('상대에게는 보인다 — 이것이 다음 라운드 프롬프트로 되돌아간다', () => {
+    const { state, targetId } = afterParley()
+
+    expect(viewFor(state, targetId).rounds[0]?.parley?.askLine).toBe('왜 침묵했지')
+  })
+
+  it('제3자에게는 밀담이 있었다는 사실조차 보이지 않는다', () => {
+    const { state, bystanderId } = afterParley()
+
+    expect(viewFor(state, bystanderId).rounds[0]?.parley).toBeNull()
   })
 })

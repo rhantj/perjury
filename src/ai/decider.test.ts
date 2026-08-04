@@ -30,6 +30,10 @@ function stub(suggestion: Suggestion, fails = false): Decider {
       guard()
       return silent(suggestion)
     },
+    speakInParley: async () => {
+      guard()
+      return null
+    },
   }
 }
 
@@ -141,5 +145,27 @@ describe('perRound — 라운드마다 인스턴스 하나', () => {
     }
     expect(callCount).toBe(3)
     expect(forRound(1)).toBe(first)
+  })
+})
+
+describe('createRoundFallback — 밀담', () => {
+  it('preferred가 던지면 fallback의 침묵(null)이 나온다', async () => {
+    const boom: Decider = {
+      ...stub(PREFERRED),
+      speakInParley: () => Promise.reject(new Error('밀담 실패')),
+    }
+    const decider = createRoundFallback(boom, stub(FALLBACK))
+
+    expect(await decider.speakInParley(VIEW, '묻는다')).toBeNull()
+  })
+
+  it('preferred가 정상이면 그 대사가 그대로 나온다', async () => {
+    const talking: Decider = {
+      ...stub(PREFERRED),
+      speakInParley: () => Promise.resolve('그 밤엔 아무것도 못 봤소'),
+    }
+    const decider = createRoundFallback(talking, stub(FALLBACK))
+
+    expect(await decider.speakInParley(VIEW, '묻는다')).toBe('그 밤엔 아무것도 못 봤소')
   })
 })

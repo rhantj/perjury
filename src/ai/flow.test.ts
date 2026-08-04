@@ -5,7 +5,7 @@ import type { Claim, GameState, PlayerId, Suggestion } from '../engine/types'
 import type { Decider, DeciderForRound } from './decider'
 import { silent } from './decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge, stepAi } from './flow'
-import { ruleDeciderForRound } from './rule-decider'
+import { createRuleDecider, ruleDeciderForRound } from './rule-decider'
 
 /** 사람이 지정한 진영인 판을 찾는다. 진영은 시드마다 다르다. */
 function gameWhereHumanIs(faction: 'citizen' | 'culprit'): GameState {
@@ -41,10 +41,10 @@ describe('needsHuman — 개입 지점', () => {
     expect(needsHuman(game)).toBe(true)
   })
 
-  it('밀담 페이즈는 사람 개입 없이 넘어간다', () => {
+  it('밀담 페이즈에서는 사람이 상대를 고른다', () => {
     const game = createGame({ seed: 'w', humanIndex: 0 })
 
-    expect(needsHuman({ ...game, phase: 'whisper' })).toBe(false)
+    expect(needsHuman({ ...game, phase: 'whisper' })).toBe(true)
   })
 
   it('판이 끝나면 개입 지점이 없다', () => {
@@ -142,6 +142,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
         return Promise.resolve(silent(other ? other.id : null))
       },
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
     return () => decider
   }
@@ -184,6 +185,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
       chooseChallengeTarget: (view) =>
         Promise.resolve(silent(view.viewerId === first.id ? null : first.id)),
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
 
     const next = await stepAi(state, decider)
@@ -221,6 +223,7 @@ describe('이의제기 — 성립하지 않는 지목', () => {
           setTimeout(() => resolve(silent(target.id)), (state.players.length - seat) * 5)
         }),
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
 
     const next = await stepAi(state, decider)
@@ -249,6 +252,7 @@ describe('반증 — 제안에 없는 카드', () => {
     chooseClaim: () => Promise.resolve(silent<Claim>({ kind: 'refute', cardId: 's6' })),
     chooseChallengeTarget: () => Promise.resolve(silent(null)),
     chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+    speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
   }
 
   it('stepAi — 침묵으로 읽고 라운드를 계속 밀고 간다', async () => {
@@ -289,6 +293,7 @@ describe('대사 전달', () => {
         return Promise.resolve({ value: target ? target.id : null, line: `${view.viewerId} 이의` })
       },
       chooseAccusation: (view) => Promise.resolve({ value: suggestion, line: `${view.viewerId} 고발` }),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
   }
 
@@ -344,5 +349,31 @@ describe('대사 전달', () => {
 
     const record = next.rounds[next.rounds.length - 1]?.challenge
     expect(record?.line).toBe(`${record?.challengerId} 이의`)
+  })
+})
+
+describe('stepAi — 밀담 페이즈', () => {
+  /** 전원이 침묵을 선언한 라운드. 밀담 페이즈로 강제 전환해 쓴다. */
+  function passedRound(): GameState {
+    const game = createGame({ seed: 'flow-whisper', humanIndex: 0 })
+    const suggester = game.players[game.turnIndex]
+    if (!suggester) throw new Error('제안자를 찾을 수 없다')
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const claims = new Map<PlayerId, Claim>(
+      suggested.players
+        .filter((p) => p.id !== suggester.id)
+        .map((p) => [p.id, { kind: 'pass' } as Claim]),
+    )
+    return declareAll(suggested, claims)
+  }
+
+  it('AI만 도는 경로에서는 밀담을 건너뛰고 라운드를 넘긴다', async () => {
+    const base = passedRound()
+    const whisper: GameState = { ...base, phase: 'whisper' }
+
+    const next = await stepAi(whisper, createRuleDecider('flow-whisper'))
+
+    expect(next.round).toBe(base.round + 1)
+    expect(next.rounds[next.rounds.length - 1]?.parley).toBeNull()
   })
 })
