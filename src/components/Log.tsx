@@ -113,6 +113,35 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
     }
   }
 
+  if (round.parley) {
+    const { targetId, askLine, replyLine } = round.parley
+    out.push({
+      tone: 'parley',
+      who: null,
+      face: null,
+      quote: null,
+      mine: false,
+      text: `${subject(view, view.viewerId)} ${nameOf(view, targetId)}와 따로 이야기했다.`,
+    })
+    out.push({
+      tone: 'parley',
+      who: nameOf(view, view.viewerId),
+      face: participantInitial(view, view.viewerId),
+      quote: null,
+      mine: true,
+      // 내가 쓴 말이다. LLM 대사가 아니라 quote가 아닌 text에 둔다.
+      text: askLine,
+    })
+    out.push({
+      tone: 'parley',
+      who: nameOf(view, targetId),
+      face: participantInitial(view, targetId),
+      quote: null,
+      mine: false,
+      text: replyLine,
+    })
+  }
+
   return out
 }
 

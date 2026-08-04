@@ -1123,6 +1123,56 @@
   line-height: 1.7;
   color: oklch(52% 0.012 80);
 }
+.parley--open {
+  border-style: solid;
+  border-color: var(--tone-key);
+}
+.parley__opts,
+.parley__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.parley__input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.2rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.parley__input:focus-visible {
+  outline: 2px solid var(--tone-key);
+  outline-offset: 1px;
+}
+.parley__count {
+  font-size: 0.74rem;
+  color: oklch(52% 0.012 80);
+  font-variant-numeric: tabular-nums;
+}
+.parley__said {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.2rem;
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+.parley__said--mine {
+  background: var(--tone-panel);
+}
+.parley__said--theirs {
+  border-left: 2px solid var(--tone-key);
+}
+.parley__said--theirs b {
+  display: block;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  color: var(--tone-key);
+}
 
 /* ---- 추리표 ---- */
 .nb {
@@ -1543,6 +1593,9 @@
 }
 .say--reveal {
   color: oklch(70% 0.09 45);
+}
+.say--parley {
+  border-left-color: var(--tone-key);
 }
 
 .log__empty {
