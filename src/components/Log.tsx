@@ -121,7 +121,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       face: null,
       quote: null,
       mine: false,
-      text: `${subject(view, view.viewerId)} ${nameOf(view, targetId)}와 따로 이야기했다.`,
+      text: `${subject(view, view.viewerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
     })
     out.push({
       tone: 'parley',

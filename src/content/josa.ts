@@ -9,13 +9,14 @@
  */
 
 /** 조사 쌍. 이름은 받침 없는 쪽 형태를 딴다. */
-export type JosaKind = 'ro' | 'eul' | 'i' | 'eun'
+export type JosaKind = 'ro' | 'eul' | 'i' | 'eun' | 'wa'
 
 const PAIRS: Record<JosaKind, readonly [withoutFinal: string, withFinal: string]> = {
   ro: ['로', '으로'],
   eul: ['를', '을'],
   i: ['가', '이'],
   eun: ['는', '은'],
+  wa: ['와', '과'],
 }
 
 /** 한글 음절 영역. 이 밖의 글자는 받침을 계산할 수 없다. */

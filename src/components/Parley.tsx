@@ -36,15 +36,36 @@ export default function Parley({ view, open, blocked, onAsk, onDone, onSkip }: P
   const others = view.players.filter((p) => !p.isMe)
   const targetName = targetId ? participantLabel(view, targetId) : ''
 
+  /** 내 차례가 아니다. 자리만 잡아 둔다 — 나갈 문도 필요 없다. */
   if (!open) {
     return (
       <section className="parley">
         <span className="parley__kicker">密談 · 밀담</span>
         <p className="parley__note">
-          {blocked
-            ? '연결이 끊겨 이번 라운드의 밀담은 열리지 않는다.'
-            : '1:1 대화로 정보를 거래하고 알리바이를 압박하는 자리다. 라운드 끝에 열린다.'}
+          1:1 대화로 정보를 거래하고 알리바이를 압박하는 자리다. 라운드 끝에 열린다.
         </p>
+      </section>
+    )
+  }
+
+  /*
+   * 이번 라운드가 이미 폴백이면 **상대를 고르기 전에** 닫는다(설계 §9).
+   * 규칙 기반 판단자는 밀담에 답하지 않으므로, 열어두면 상대를 고르고 200자를 쓰고
+   * 기다린 뒤에야 «이뤄지지 않았다»를 보게 된다. 배포본에서 실제로 그렇게 나갔다.
+   *
+   * **닫아도 넘어가는 문은 남긴다.** 라운드를 넘기는 것은 밀담의 두 출구뿐이라,
+   * 여기서 버튼을 빼면 판이 밀담에 갇힌다.
+   */
+  if (blocked) {
+    return (
+      <section className="parley">
+        <span className="parley__kicker">密談 · 밀담</span>
+        <p className="parley__note">연결이 끊겨 이번 라운드의 밀담은 열리지 않는다.</p>
+        <div className="parley__opts">
+          <button type="button" className="btn btn--ghost" onClick={onSkip}>
+            넘어간다
+          </button>
+        </div>
       </section>
     )
   }
