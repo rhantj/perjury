@@ -1510,12 +1510,16 @@
   }
 }
 
+/*
+ * span과 small은 형제 요소라 em이 제목 글자 크기가 아니라 부모의 기본 크기를 기준으로
+ * 계산된다 — 그래서 rem 기반 clamp로 명시한다. em으로 되돌리지 않는다.
+ */
 .action-flash small {
   position: relative;
   display: block;
-  margin-top: 0.5em;
+  margin-top: 0.6rem;
   font-weight: 500;
-  font-size: 0.32em;
+  font-size: clamp(1.15rem, 0.85rem + 1.5vw, 1.9rem);
   letter-spacing: 0.14em;
   opacity: 0;
 }
