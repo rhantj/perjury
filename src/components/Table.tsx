@@ -186,10 +186,10 @@ function Seat({
       : null
 
   /*
-   * LLM이 쓴 대사. 위의 say를 «대체하지 않고» 밑에 덧붙인다 —
-   * 대사는 카드 이름을 말하지 않을 수도 있어서, 대체하면 무엇으로 반증했는지가 화면에서 사라진다.
+   * LLM이 쓴 대사. 있으면 say 대신 이것만 렌더한다(아래 JSX) — 둘을 같이 띄우면 한 좌석에
+   * 줄이 두 개 겹쳐 헷갈린다는 피드백 때문이다.
    *
-   * 없으면 null이다(사람·규칙 기반 판단자·폴백). 그때는 위의 고정 문구만 남는다 — 절대 규칙 4.
+   * 없으면 null이다(사람·규칙 기반 판단자·폴백). 그때는 say(고정 문구)로 대체한다 — 절대 규칙 4.
    * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
    */
   const challengeLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
@@ -253,18 +253,20 @@ function Seat({
       </span>
 
       {/*
-        말이 없으면 칸을 비우지 않고 «침묵»을 적는다 — 빈칸은 아직 안 물어본 것처럼 보인다.
+        고정 문구(say)와 LLM 대사(spoken)를 동시에 띄우면 한 좌석에 줄이 두 개 겹쳐 헷갈린다는
+        피드백 — 대사가 있으면 그것만 보여주고, 없을 때(사람·규칙 기반 판단자·폴백)만 고정
+        문구로 대체한다. 고정 문구 자체는 지우지 않는다 — 그게 절대 규칙 4의 폴백 표시다.
         key를 내용에 걸어 두면 발언이 바뀔 때마다 이 span이 새로 마운트돼 등장 애니메이션이
         다시 돈다 — 그냥 텍스트만 바꾸면 DOM 노드가 그대로라 아무 움직임도 안 보인다.
       */}
-      <span key={say ?? 'silence'} className={`seat__say${say ? '' : ' seat__say--mute'}`}>
-        {say ?? '…'}
-      </span>
-
-      {/* 텍스트로만 그린다 — 이건 모델이 만든 문자열이다(절대 규칙 3). */}
-      {spoken && (
+      {spoken ? (
+        // 텍스트로만 그린다 — 이건 모델이 만든 문자열이다(절대 규칙 3).
         <span key={spoken} className="seat__line">
           “{spoken}”
+        </span>
+      ) : (
+        <span key={say ?? 'silence'} className={`seat__say${say ? '' : ' seat__say--mute'}`}>
+          {say ?? '…'}
         </span>
       )}
 
