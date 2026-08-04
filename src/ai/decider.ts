@@ -54,7 +54,7 @@ export interface Decider {
  * 라운드 하나에 쓸 Decider를 만든다.
  *
  * 계약: **같은 라운드 번호에는 같은 인스턴스를 돌려줘야 한다.**
- * createRoundFallback이 "이 라운드는 이미 넘어졌다"를 인스턴스 안에 들고 있기 때문이다.
+ * createRoundFallback이 "이 라운드에서 몇 번 실패했나"를 인스턴스 안에 들고 있기 때문이다.
  * 이 계약을 지키는 방법이 perRound다.
  */
 export type DeciderForRound = (round: number) => Decider
@@ -81,19 +81,30 @@ function reasonOf(e: unknown): FallbackReason {
 }
 
 /**
- * 한 라운드짜리 폴백 래퍼.
+ * 라운드에 차단기가 달린 폴백 래퍼.
  *
- * preferred가 한 번이라도 실패하면 남은 호출은 전부 fallback으로 간다.
+ * **실패한 호출만 fallback으로 간다.** 한 라운드는 12번 호출하므로, 첫 실패로 라운드를
+ * 통째로 접으면 호출당 3.6%인 실패율이 라운드 40%로 증폭된다(결정 006).
+ * 실측에서 실패는 전부 «병렬 5건 중 하나만 늦은 낙오»였다 — 회선이 죽은 것이 아니다.
+ *
+ * 다만 회선이 정말 죽었을 때 남은 페이즈까지 25초씩 매달리면 안 되므로,
+ * **두 번째 실패에서 라운드를 접는다.** 병렬 배치는 실패해도 한꺼번에 실패하고
+ * 낙오는 배치당 하나만 나오므로, 이 둘이 잘 갈린다.
+ *
  * 인스턴스 수명이 한 라운드이므로 다음 라운드에는 새 인스턴스가 만들어지고
  * preferred를 다시 시도한다 — 별도 복구 로직이 없는 이유다.
  *
  * 가변 플래그를 쓴다. 이것은 게임 상태가 아니라 어댑터의 수명 표시라 불변 규칙 밖이다.
  */
+/** 라운드를 접는 실패 횟수. 1로 되돌리면 원래의 「첫 실패에 라운드 전체」다. */
+const ROUND_GIVE_UP = 2
+
 export function createRoundFallback(
   preferred: Decider,
   fallback: Decider,
   onFallback?: (reason: FallbackReason) => void,
 ): Decider {
+  let failures = 0
   let fallen = false
 
   async function run<T>(pick: (decider: Decider) => Promise<T>): Promise<T> {
@@ -101,7 +112,13 @@ export function createRoundFallback(
     try {
       return await pick(preferred)
     } catch (e) {
-      if (!fallen) {
+      failures += 1
+      /*
+       * 배너는 «접혔을 때»만 띄운다. 낙오 하나에 켜면 fallbackRound의 뜻이
+       * 「이 라운드는 규칙 기반이다」에서 흐려지고, 그 값을 보고 문을 닫는
+       * 밀담 패널이 멀쩡한 라운드에 막힌다.
+       */
+      if (!fallen && failures >= ROUND_GIVE_UP) {
         fallen = true
         onFallback?.(reasonOf(e))
       }
@@ -122,7 +139,7 @@ export function createRoundFallback(
  * DeciderForRound의 계약(같은 라운드 = 같은 인스턴스)을 지키게 감싼다.
  *
  * 이게 없으면 한 라운드 안에서 인스턴스가 여러 번 만들어져
- * createRoundFallback의 "넘어졌다" 표시가 중간에 지워진다.
+ * createRoundFallback의 실패 횟수가 중간에 지워지고, 차단기가 영영 안 내려간다.
  */
 export function perRound(make: DeciderForRound): DeciderForRound {
   let cachedRound: number | null = null
