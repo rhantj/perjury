@@ -196,6 +196,15 @@
   gap: 1rem;
   align-content: start;
   min-height: 0;
+  /*
+   * .screen은 100dvh에 overflow:hidden이고 .board는 align-items:start다 —
+   * 그래서 이 칸의 내용이 자라면 스크롤이 아니라 **잘려서 사라진다.**
+   * 밀담 패널이 단계마다 커지는데(상대 고르기 → 입력 → 응답 두 줄),
+   * 배포본에서 «자리를 뜬다»·«넘어간다»가 화면 밖으로 나가 판이 갇혔다.
+   * max-height가 있어야 auto가 실제로 걸린다 — 없으면 높이가 내용 기준이라 넘칠 일이 없다고 본다.
+   */
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 /*
