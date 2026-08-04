@@ -3,7 +3,7 @@ import { accuse, accuseByCouncil, nextRound } from '../engine/progress'
 import { declareAll, suggest } from '../engine/round'
 import { viewFor } from '../engine/view'
 import type { Claim, GameState, PlayerId, Suggestion, Vote } from '../engine/types'
-import type { Decider, DeciderForRound } from './decider'
+import type { Decider, DeciderForRound, Spoken } from './decider'
 
 function humanOf(state: GameState) {
   const human = state.players.find((p) => p.isHuman)
@@ -58,6 +58,30 @@ function legalClaim(suggestion: Suggestion, claim: Claim): Claim {
 }
 
 /**
+ * 좌석별 (선언, 대사)를 엔진이 받는 두 갈래로 나눈다. declareAll이 룰과 연출을 따로 받기 때문이다.
+ *
+ * **여기서는 좁히지 않는다.** legalClaim은 부르는 쪽에서 «AI 선언에만» 걸어야 한다 —
+ * 여기 넣으면 사람의 선언까지 조용히 침묵으로 바뀐다(legalClaim 주석).
+ */
+type SpokenClaims = readonly (readonly [PlayerId, Spoken<Claim>])[]
+
+function claimsOf(spokens: SpokenClaims): Map<PlayerId, Claim> {
+  return new Map(spokens.map(([id, spoken]) => [id, spoken.value]))
+}
+
+/**
+ * 대사가 없는 좌석은 아예 넣지 않는다. declareAll이 없는 키를 null로 읽으므로 결과가 같고,
+ * null을 담은 항목이 맵에 쌓이지 않는다.
+ */
+function linesOf(spokens: SpokenClaims): Map<PlayerId, string> {
+  const lines = new Map<PlayerId, string>()
+  for (const [id, spoken] of spokens) {
+    if (spoken.line !== null) lines.set(id, spoken.line)
+  }
+  return lines
+}
+
+/**
  * 이 지목이 이의제기로 성립하는가.
  *
  * 판단자는 **누구든 지목할 수 있다.** 프롬프트 스키마의 후보에 «반증을 선언한 사람»만
@@ -96,16 +120,17 @@ async function offerChallenge(
   const answers = await Promise.all(
     askable.map(async (player) => ({
       player,
-      targetId: await decider.chooseChallengeTarget(viewFor(state, player.id)),
+      spoken: await decider.chooseChallengeTarget(viewFor(state, player.id)),
     })),
   )
 
   // Promise.all은 «입력 순서»로 결과를 돌려준다. askable이 좌석 순서이므로 이 순회가 곧 좌석 순서다.
-  for (const { player, targetId } of answers) {
-    if (targetId && canChallenge(state, player.id, targetId)) {
-      return challenge(state, player.id, targetId)
+  for (const { player, spoken } of answers) {
+    if (spoken.value && canChallenge(state, player.id, spoken.value)) {
+      return challenge(state, player.id, spoken.value, spoken.line)
     }
   }
+  // 안 잡기로 한 사람들의 대사는 버린다 — 하지 않은 행동에는 기록할 자리가 없다.
   return skipChallenge(state)
 }
 
@@ -115,23 +140,20 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
     case 'suggest': {
       const suggester = state.players[state.turnIndex]
       if (!suggester) throw new Error('제안자를 찾을 수 없다')
-      const suggestion = await decider.chooseSuggestion(viewFor(state, suggester.id))
-      return suggest(state, suggester.id, suggestion)
+      const spoken = await decider.chooseSuggestion(viewFor(state, suggester.id))
+      return suggest(state, suggester.id, spoken.value, spoken.line)
     }
     case 'refute': {
       const record = lastRound(state)
       const others = state.players.filter((p) => p.id !== record.suggesterId)
       // 병렬인 것은 최적화가 아니라 룰이다 — 동시 선언은 서로의 답을 못 보고 낸다 (설계 §1.4.1)
-      const entries = await Promise.all(
-        others.map(
-          async (p) =>
-            [
-              p.id,
-              legalClaim(record.suggestion, await decider.chooseClaim(viewFor(state, p.id))),
-            ] as const,
-        ),
+      const spokens = await Promise.all(
+        others.map(async (p) => {
+          const spoken = await decider.chooseClaim(viewFor(state, p.id))
+          return [p.id, { ...spoken, value: legalClaim(record.suggestion, spoken.value) }] as const
+        }),
       )
-      return declareAll(state, new Map<PlayerId, Claim>(entries))
+      return declareAll(state, claimsOf(spokens), linesOf(spokens))
     }
     case 'challenge':
       return offerChallenge(state, decider, null)
@@ -140,16 +162,16 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
     case 'accuse': {
       const human = humanOf(state)
       if (human.faction === 'citizen') {
-        const accusation = await decider.chooseAccusation(viewFor(state, human.id))
-        return accuse(state, accusation, human.id)
+        // 사람 자리를 AI가 대신 두는 경로(autoPlay)다. 사람의 고발에는 대사가 없다.
+        const spoken = await decider.chooseAccusation(viewFor(state, human.id))
+        return accuse(state, spoken.value, human.id)
       }
       const citizens = state.players.filter((p) => !p.isHuman && p.faction === 'citizen')
       const votes: Vote[] = await Promise.all(
-        citizens.map(async (p) => ({
-          playerId: p.id,
-          accusation: await decider.chooseAccusation(viewFor(state, p.id)),
-          line: null,
-        })),
+        citizens.map(async (p) => {
+          const spoken = await decider.chooseAccusation(viewFor(state, p.id))
+          return { playerId: p.id, accusation: spoken.value, line: spoken.line }
+        }),
       )
       return accuseByCouncil(state, votes)
     }
@@ -173,14 +195,15 @@ export async function declareWithHuman(
   const decider = deciderForRound(state.round)
 
   const others = state.players.filter((p) => p.id !== record.suggesterId)
-  const entries = await Promise.all(
+  const spokens = await Promise.all(
     others.map(async (p) => {
-      if (p.id === human.id) return [p.id, humanClaim] as const
-      const claim = await decider.chooseClaim(viewFor(state, p.id))
-      return [p.id, legalClaim(record.suggestion, claim)] as const
+      // 사람의 선언은 그대로 낸다 — 대사도 없고, legalClaim으로 조용히 바꾸지도 않는다.
+      if (p.id === human.id) return [p.id, { value: humanClaim, line: null }] as const
+      const spoken = await decider.chooseClaim(viewFor(state, p.id))
+      return [p.id, { ...spoken, value: legalClaim(record.suggestion, spoken.value) }] as const
     }),
   )
-  return declareAll(state, new Map<PlayerId, Claim>(entries))
+  return declareAll(state, claimsOf(spokens), linesOf(spokens))
 }
 
 /**

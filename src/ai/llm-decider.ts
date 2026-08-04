@@ -1,6 +1,6 @@
 import type { Claim, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
-import type { Decider, DeciderForRound, FallbackReason } from './decider'
+import type { Decider, DeciderForRound, FallbackReason, Spoken } from './decider'
 import { PROXY_URL } from './proxy-url'
 
 /**
@@ -70,6 +70,23 @@ function toClaim(value: unknown): Claim {
   return { kind: 'refute', cardId }
 }
 
+/**
+ * 대사를 화면에 올릴 수 있는 모양으로 좁힌다. **버리지 결코 던지지 않는다** —
+ * 대사가 이상하다고 판단 전체를 폴백으로 넘기면, 말 한 줄 때문에 룰 판단까지 규칙 기반이 된다.
+ *
+ * 좁히는 것 둘:
+ *   줄바꿈 → 한 줄 말풍선이 세로로 터진다
+ *   길이   → 프롬프트가 40자를 «요구»할 뿐 강제하지 않는다. 좌석 칸을 넘기면 판이 가려진다
+ */
+const LINE_MAX = 60
+
+function toLine(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const flat = value.replace(/\s+/g, ' ').trim()
+  if (flat.length === 0) return null
+  return flat.length > LINE_MAX ? `${flat.slice(0, LINE_MAX)}…` : flat
+}
+
 function toTarget(value: unknown): PlayerId | null {
   if (value === null) return null
   const target = asText(value)
@@ -88,7 +105,7 @@ export function createLlmDecider(): Decider {
   /** 로그 상관관계 전용. 프록시가 신뢰하지 않는 값이다. */
   const sessionId = crypto.randomUUID()
 
-  async function ask(kind: DecideKind, view: GameView): Promise<unknown> {
+  async function ask(kind: DecideKind, view: GameView): Promise<Spoken<unknown>> {
     if (exhausted) throw new LlmUnavailableError('budget_exhausted')
 
     let response: Response
@@ -117,15 +134,19 @@ export function createLlmDecider(): Decider {
       throw new LlmUnavailableError(code)
     }
 
-    // line은 아직 화면으로 가는 통로가 없다. 대사 연결은 별도 작업이다.
-    return payload['decision']
+    return { value: payload['decision'], line: toLine(payload['line']) }
+  }
+
+  /** 판단만 좁히고 대사는 그대로 통과시킨다. 대사는 룰에 관여하지 않으므로 검증 대상이 아니다. */
+  function decide<T>(spoken: Spoken<unknown>, narrow: (value: unknown) => T): Spoken<T> {
+    return { value: narrow(spoken.value), line: spoken.line }
   }
 
   return {
-    chooseSuggestion: async (view) => toSuggestion(await ask('suggest', view)),
-    chooseClaim: async (view) => toClaim(await ask('refute', view)),
-    chooseChallengeTarget: async (view) => toTarget(await ask('challenge', view)),
-    chooseAccusation: async (view) => toSuggestion(await ask('accuse', view)),
+    chooseSuggestion: async (view) => decide(await ask('suggest', view), toSuggestion),
+    chooseClaim: async (view) => decide(await ask('refute', view), toClaim),
+    chooseChallengeTarget: async (view) => decide(await ask('challenge', view), toTarget),
+    chooseAccusation: async (view) => decide(await ask('accuse', view), toSuggestion),
   }
 }
 

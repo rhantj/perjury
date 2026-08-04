@@ -1,4 +1,5 @@
 import { challengeTargetFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
+import { silent } from './decider'
 import type { Decider, DeciderForRound } from './decider'
 import type { GameView } from '../engine/view'
 
@@ -15,12 +16,16 @@ function saltOf(seed: string, kind: string, view: GameView): string {
   return `${seed}:${kind}:${view.round}:${view.viewerId}`
 }
 
+/**
+ * 대사는 만들지 않는다(silent). 사전생성 대사 풀은 D8 작업이고, 여기서 급조하면
+ * 폴백이 «LLM 흉내»를 내면서 실제로는 같은 문장을 반복하게 된다.
+ */
 export function createRuleDecider(seed: string): Decider {
   return {
-    chooseSuggestion: async (view) => suggestionFrom(view, saltOf(seed, 'sg', view)),
-    chooseClaim: async (view) => claimFrom(view, saltOf(seed, 'cl', view)),
-    chooseChallengeTarget: async (view) => challengeTargetFrom(view),
-    chooseAccusation: async (view) => voteFrom(view, saltOf(seed, 'vote', view)),
+    chooseSuggestion: async (view) => silent(suggestionFrom(view, saltOf(seed, 'sg', view))),
+    chooseClaim: async (view) => silent(claimFrom(view, saltOf(seed, 'cl', view))),
+    chooseChallengeTarget: async (view) => silent(challengeTargetFrom(view)),
+    chooseAccusation: async (view) => silent(voteFrom(view, saltOf(seed, 'vote', view))),
   }
 }
 
