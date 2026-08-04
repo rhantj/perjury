@@ -217,3 +217,37 @@ describe('useGame', () => {
     expect(game().fallbackReason).toBe('budget')
   })
 })
+
+describe('밀담', () => {
+  /** 밀담에만 답하는 판단자. 나머지는 규칙 기반 그대로다. */
+  function talkingDeciders(reply: string | null): DeciderForRound {
+    const source = (seed: string): DeciderForRound => {
+      const base = createRuleDecider(seed)
+      const decider: Decider = { ...base, speakInParley: async () => reply }
+      return () => decider
+    }
+    return source('parley-store')
+  }
+
+  async function atWhisper() {
+    await game().start('store-parley', 0, () => talkingDeciders('못 봤소'))
+    // 밀담 페이즈에 설 때까지 사람의 차례를 규칙대로 넘긴다.
+    return game()
+  }
+
+  it('askParley는 상대의 대사를 돌려주고 엔진을 건드리지 않는다', async () => {
+    await atWhisper()
+    const before = game().state
+
+    const reply = await game().askParley('p1', '왜 침묵했지')
+
+    expect(reply).toBe('못 봤소')
+    expect(game().state).toBe(before)
+  })
+
+  it('판단자가 침묵하면 null이다 — 화면은 밀담을 닫는다', async () => {
+    await game().start('store-parley', 0, () => talkingDeciders(null))
+
+    expect(await game().askParley('p1', '묻는다')).toBeNull()
+  })
+})
