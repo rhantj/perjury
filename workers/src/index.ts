@@ -39,8 +39,8 @@ interface Env {
 /** 무료 티어 쓰기 1,000회/일 ÷ 요청당 2회. 환경변수가 비었을 때의 안전한 상한이다. */
 const DEFAULT_DAILY_CAP = 250
 const DEFAULT_IP_CAP = 120
-/** thinking을 쓰는 모델은 응답 전에 상한을 다 쓸 수 있다. 넉넉히 잡는다. */
-const DEFAULT_MAX_TOKENS = 2500
+/** thinking을 껐다(llm.ts) — 구조화 출력 하나 + 대사 한 줄이면 넉넉하다. */
+const DEFAULT_MAX_TOKENS = 700
 const DEFAULT_BASE_URL = 'https://api.anthropic.com/v1'
 /** 기본 모델은 프로젝트 규칙에 고정돼 있다. 바꾸려면 LLM_MODEL로 덮는다. */
 const DEFAULT_MODEL = 'claude-opus-5'

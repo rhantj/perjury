@@ -206,6 +206,24 @@ function Seat({
       ? { art: revealArtFor(scenario, declaration.claim.cardId), name: label(declaration.claim.cardId) }
       : null
 
+  /*
+   * 이의제기로 이번 라운드에 «새로» 열린 카드. 어떤 걸 왜 공개하는지 몰라 헷갈린다는
+   * 피드백 — 이의제기 당사자(챌린저·타깃) 둘 중 이 좌석이 걸리면 카드와 사유를 함께 보여준다.
+   */
+  const challenge = live?.challenge
+  const myChallengeCard = challenge?.reveals.find((r) => r.playerId === player.id) ?? null
+  const challengeReveal = myChallengeCard
+    ? {
+        cardId: myChallengeCard.cardId,
+        reason:
+          player.id === challenge?.challengerId
+            ? challenge.success
+              ? '반증을 증명하려고 공개'
+              : '잘못된 이의제기로 공개'
+            : '위증이 들통나 공개',
+      }
+    : null
+
   return (
     <li
       className={[
@@ -273,6 +291,17 @@ function Seat({
       {player.revealed.length > 0 && (
         <span className="seat__revealed">
           공개 {player.revealed.map((c) => label(c)).join(' · ')}
+        </span>
+      )}
+
+      {/* 이의제기 결과로 이번 라운드에 새로 열린 카드. round로 키를 걸어 매 이의제기마다 다시 튀어나온다. */}
+      {challengeReveal && (
+        <span key={`${live?.round}:${challengeReveal.cardId}`} className="seat__challenge-reveal">
+          {revealArtFor(scenario, challengeReveal.cardId) && (
+            <img src={revealArtFor(scenario, challengeReveal.cardId)} alt="" />
+          )}
+          <em>{label(challengeReveal.cardId)}</em>
+          <small>{challengeReveal.reason}</small>
         </span>
       )}
       {isTurn && <span className="seat__turn-badge">차례</span>}
