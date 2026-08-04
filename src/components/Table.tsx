@@ -23,7 +23,7 @@ function revealArtFor(scenario: Scenario, cardId: CardId): string | undefined {
 }
 
 /** 좌석 하나가 스포트라이트를 받는 시간. 다섯 명이면 한 라운드 공개가 총 5×이만큼 걸린다. */
-const REVEAL_STEP_MS = 1150
+const REVEAL_STEP_MS = 700
 
 interface Props {
   view: GameView
@@ -238,9 +238,15 @@ function Seat({
           전부 이 번호로 부른다) 실명은 덧붙이기만 한다. 실명은 조서·진영 확인에서 이미
           공개했던 정보라 여기 다시 적어도 손패 소지와는 무관하다(둘은 원래 별개).
         */}
+        {/*
+          «서지혜»가 좌석 실명과 손패 카드 이름에 똑같이 맨 글자로 뜨면 같은 걸 가리키는 줄
+          안다는 피드백 — 실명 앞에 "정체" 태그를 붙여 «이 사람의 진짜 정체는 X»라고
+          읽히게 한다. 손패 카드는 그냥 카드 이름이라 태그가 없다는 점 자체가 구분 신호다.
+        */}
         <span className="seat__title">
+          <em>정체</em>
           <strong className="seat__title-name">{cardName(player.characterId)}</strong>
-          <em>이 사건 속</em>
+          <em>· 이 사건 속</em>
           {suspectTitle(scenario, player.characterId)}
         </span>
       </span>
