@@ -2,7 +2,7 @@ import { challenge, skipChallenge } from '../engine/challenge'
 import { accuse, accuseByCouncil, nextRound } from '../engine/progress'
 import { declareAll, suggest } from '../engine/round'
 import { viewFor } from '../engine/view'
-import type { Claim, GameState, PlayerId, Vote } from '../engine/types'
+import type { Claim, GameState, PlayerId, Suggestion, Vote } from '../engine/types'
 import type { Decider, DeciderForRound } from './decider'
 
 function humanOf(state: GameState) {
@@ -41,6 +41,59 @@ export function needsHuman(state: GameState): boolean {
   }
 }
 
+/**
+ * 판단자가 낸 반증 선언을 룰이 받을 수 있는 모양으로 좁힌다.
+ *
+ * 스키마는 전체 카드를 허용하는데 엔진은 «제안된 3장»만 받는다 — 룰을 한 군데에만 두기로 한
+ * 대가다(설계 §5.3). 제안 밖 카드로 반증하겠다는 선언은 애초에 성립하지 않으므로 침묵으로 읽는다.
+ * 그대로 넘기면 declareAll이 던져 라운드가 멈춘다.
+ *
+ * **사람의 선언에는 쓰지 않는다.** 화면은 제안된 3장만 내주므로 사람은 이 경우에 빠질 수 없고,
+ * 빠졌다면 조용히 바꾸는 대신 오류로 보여야 한다.
+ */
+function legalClaim(suggestion: Suggestion, claim: Claim): Claim {
+  if (claim.kind !== 'refute') return claim
+  const allowed = [suggestion.suspect, suggestion.weapon, suggestion.place]
+  return allowed.includes(claim.cardId) ? claim : { kind: 'pass' }
+}
+
+/**
+ * 이 지목이 이의제기로 성립하는가.
+ *
+ * 판단자는 **누구든 지목할 수 있다.** 프롬프트 스키마의 후보에 «반증을 선언한 사람»만
+ * 남기지 않았기 때문이다 — 룰을 엔진과 스키마 두 군데에 두면 조용히 어긋난다(설계 §5.3).
+ * 대신 성립하지 않는 지목이 올라올 수 있고, 그것을 엔진에 그대로 넣으면 엔진이 던진다.
+ *
+ * **그 예외를 여기서 막지 않으면 라운드가 그 자리에 멈춘다.** 배포본에서 이의제기 페이즈가
+ * 넘어가지 않은 원인이 이것이었다. 성립하지 않는 지목은 «이 사람은 안 잡는다»로 읽는다.
+ */
+function canChallenge(state: GameState, challengerId: PlayerId, targetId: PlayerId): boolean {
+  if (challengerId === targetId) return false
+  const declaration = lastRound(state).declarations.find((d) => d.playerId === targetId)
+  return declaration?.claim.kind === 'refute'
+}
+
+/**
+ * 이의제기 기회를 좌석 순서로 돌린다. **먼저 잡는 사람 하나만 성립한다.**
+ * 전원에게 물어볼 필요가 없어 순차로 둔다.
+ *
+ * except는 이미 넘긴 사람이다 — 사람이 «넘어가기»를 누른 뒤에는 사람을 건너뛴다.
+ */
+async function offerChallenge(
+  state: GameState,
+  decider: Decider,
+  except: PlayerId | null,
+): Promise<GameState> {
+  for (const player of state.players) {
+    if (player.id === except) continue
+    const targetId = await decider.chooseChallengeTarget(viewFor(state, player.id))
+    if (targetId && canChallenge(state, player.id, targetId)) {
+      return challenge(state, player.id, targetId)
+    }
+  }
+  return skipChallenge(state)
+}
+
 /** AI가 처리할 수 있는 한 스텝. 사람 차례에 부르면 안 된다. */
 export async function stepAi(state: GameState, decider: Decider): Promise<GameState> {
   switch (state.phase) {
@@ -56,19 +109,17 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
       // 병렬인 것은 최적화가 아니라 룰이다 — 동시 선언은 서로의 답을 못 보고 낸다 (설계 §1.4.1)
       const entries = await Promise.all(
         others.map(
-          async (p) => [p.id, await decider.chooseClaim(viewFor(state, p.id))] as const,
+          async (p) =>
+            [
+              p.id,
+              legalClaim(record.suggestion, await decider.chooseClaim(viewFor(state, p.id))),
+            ] as const,
         ),
       )
       return declareAll(state, new Map<PlayerId, Claim>(entries))
     }
-    case 'challenge': {
-      // 먼저 잡는 사람 하나만 성립한다. 전원에게 물어볼 필요가 없어 순차로 둔다.
-      for (const player of state.players) {
-        const targetId = await decider.chooseChallengeTarget(viewFor(state, player.id))
-        if (targetId) return challenge(state, player.id, targetId)
-      }
-      return skipChallenge(state)
-    }
+    case 'challenge':
+      return offerChallenge(state, decider, null)
     case 'whisper':
       return nextRound(state)
     case 'accuse': {
@@ -109,7 +160,8 @@ export async function declareWithHuman(
   const entries = await Promise.all(
     others.map(async (p) => {
       if (p.id === human.id) return [p.id, humanClaim] as const
-      return [p.id, await decider.chooseClaim(viewFor(state, p.id))] as const
+      const claim = await decider.chooseClaim(viewFor(state, p.id))
+      return [p.id, legalClaim(record.suggestion, claim)] as const
     }),
   )
   return declareAll(state, new Map<PlayerId, Claim>(entries))
@@ -125,15 +177,7 @@ export async function passChallenge(
   state: GameState,
   deciderForRound: DeciderForRound,
 ): Promise<GameState> {
-  const human = humanOf(state)
-  const decider = deciderForRound(state.round)
-
-  for (const player of state.players) {
-    if (player.id === human.id) continue
-    const targetId = await decider.chooseChallengeTarget(viewFor(state, player.id))
-    if (targetId) return challenge(state, player.id, targetId)
-  }
-  return skipChallenge(state)
+  return offerChallenge(state, deciderForRound(state.round), humanOf(state).id)
 }
 
 /** 사람의 결정이 필요한 지점까지 AI만으로 밀고 간다. */
