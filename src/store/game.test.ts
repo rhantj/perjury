@@ -122,10 +122,22 @@ describe('useGame', () => {
     expect(game().error).toBeNull()
   })
 
-  it('사람이 이의제기를 넘기면 라운드가 넘어간다', async () => {
+  it('사람이 이의제기를 넘기면 밀담에서 멈춘다', async () => {
     await game().start('pass', 0)
     await game().suggest(SUGGESTION)
     await game().passChallenge()
+
+    // 라운드를 넘기는 것은 이제 밀담의 두 출구뿐이다 — 건너뛰는 것도 사람의 결정이다.
+    expect(game().view().phase).toBe('whisper')
+    expect(game().view().round).toBe(1)
+  })
+
+  it('밀담을 건너뛰면 라운드가 넘어간다', async () => {
+    await game().start('pass', 0)
+    await game().suggest(SUGGESTION)
+    await game().passChallenge()
+
+    await game().skipParley()
 
     expect(game().view().round).toBe(2)
   })
@@ -148,6 +160,8 @@ describe('useGame', () => {
       if (view.phase === 'suggest') await game().suggest(SUGGESTION)
       else if (view.phase === 'refute') await game().declare({ kind: 'pass' })
       else if (view.phase === 'challenge') await game().passChallenge()
+      // 밀담은 매 라운드 사람을 기다린다. 완주 경로에서는 건너뛴다.
+      else if (view.phase === 'whisper') await game().skipParley()
       else if (view.phase === 'accuse') await game().accuse(SUGGESTION)
       else break
     }

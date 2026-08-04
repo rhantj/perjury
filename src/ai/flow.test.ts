@@ -41,10 +41,10 @@ describe('needsHuman — 개입 지점', () => {
     expect(needsHuman(game)).toBe(true)
   })
 
-  it('밀담 페이즈는 사람 개입 없이 넘어간다', () => {
+  it('밀담 페이즈에서는 사람이 상대를 고른다', () => {
     const game = createGame({ seed: 'w', humanIndex: 0 })
 
-    expect(needsHuman({ ...game, phase: 'whisper' })).toBe(false)
+    expect(needsHuman({ ...game, phase: 'whisper' })).toBe(true)
   })
 
   it('판이 끝나면 개입 지점이 없다', () => {

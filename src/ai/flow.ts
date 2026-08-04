@@ -37,6 +37,8 @@ export function needsHuman(state: GameState): boolean {
     case 'accuse':
       return human.faction === 'citizen'
     case 'whisper':
+      // 밀담은 언제나 사람이 건다. 건너뛰더라도 «건너뛴다»는 결정을 사람이 한다(설계 §2).
+      return true
     case 'over':
       return false
   }
