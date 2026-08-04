@@ -1,5 +1,6 @@
 import { challenge, skipChallenge } from '../engine/challenge'
-import { accuse, accuseByCouncil, nextRound } from '../engine/progress'
+import { skipParley } from '../engine/parley'
+import { accuse, accuseByCouncil } from '../engine/progress'
 import { declareAll, suggest } from '../engine/round'
 import { viewFor } from '../engine/view'
 import type { Claim, GameState, PlayerId, Suggestion, Vote } from '../engine/types'
@@ -158,7 +159,8 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
     case 'challenge':
       return offerChallenge(state, decider, null)
     case 'whisper':
-      return nextRound(state)
+      // 사람 자리를 AI가 대신 두는 경로(autoPlay)다. AI끼리는 밀담하지 않는다(설계 §2).
+      return skipParley(state)
     case 'accuse': {
       const human = humanOf(state)
       if (human.faction === 'citizen') {

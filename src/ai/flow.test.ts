@@ -5,7 +5,7 @@ import type { Claim, GameState, PlayerId, Suggestion } from '../engine/types'
 import type { Decider, DeciderForRound } from './decider'
 import { silent } from './decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge, stepAi } from './flow'
-import { ruleDeciderForRound } from './rule-decider'
+import { createRuleDecider, ruleDeciderForRound } from './rule-decider'
 
 /** 사람이 지정한 진영인 판을 찾는다. 진영은 시드마다 다르다. */
 function gameWhereHumanIs(faction: 'citizen' | 'culprit'): GameState {
@@ -349,5 +349,31 @@ describe('대사 전달', () => {
 
     const record = next.rounds[next.rounds.length - 1]?.challenge
     expect(record?.line).toBe(`${record?.challengerId} 이의`)
+  })
+})
+
+describe('stepAi — 밀담 페이즈', () => {
+  /** 전원이 침묵을 선언한 라운드. 밀담 페이즈로 강제 전환해 쓴다. */
+  function passedRound(): GameState {
+    const game = createGame({ seed: 'flow-whisper', humanIndex: 0 })
+    const suggester = game.players[game.turnIndex]
+    if (!suggester) throw new Error('제안자를 찾을 수 없다')
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const claims = new Map<PlayerId, Claim>(
+      suggested.players
+        .filter((p) => p.id !== suggester.id)
+        .map((p) => [p.id, { kind: 'pass' } as Claim]),
+    )
+    return declareAll(suggested, claims)
+  }
+
+  it('AI만 도는 경로에서는 밀담을 건너뛰고 라운드를 넘긴다', async () => {
+    const base = passedRound()
+    const whisper: GameState = { ...base, phase: 'whisper' }
+
+    const next = await stepAi(whisper, createRuleDecider('flow-whisper'))
+
+    expect(next.round).toBe(base.round + 1)
+    expect(next.rounds[next.rounds.length - 1]?.parley).toBeNull()
   })
 })
