@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cardLabel, participantLabel } from '../content/labels'
+import { josa } from '../content/josa'
 import type { Scenario } from '../content/scenarios'
 import { CARDS } from '../engine/cards'
 import type { CardId, CardKind } from '../engine/types'
@@ -90,7 +91,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
     const next = NEXT_MARK[marks[key] ?? '']
 
     if (next === 'o' && heldElsewhere(cardId, playerId)) {
-      setWarning(`${label(cardId)}는 이미 다른 사람 몫으로 표시돼 있다 — 한 장은 한 사람만 쥔다.`)
+      setWarning(`${josa(label(cardId), 'eun')} 이미 다른 사람 몫으로 표시돼 있다 — 한 장은 한 사람만 쥔다.`)
       return
     }
 
