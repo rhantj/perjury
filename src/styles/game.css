@@ -1371,17 +1371,36 @@
 /* ---- 밀담 자리 ---- */
 .parley {
   display: grid;
+  grid-template-columns: 1fr auto;
   gap: 0.45rem;
   padding: 1.35rem 1.4rem;
   border: 1px dashed var(--tone-line);
   border-radius: 0.18rem;
   background: linear-gradient(120deg, var(--tone-panel), transparent 90%);
 }
+/* 머리글과 남은 횟수만 한 줄을 나눠 쓰고, 나머지 줄은 전폭을 쓴다. */
+.parley > * {
+  grid-column: 1 / -1;
+}
 .parley__kicker {
+  grid-column: 1;
   font-family: var(--font-display);
   font-size: 0.72rem;
   letter-spacing: 0.26em;
   color: var(--tone-key);
+}
+.parley__quota {
+  grid-column: 2;
+  justify-self: end;
+  align-self: baseline;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: oklch(62% 0.02 80);
+}
+.parley__quota b {
+  font-size: 0.95rem;
+  color: oklch(82% 0.11 55);
 }
 .parley__note {
   margin: 0;

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
+import { PARLEY_LIMIT, parleysUsedIn } from '../engine/parley'
 import type { PlayerId } from '../engine/types'
 import type { GameView } from '../engine/view'
 
@@ -34,11 +35,23 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
   const others = view.players.filter((p) => !p.isMe)
   const targetName = targetId ? participantLabel(view, targetId) : ''
 
+  /*
+   * 남은 횟수는 기록에서 센다 — 엔진과 같은 함수를 쓴다(decisions/009).
+   * 사람 시야에는 자기 밀담이 전부 실리므로(view.ts) 이 집계가 정확하다.
+   */
+  const left = PARLEY_LIMIT - parleysUsedIn(view.rounds)
+  const quota = (
+    <span className="parley__quota">
+      밀담 <b>{Math.max(0, left)}</b>/{PARLEY_LIMIT}
+    </span>
+  )
+
   /** 내 차례가 아니다. 자리만 잡아 둔다 — 나갈 문도 필요 없다. */
   if (!open) {
     return (
       <section className="parley">
         <span className="parley__kicker">密談 · 밀담</span>
+        {quota}
         <p className="parley__note">
           1:1 대화로 정보를 거래하고 알리바이를 압박하는 자리다. 라운드 끝에 열린다.
         </p>
@@ -64,26 +77,33 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
   return (
     <section className="parley parley--open">
       <span className="parley__kicker">密談 · 밀담</span>
+      {quota}
 
       {step === 'pick' && (
         <>
-          <p className="parley__note">한 사람에게만 따로 말을 걸 수 있다. 이번 라운드에 한 번뿐이다.</p>
+          <p className="parley__note">
+            {left > 0
+              ? `한 사람에게만 따로 말을 걸 수 있다. 판을 통틀어 ${PARLEY_LIMIT}번뿐이니 아껴 쓴다.`
+              : `밀담을 ${PARLEY_LIMIT}번 다 썼다. 이제는 판 위의 말로만 겨룬다.`}
+          </p>
           <div className="parley__opts">
-            {others.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className="btn"
-                onClick={() => {
-                  setTargetId(p.id)
-                  setStep('write')
-                }}
-              >
-                {participantLabel(view, p.id)}
-              </button>
-            ))}
+            {/* 한도를 다 쓰면 상대를 고를 수 없다. 나가는 문은 남겨 둔다 — 막으면 페이즈가 갇힌다. */}
+            {left > 0 &&
+              others.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setTargetId(p.id)
+                    setStep('write')
+                  }}
+                >
+                  {participantLabel(view, p.id)}
+                </button>
+              ))}
             <button type="button" className="btn btn--ghost" onClick={onSkip}>
-              밀담 없이 넘어가기
+              {left > 0 ? '밀담 없이 넘어가기' : '넘어간다'}
             </button>
           </div>
         </>

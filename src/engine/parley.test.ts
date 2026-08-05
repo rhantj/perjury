@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { skipChallenge } from './challenge'
-import { parley, skipParley } from './parley'
+import { PARLEY_LIMIT, canParley, parley, parleysUsedIn, skipParley } from './parley'
 import { declareAll, suggest } from './round'
 import { createGame } from './setup'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
@@ -111,6 +111,64 @@ describe('parley — 밀담을 남기고 라운드를 넘긴다', () => {
     }
 
     expect(() => parley(already, otherId(base), '또', '또')).toThrow(/이미 밀담했다/)
+  })
+})
+
+/** 밀담을 이미 times번 마친 판을 만든다. 지난 라운드 기록을 앞에 깔고 현재 라운드를 뒤에 둔다. */
+function withPastParleys(state: GameState, times: number): GameState {
+  const current = state.rounds[state.rounds.length - 1]
+  if (!current) throw new Error('라운드가 없다')
+  const past = Array.from({ length: times }, (_, i) => ({
+    ...current,
+    round: i + 1,
+    parley: { targetId: 'p3', askLine: '지난 라운드', replyLine: '지난 라운드' },
+  }))
+  return { ...state, rounds: [...past, { ...current, round: times + 1 }] }
+}
+
+describe('parley — 판당 횟수 제한 (decisions/009)', () => {
+  it(`판당 ${PARLEY_LIMIT}회까지 쓸 수 있다`, () => {
+    const state = withPastParleys(atWhisper(), PARLEY_LIMIT - 1)
+
+    expect(() => parley(state, otherId(state), '마지막', '마지막')).not.toThrow()
+  })
+
+  it(`${PARLEY_LIMIT + 1}번째는 거절한다`, () => {
+    const state = withPastParleys(atWhisper(), PARLEY_LIMIT)
+
+    expect(() => parley(state, otherId(state), '한 번 더', '한 번 더')).toThrow(/판당/)
+  })
+
+  it('건너뛴 라운드는 횟수를 쓰지 않는다', () => {
+    const state = atWhisper()
+
+    const next = skipParley(state)
+
+    expect(parleysUsedIn(next.rounds)).toBe(0)
+  })
+
+  it('쓴 횟수는 기록에서 센다 — 상태로 들지 않는다', () => {
+    const state = withPastParleys(atWhisper(), 2)
+
+    expect(parleysUsedIn(state.rounds)).toBe(2)
+  })
+
+  it('canParley는 한도를 다 쓰면 false다', () => {
+    expect(canParley(withPastParleys(atWhisper(), PARLEY_LIMIT - 1))).toBe(true)
+    expect(canParley(withPastParleys(atWhisper(), PARLEY_LIMIT))).toBe(false)
+  })
+
+  /*
+   * 한도가 밀담 페이즈를 막으면 판이 그 자리에 선다. 나가는 문은 반드시 열려 있어야 한다 —
+   * 이의제기 때 같은 종류의 사고를 배포본에서 겪었다(ai/flow.ts 주석 참고).
+   */
+  it('한도를 다 써도 skipParley로 라운드는 넘어간다', () => {
+    const state = withPastParleys(atWhisper(), PARLEY_LIMIT)
+
+    const next = skipParley(state)
+
+    expect(next.phase).toBe('suggest')
+    expect(next.round).toBe(state.round + 1)
   })
 })
 
