@@ -1,5 +1,8 @@
+import { assignRoles } from '../content/roles'
 import { challenge, skipChallenge } from '../engine/challenge'
 import { skipParley } from '../engine/parley'
+import { buildPowerUse, usePower } from '../engine/power'
+import type { PowerIntent } from '../engine/power'
 import { accuse, accuseByCouncil } from '../engine/progress'
 import { declareAll, suggest } from '../engine/round'
 import { viewFor } from '../engine/view'
@@ -137,6 +140,45 @@ async function offerChallenge(
   return skipChallenge(state)
 }
 
+/**
+ * AI가 판단과 함께 낸 능력 사용을 적용한다.
+ *
+ * **종류는 AI가 고르지 않는다.** 좌석에 배정된 직업에서 뽑아 붙인다 — 그러지 않으면
+ * LLM이 자기에게 없는 능력을 쓸 수 있다(작업 규칙 2 · 결정 007).
+ *
+ * 엔진이 거절하면(이미 썼다·자기 지목·끝난 판) **조용히 넘긴다.** LLM은 대상을 빠뜨리거나
+ * 자기를 지목하는 일이 흔한데, 그때마다 라운드가 오류로 멈추면 판이 끝까지 가지 못한다.
+ * 거절이 곧 «AI가 룰을 어길 수 없다»의 집행 지점이다.
+ *
+ * 판단 전이보다 **먼저** 부른다. 남의 선언을 건드리는 능력(협잡꾼)이 선언 기록에
+ * 반영되려면 declareAll이 도는 시점에 이미 상태에 들어와 있어야 한다.
+ *
+ * **제안·반증에서만 걷는다.** 제안자는 chooseSuggestion을, 나머지는 chooseClaim을 정확히
+ * 한 번씩 부르므로 이 둘이면 매 라운드 전원이 한 번씩 물어보게 된다. 이의제기·고발에서
+ * 또 걷으면 같은 사람에게 두 번 묻는 셈이고, 프롬프트도 그만큼 길어진다.
+ */
+function withPowers(
+  state: GameState,
+  intents: readonly (readonly [PlayerId, PowerIntent | null | undefined])[],
+): GameState {
+  const wanted = intents.filter(([, intent]) => intent)
+  if (wanted.length === 0) return state
+
+  const roles = assignRoles(state.seed, state.players)
+
+  return wanted.reduce((current, [playerId, intent]) => {
+    const effect = roles[playerId]?.effect
+    if (!effect || !intent) return current
+    const use = buildPowerUse(effect, intent)
+    if (!use) return current
+    try {
+      return usePower(current, playerId, use)
+    } catch {
+      return current
+    }
+  }, state)
+}
+
 /** AI가 처리할 수 있는 한 스텝. 사람 차례에 부르면 안 된다. */
 export async function stepAi(state: GameState, decider: Decider): Promise<GameState> {
   switch (state.phase) {
@@ -144,7 +186,8 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
       const suggester = state.players[state.turnIndex]
       if (!suggester) throw new Error('제안자를 찾을 수 없다')
       const spoken = await decider.chooseSuggestion(viewFor(state, suggester.id))
-      return suggest(state, suggester.id, spoken.value, spoken.line)
+      const armed = withPowers(state, [[suggester.id, spoken.power]])
+      return suggest(armed, suggester.id, spoken.value, spoken.line)
     }
     case 'refute': {
       const record = lastRound(state)
@@ -156,7 +199,11 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
           return [p.id, { ...spoken, value: legalClaim(record.suggestion, spoken.value) }] as const
         }),
       )
-      return declareAll(state, claimsOf(spokens), linesOf(spokens))
+      const armed = withPowers(
+        state,
+        spokens.map(([id, spoken]) => [id, spoken.power] as const),
+      )
+      return declareAll(armed, claimsOf(spokens), linesOf(spokens))
     }
     case 'challenge':
       return offerChallenge(state, decider, null)
@@ -207,7 +254,11 @@ export async function declareWithHuman(
       return [p.id, { ...spoken, value: legalClaim(record.suggestion, spoken.value) }] as const
     }),
   )
-  return declareAll(state, claimsOf(spokens), linesOf(spokens))
+  const armed = withPowers(
+    state,
+    spokens.map(([id, spoken]) => [id, spoken.power] as const),
+  )
+  return declareAll(armed, claimsOf(spokens), linesOf(spokens))
 }
 
 /**

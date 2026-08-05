@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { assignRoles } from '../content/roles'
 import { declareAll, suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
 import type { Claim, GameState, PlayerId, Suggestion } from '../engine/types'
@@ -375,5 +376,85 @@ describe('stepAi — 밀담 페이즈', () => {
 
     expect(next.round).toBe(base.round + 1)
     expect(next.rounds[next.rounds.length - 1]?.parley).toBeNull()
+  })
+})
+
+/**
+ * AI 능력 발동.
+ *
+ * 요점은 **AI가 능력의 «종류»를 고르지 않는다**는 것이다. AI는 「쓴다 + 대상」만 말하고
+ * 종류는 좌석의 직업에서 나온다 — 그래야 AI가 남의 능력을 쓸 수 없다(작업 규칙 2).
+ */
+describe('AI 능력 발동', () => {
+  const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
+
+  /** 좌석 p1이 검시관인 판. 직업은 시드에서 결정된다. */
+  function gameWhereSeatIsCoroner(): GameState {
+    for (let i = 0; i < 400; i += 1) {
+      const seed = `flow-power-${i}`
+      const game = createGame({ seed })
+      if (assignRoles(seed, game.players)['p1']?.effect === 'inspect-hand') return game
+    }
+    throw new Error('검시관 좌석이 있는 판을 찾지 못했다')
+  }
+
+  /** 언제나 능력을 쓰겠다고 말하는 판단자. 대상은 인자로 받는다. */
+  function wanting(targetId: string | undefined, seed: string): Decider {
+    const base = createRuleDecider(seed)
+    return {
+      ...base,
+      chooseClaim: async (view) => ({ ...(await base.chooseClaim(view)), power: { targetId } }),
+    }
+  }
+
+  it('쓰겠다고 하면 그 좌석의 능력이 발동한다', async () => {
+    const game = gameWhereSeatIsCoroner()
+    const started = suggest(game, 'p0', SUGGESTION)
+
+    const after = await stepAi(started, wanting('p2', game.seed))
+
+    const mine = after.grants.filter((g) => g.ownerId === 'p1')
+    expect(mine).toHaveLength(1)
+    expect(mine[0]?.finding.kind).toBe('hand')
+  })
+
+  it('능력이 없는 좌석은 쓰겠다고 해도 발동하지 않는다', async () => {
+    const game = gameWhereSeatIsCoroner()
+    const started = suggest(game, 'p0', SUGGESTION)
+
+    const after = await stepAi(started, wanting('p2', game.seed))
+
+    // p1만 검시관이다. 나머지 좌석은 같은 의사를 냈지만 effect가 null이라 발동하지 않는다.
+    expect(after.powersUsed).toEqual(['p1'])
+  })
+
+  /** 엔진이 거절해도 판은 계속 돌아야 한다 — AI의 잘못된 요구가 라운드를 멈추면 안 된다. */
+  it('자기 자신을 지목해도 판이 멈추지 않는다', async () => {
+    const game = gameWhereSeatIsCoroner()
+    const started = suggest(game, 'p0', SUGGESTION)
+
+    const after = await stepAi(started, wanting('p1', game.seed))
+
+    expect(after.grants).toHaveLength(0)
+    expect(after.rounds[0]?.declarations).toHaveLength(5)
+  })
+
+  it('대상을 빠뜨려도 판이 멈추지 않는다', async () => {
+    const game = gameWhereSeatIsCoroner()
+    const started = suggest(game, 'p0', SUGGESTION)
+
+    const after = await stepAi(started, wanting(undefined, game.seed))
+
+    expect(after.grants).toHaveLength(0)
+    expect(after.rounds[0]?.declarations).toHaveLength(5)
+  })
+
+  it('능력을 말하지 않으면 아무 일도 없다', async () => {
+    const game = gameWhereSeatIsCoroner()
+    const started = suggest(game, 'p0', SUGGESTION)
+
+    const after = await stepAi(started, createRuleDecider(game.seed))
+
+    expect(after.powersUsed).toEqual([])
   })
 })
