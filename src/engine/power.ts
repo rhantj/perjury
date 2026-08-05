@@ -85,19 +85,31 @@ export function needsOf(kind: PowerUse['kind']): PowerNeeds {
 }
 
 /**
+ * 「지금」이 언제인가. GameState와 GameView 양쪽이 그대로 들어맞는다 —
+ * 같은 판정을 엔진과 화면이 함께 써야 하기 때문이다.
+ */
+export interface PowerTiming {
+  readonly phase: Phase
+  readonly round: number
+  readonly totalRounds: number
+}
+
+/**
  * 지금 써도 되는 능력인가.
  *
- * 답이 «선언»에서 나오는 능력은 선언 전에 지목해야 한다. 늦게 지목하면 답을 낼 기회가
- * 이미 지나가, 소진만 되고 답은 영영 오지 않는다. 화면에서 막을 수도 있지만 이건 룰이므로
+ * 답이 «나중»에 나오는 능력은 그 나중이 남아 있어야 쓸 수 있다. 때를 놓치고 쓰면
+ * 소진만 되고 답은 영영 오지 않는다. 화면에서 막을 수도 있지만 이건 룰이므로
  * 엔진이 막는다 — 화면 버그가 능력을 조용히 태워 없애면 안 된다(작업 규칙 2).
  */
-export function usableIn(kind: PowerUse['kind'], phase: Phase): boolean {
+export function usableIn(kind: PowerUse['kind'], at: PowerTiming): boolean {
   switch (kind) {
     case 'verify-claim':
-      return phase === 'suggest' || phase === 'refute'
+      return at.phase === 'suggest' || at.phase === 'refute'
+    // 겨누는 것이 «다음» 라운드다. 마지막 라운드에는 그 다음이 오지 않는다.
+    case 'photograph':
+      return at.round < at.totalRounds
     case 'inspect-hand':
     case 'check-weapon':
-    case 'photograph':
     case 'publish':
     case 'shield':
     case 'refuse-demand':
@@ -139,7 +151,7 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
    * **끝난 판만 예외다.** 여기서 막지 않으면 결과 화면에서 능력을 태워 없앨 수 있다.
    */
   if (state.phase === 'over') throw new Error('끝난 판에서는 능력을 쓸 수 없다')
-  if (!usableIn(use.kind, state.phase)) throw new Error(`지금은 쓸 수 없는 능력이다: ${state.phase}`)
+  if (!usableIn(use.kind, state)) throw new Error(`지금은 쓸 수 없는 능력이다: ${state.phase}`)
   if (state.powersUsed.includes(playerId)) throw new Error('능력은 한 판에 한 번뿐이다')
 
   const target = targetOf(use)
@@ -218,29 +230,51 @@ export function resolveAfterDeclare(
   state: GameState,
   declarations: readonly Declaration[],
 ): GameState {
-  const ripe = (p: PendingPower) => p.use.kind === 'verify-claim' && p.round === state.round
+  /*
+   * 겨누는 라운드가 능력마다 다르다.
+   *   verify-claim(순사) — 지목한 그 라운드의 선언
+   *   photograph(사진사) — 지목한 «다음» 라운드의 선언
+   * 어느 쪽이든 기회는 한 번뿐이라, 때가 지나면 답이 없어도 거둔다.
+   */
+  const ripe = (p: PendingPower) =>
+    (p.use.kind === 'verify-claim' && p.round === state.round) ||
+    (p.use.kind === 'photograph' && p.round === state.round - 1)
   if (!state.pending.some(ripe)) return state
 
-  const grants = state.pending.reduce<Grant[]>((acc, p) => {
+  const grants: Grant[] = []
+  const exposed: PlayerId[] = []
+
+  for (const p of state.pending) {
     // p.use를 꺼내 둬야 유니온이 좁혀진다 — 중첩 속성은 좁힘이 유지되지 않는다.
     const use = p.use
-    if (!ripe(p) || use.kind !== 'verify-claim') return acc
-    const declaration = declarations.find((d) => d.playerId === use.targetId)
-    if (!declaration) return acc
-    return [
-      ...acc,
-      {
+    if (!ripe(p)) continue
+
+    if (use.kind === 'verify-claim') {
+      const declaration = declarations.find((d) => d.playerId === use.targetId)
+      if (!declaration) continue
+      grants.push({
         round: p.round,
         ownerId: p.ownerId,
         finding: { kind: 'claim', targetId: declaration.playerId, truthful: !declaration.isPerjury },
-      },
-    ]
-  }, [])
+      })
+      continue
+    }
 
+    if (use.kind === 'photograph') {
+      const declaration = declarations.find((d) => d.playerId === use.targetId)
+      if (declaration?.isPerjury) exposed.push(declaration.playerId)
+    }
+  }
+
+  const record = state.rounds[state.rounds.length - 1]
   return {
     ...state,
     grants: [...state.grants, ...grants],
     pending: state.pending.filter((p) => !ripe(p)),
+    rounds:
+      record && exposed.length > 0
+        ? [...state.rounds.slice(0, -1), { ...record, exposed: [...record.exposed, ...exposed] }]
+        : state.rounds,
   }
 }
 

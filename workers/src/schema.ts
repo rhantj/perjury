@@ -143,12 +143,16 @@ function line(obj: Record<string, unknown>, key: string, where: string): string 
   return value
 }
 
-function cardIds(obj: Record<string, unknown>, key: string, where: string): string[] {
-  return list(obj, key, LIMITS.players * 3, where).map((entry, i) => {
+function ids(obj: Record<string, unknown>, key: string, max: number, where: string): string[] {
+  return list(obj, key, max, where).map((entry, i) => {
     if (typeof entry !== 'string') bad(where, `${key}[${i}]가 문자열이 아니다`)
     if (entry.length > LIMITS.stringLength) bad(where, `${key}[${i}]가 너무 길다`)
     return entry
   })
+}
+
+function cardIds(obj: Record<string, unknown>, key: string, where: string): string[] {
+  return ids(obj, key, LIMITS.players * 3, where)
 }
 
 function suggestion(value: unknown, where: string) {
@@ -279,7 +283,16 @@ function roundView(value: unknown, index: number) {
   const obj = record(value, where)
   onlyKeys(
     obj,
-    ['round', 'suggesterId', 'suggestion', 'suggestionLine', 'declarations', 'challenge', 'parley'],
+    [
+      'round',
+      'suggesterId',
+      'suggestion',
+      'suggestionLine',
+      'declarations',
+      'challenge',
+      'exposed',
+      'parley',
+    ],
     where,
   )
   return {
@@ -298,6 +311,11 @@ function roundView(value: unknown, index: number) {
       }
     }),
     challenge: obj['challenge'] === null ? null : challengeRecord(obj['challenge'], `${where}.challenge`),
+    /*
+     * 옛 프론트 번들에는 이 항목이 없다. 워커를 먼저 배포하는 순서를 지키면
+     * 「새 워커 + 옛 프론트」 구간이 반드시 생기므로, 없으면 빈 배열로 읽는다.
+     */
+    exposed: obj['exposed'] === undefined ? [] : ids(obj, 'exposed', LIMITS.players, where),
     // 없는 것과 null을 같게 읽는다 — 밀담이 없는 라운드가 기본이다.
     parley:
       obj['parley'] === null || obj['parley'] === undefined

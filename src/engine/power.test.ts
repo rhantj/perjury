@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createGame } from './setup'
 import { buildPowerUse, findingsFor, usableIn, usePower } from './power'
 import { declareAll, suggest } from './round'
+import { skipChallenge } from './challenge'
+import { nextRound } from './progress'
+import { viewFor } from './view'
 import type { Claim, GameState, PlayerId } from './types'
 
 /** 고정 시드. 손패 배분은 시드에서 결정론적으로 나온다. */
@@ -260,7 +263,82 @@ describe('verify-claim — 진위 양쪽과 때늦은 지목', () => {
     const state = afterSuggest(game())
     const declared = declareAll(state, allPass(state))
 
-    expect(usableIn('inspect-hand', declared.phase)).toBe(true)
-    expect(usableIn('verify-claim', declared.phase)).toBe(false)
+    expect(usableIn('inspect-hand', declared)).toBe(true)
+    expect(usableIn('verify-claim', declared)).toBe(false)
+  })
+
+  /** 촬영은 «다음» 라운드를 겨눈다. 마지막 라운드에는 그 다음이 오지 않는다. */
+  it('마지막 라운드에는 촬영할 수 없다', () => {
+    const last: GameState = { ...game(), round: 8, totalRounds: 8 }
+
+    expect(usableIn('photograph', last)).toBe(false)
+    expect(usableIn('photograph', { ...last, round: 7 })).toBe(true)
+    expect(() =>
+      usePower(last, idOf(last, 1), { kind: 'photograph', targetId: idOf(last, 2) }),
+    ).toThrow()
+  })
+})
+
+describe('photograph — 사진사', () => {
+  /** 촬영은 이번 라운드가 아니라 «다음» 라운드를 겨눈다. 찍은 라운드에는 아무 일도 없다. */
+  it('찍은 라운드에는 드러나지 않는다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const state = afterSuggest(base)
+    const armed = usePower(state, idOf(state, 1), {
+      kind: 'photograph',
+      targetId: idOf(state, 2),
+    })
+
+    const declared = declareAll(armed, allPass(armed))
+
+    expect(declared.rounds[0]?.exposed).toEqual([])
+    expect(declared.pending).toHaveLength(1)
+  })
+
+  it('다음 라운드에 위증하면 이의제기 없이 드러난다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const first = afterSuggest(base)
+    const armed = usePower(first, idOf(first, 1), {
+      kind: 'photograph',
+      targetId: idOf(first, 2),
+    })
+
+    const second = afterSuggest(nextRound(skipChallenge(declareAll(armed, allPass(armed)))))
+    const done = declareAll(second, allPass(second))
+
+    expect(done.rounds[1]?.exposed).toEqual([idOf(done, 2)])
+    expect(done.pending).toHaveLength(0)
+  })
+
+  it('다음 라운드에 위증하지 않으면 헛되이 소진된다', () => {
+    const base = withHands(game(), [[], [], ['w2'], [], [], []])
+    const first = afterSuggest(base)
+    const armed = usePower(first, idOf(first, 1), {
+      kind: 'photograph',
+      targetId: idOf(first, 2),
+    })
+
+    const second = afterSuggest(nextRound(skipChallenge(declareAll(armed, allPass(armed)))))
+    const done = declareAll(second, allPass(second))
+
+    expect(done.rounds[1]?.exposed).toEqual([])
+    expect(done.pending).toHaveLength(0)
+  })
+
+  /** 발각은 전체 공개다. 찍은 사람만 아는 것이면 이의제기와 다를 바가 없다. */
+  it('발각은 모든 시야에 실린다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const first = afterSuggest(base)
+    const armed = usePower(first, idOf(first, 1), {
+      kind: 'photograph',
+      targetId: idOf(first, 2),
+    })
+
+    const second = afterSuggest(nextRound(skipChallenge(declareAll(armed, allPass(armed)))))
+    const done = declareAll(second, allPass(second))
+
+    for (const player of done.players) {
+      expect(viewFor(done, player.id).rounds[1]?.exposed).toEqual([idOf(done, 2)])
+    }
   })
 })

@@ -158,6 +158,13 @@ export interface RoundRecord {
   readonly suggestionLine: string | null
   readonly declarations: readonly Declaration[]
   readonly challenge: ChallengeRecord | null
+  /**
+   * 사진사에게 발각된 위증자. **이의제기를 거치지 않고 전체가 본다.**
+   *
+   * isPerjury를 처음으로 밖에 내보내는 자리다. 한 사람만 알면 이의제기와 다를 게 없으므로
+   * Grant가 아니라 라운드 기록에 남긴다 — 여기 있는 것은 모든 시야에 그대로 실린다.
+   */
+  readonly exposed: readonly PlayerId[]
   /** 이 라운드에 오간 밀담. 라운드당 최대 하나다. 없으면 null이다. */
   readonly parley: ParleyRecord | null
 }

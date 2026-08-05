@@ -85,6 +85,7 @@ export function suggest(
         suggestionLine: line,
         declarations: [],
         challenge: null,
+        exposed: [],
         parley: null,
       },
     ],

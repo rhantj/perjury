@@ -26,6 +26,7 @@ function withRound(patch: Partial<RoundView>): GameView {
     suggestionLine: null,
     declarations: [{ playerId: speaker.id, claim: { kind: 'pass' }, line: null }],
     challenge: null,
+    exposed: [],
     parley: null,
     ...patch,
   }

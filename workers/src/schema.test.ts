@@ -524,3 +524,44 @@ describe('parseDecideRequest — 능력 개요', () => {
     expect(absent.ok && absent.value.view.powerSpent).toBe(false)
   })
 })
+
+describe('발각 명단', () => {
+  /** 라운드 하나를 꺼내 exposed를 세팅한다. undefined면 항목 자체를 넣지 않는다. */
+  function withExposed(exposed: unknown) {
+    return validBody((body) => {
+      const rounds = view(body)['rounds'] as Record<string, unknown>[]
+      const round = rounds[0]
+      if (!round) throw new Error('라운드가 없다')
+      if (exposed !== undefined) round['exposed'] = exposed
+    })
+  }
+
+  /** 옛 프론트 번들에는 이 항목이 없다. 워커 먼저 배포 순서 때문에 반드시 생기는 구간이다. */
+  it('없으면 빈 배열로 읽는다', () => {
+    const result = parseDecideRequest(withExposed(undefined))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.rounds[0]?.exposed).toEqual([])
+  })
+
+  it('있으면 그대로 읽는다', () => {
+    const result = parseDecideRequest(withExposed(['p2']))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.rounds[0]?.exposed).toEqual(['p2'])
+  })
+
+  it('좌석 수를 넘으면 거부한다', () => {
+    const result = parseDecideRequest(withExposed(['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']))
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('문자열이 아닌 것이 섞이면 거부한다', () => {
+    const result = parseDecideRequest(withExposed([1]))
+
+    expect(result.ok).toBe(false)
+  })
+})

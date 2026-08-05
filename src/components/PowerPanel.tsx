@@ -66,7 +66,7 @@ export default function PowerPanel({
   if (!picking) {
     // 지금 눌러도 엔진이 거부하는 능력이 있다(순사는 선언 뒤에 지목해봐야 답이 없다).
     // 눌렀다가 오류를 보게 두는 대신 미리 잠근다 — 판정은 엔진 것을 그대로 쓴다.
-    const inTime = usableIn(role.effect, view.phase)
+    const inTime = usableIn(role.effect, view)
     // 고를 것이 없는 능력은 고르는 단계를 건너뛴다. 빈 목록을 보여줄 이유가 없다.
     const noTarget = needsOf(role.effect) === 'none'
     return (
