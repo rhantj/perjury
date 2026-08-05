@@ -117,3 +117,38 @@ describe('schemaFor — 밀담', () => {
     expect(schema['required']).toEqual(['line'])
   })
 })
+
+describe('label — 사건마다 다른 카드 이름', () => {
+  /*
+   * 화면은 cardLabel로 사건별 이름을 쓰는데 프롬프트는 엔진 기본표(저택 기준)를 써서,
+   * 극장 판인데 에이전트가 「분장실 카드를 들고 있는데 서재라」처럼 말했다.
+   * scenarioId를 받으면 그 사건의 이름으로 나가야 한다.
+   */
+  it('극장 판에서는 p1을 분장실이라고 부른다', () => {
+    const text = systemText(buildMessages('refute', baseView(), null, null, 'theater'))
+
+    expect(text).toContain('분장실(p1)')
+    expect(text).not.toContain('서재(p1)')
+  })
+
+  it('사건이 다르면 같은 id가 다른 이름이 된다', () => {
+    const opium = systemText(buildMessages('refute', baseView(), null, null, 'opium'))
+
+    expect(opium).toContain('골방(p1)')
+    expect(opium).not.toContain('분장실(p1)')
+  })
+
+  it('관측 기록의 카드 이름도 사건을 따른다', () => {
+    // 기록에 실리는 제안은 p1을 포함한다(withRound) — 카탈로그만 고치고 끝나면 여기가 어긋난다.
+    const text = userText(buildMessages('refute', withRound({}), null, null, 'theater'))
+
+    expect(text).toContain('분장실(p1)')
+    expect(text).not.toContain('서재(p1)')
+  })
+
+  it('사건을 모르면 엔진 기본 이름으로 물러난다 — 옛 프론트도 판은 돌아야 한다', () => {
+    const text = systemText(buildMessages('refute', baseView()))
+
+    expect(text).toContain('서재(p1)')
+  })
+})

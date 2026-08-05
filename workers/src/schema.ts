@@ -1,4 +1,5 @@
 import type { PowerBrief } from '../../src/ai/power-brief'
+import { SCENARIOS } from '../../src/content/scenarios'
 import type { Faction, Grant, Phase } from '../../src/engine/types'
 import type { GameView } from '../../src/engine/view'
 
@@ -47,6 +48,9 @@ export const LIMITS = {
 export type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley'
 
 const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse', 'parley']
+
+/** 아는 사건 id. 시나리오 목록에서 뽑아 두 곳에 같은 문자열을 적지 않는다. */
+const SCENARIO_IDS: ReadonlySet<unknown> = new Set(SCENARIOS.map((item) => item.id))
 const PHASES: readonly Phase[] = ['suggest', 'refute', 'challenge', 'whisper', 'accuse', 'over']
 const FACTIONS: readonly Faction[] = ['citizen', 'culprit']
 const FINDING_KINDS = ['hand', 'weapon', 'claim'] as const
@@ -59,6 +63,14 @@ export interface DecideRequest {
   readonly sessionId: string
   /** 밀담에서 플레이어가 한 말. 다른 kind에서는 반드시 null이다. */
   readonly ask: string | null
+  /**
+   * 어느 사건인가. 카드 이름이 사건마다 달라서(저택 「서재」 = 극장 「분장실」)
+   * 이걸 모르면 에이전트가 화면과 다른 단어로 말한다.
+   *
+   * 아는 id가 아니면 null로 떨어뜨린다 — 거부하지 않는다. 이름이 어긋나도 판은 돌아야 하고,
+   * 여기서 막으면 사건이 하나 늘 때마다 워커를 먼저 배포해야 프론트가 산다.
+   */
+  readonly scenarioId: string | null
   readonly view: GameView
   /**
    * 이 좌석이 아직 쓸 수 있는 직업 능력. 없으면 null이다.
@@ -372,7 +384,7 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
 
   try {
     const obj = record(raw, 'body')
-    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view', 'power'], 'body')
+    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view', 'power', 'scenarioId'], 'body')
     if (obj['v'] !== 1) bad('body', '모르는 계약 버전이다')
 
     const kind = oneOf(obj, 'kind', KINDS, 'body')
@@ -404,6 +416,8 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
             ? null
             : powerBrief(obj['power'], 'body.power'),
         ask,
+        // 아는 사건 id일 때만 통과시킨다. 아니면 null — 워커가 엔진 기본 이름으로 물러난다.
+        scenarioId: SCENARIO_IDS.has(obj['scenarioId']) ? (obj['scenarioId'] as string) : null,
         view: gameView(obj['view']),
       },
     }

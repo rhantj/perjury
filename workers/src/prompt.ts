@@ -1,4 +1,6 @@
 import { CARDS, cardName } from '../../src/engine/cards'
+import { cardLabel } from '../../src/content/labels'
+import { SCENARIOS } from '../../src/content/scenarios'
 import type { GameView, PlayerView } from '../../src/engine/view'
 import type { PowerBrief } from '../../src/ai/power-brief'
 import type { DecideKind } from './schema'
@@ -22,9 +24,22 @@ export interface ChatMessage {
 
 const ALL_CARD_IDS: readonly string[] = CARDS.map((card) => card.id)
 
-/** `이름(id)` 형태. 모델이 이름으로 읽고 id로 답하게 한다. */
-function label(id: string): string {
-  return `${cardName(id)}(${id})`
+type Label = (id: string) => string
+
+/**
+ * `이름(id)` 형태. 모델이 이름으로 읽고 id로 답하게 한다.
+ *
+ * 이름은 **사건마다 다르다** — 같은 p1이 저택에서는 「서재」, 극장에서는 「분장실」이다.
+ * 예전엔 엔진 기본표(cardName)만 썼는데 그건 저택 기준 한 벌뿐이라, 극장 판에서도
+ * 에이전트가 「서재」라고 말했다. 화면은 cardLabel로 「분장실」을 쓰니 같은 카드를 두고
+ * 둘이 다른 말을 하는 셈이었다.
+ *
+ * 사건은 판 내내 고정이므로 이 이름표도 고정이고, 그래서 캐시 프리픽스를 흔들지 않는다.
+ * scenarioId가 없으면(옛 클라이언트) 엔진 기본표로 물러난다 — 말은 어긋나도 판은 돈다.
+ */
+function labeller(scenarioId: string | null): Label {
+  const scenario = SCENARIOS.find((item) => item.id === scenarioId)
+  return (id) => `${scenario ? cardLabel(scenario, id) : cardName(id)}(${id})`
 }
 
 function me(view: GameView): PlayerView {
@@ -33,7 +48,7 @@ function me(view: GameView): PlayerView {
   return found
 }
 
-function cardCatalogue(): string {
+function cardCatalogue(label: Label): string {
   const byKind = (kind: string) =>
     CARDS.filter((card) => card.kind === kind)
       .map((card) => label(card.id))
@@ -46,13 +61,13 @@ function cardCatalogue(): string {
 }
 
 /** 판 전체에서 바뀌지 않고 모든 에이전트가 공유한다. 캐시 프리픽스의 앞부분이다. */
-function rulesBlock(): string {
+function rulesBlock(label: Label): string {
   return [
     '너는 1935년 경성을 배경으로 한 추리 게임 「위증」의 등장인물이다.',
     '여섯 명이 한 자리에 앉아 있고 그중 하나가 범인이다.',
     '',
     '[카드]',
-    cardCatalogue(),
+    cardCatalogue(label),
     '',
     '[규칙]',
     '- 제안: 자기 차례에 용의자·수단·장소를 한 장씩 지목한다.',
@@ -88,7 +103,7 @@ function rulesBlock(): string {
 }
 
 /** 판 내내 안 바뀌는 나의 정보. 페널티로 공개된 카드는 변하므로 여기 넣지 않는다. */
-function selfBlock(view: GameView): string {
+function selfBlock(view: GameView, label: Label): string {
   const mine = me(view)
   const lines = [
     '[나]',
@@ -105,7 +120,10 @@ function selfBlock(view: GameView): string {
   return lines.join('\n')
 }
 
-function claimText(claim: { kind: 'refute'; cardId: string } | { kind: 'pass' }): string {
+function claimText(
+  claim: { kind: 'refute'; cardId: string } | { kind: 'pass' },
+  label: Label,
+): string {
   return claim.kind === 'pass' ? '넘김' : `${label(claim.cardId)}로 반증`
 }
 
@@ -115,7 +133,7 @@ function said(line: string | null): string {
 }
 
 /** 매 호출 변한다. 캐시 대상이 아니다. */
-function observationBlock(view: GameView): string {
+function observationBlock(view: GameView, label: Label): string {
   const names = new Map(view.players.map((player) => [player.id, player.name]))
   const who = (id: string) => names.get(id) ?? id
   const human = view.players.find((player) => player.isHuman)
@@ -127,7 +145,7 @@ function observationBlock(view: GameView): string {
   const history = view.rounds.map((round) => {
     const head = `${round.round}라운드 — ${who(round.suggesterId)}의 제안: ${label(round.suggestion.suspect)} / ${label(round.suggestion.weapon)} / ${label(round.suggestion.place)}${said(round.suggestionLine)}`
     const declarations = round.declarations.map(
-      (d) => `  · ${who(d.playerId)}: ${claimText(d.claim)}${said(d.line)}`,
+      (d) => `  · ${who(d.playerId)}: ${claimText(d.claim, label)}${said(d.line)}`,
     )
     const challenge = round.challenge
       ? [
@@ -177,7 +195,7 @@ function observationBlock(view: GameView): string {
   ].join('\n')
 }
 
-function taskBlock(kind: DecideKind, view: GameView, ask: string | null): string {
+function taskBlock(kind: DecideKind, view: GameView, ask: string | null, label: Label): string {
   const last = view.rounds[view.rounds.length - 1]
   const current = last
     ? `${label(last.suggestion.suspect)} / ${label(last.suggestion.weapon)} / ${label(last.suggestion.place)}`
@@ -242,19 +260,23 @@ export function buildMessages(
   view: GameView,
   ask: string | null = null,
   power: PowerBrief | null = null,
+  /** 어느 사건인가. 카드 이름이 여기서 갈린다 — labeller 주석 참고. */
+  scenarioId: string | null = null,
 ): ChatMessage[] {
+  const label = labeller(scenarioId)
+
   /*
    * 능력 안내는 관측 로그와 할 일 «사이»에 둔다. 좌석마다 다르고 소진되면 사라지는 변동
    * 정보라 고정 프리픽스(룰·신분) 뒤여야 하고, 할 일보다는 앞이어야 지시가 마지막에 남는다.
    */
   const task = power
-    ? `${powerBlock(power)}\n\n${taskBlock(kind, view, ask)}`
-    : taskBlock(kind, view, ask)
+    ? `${powerBlock(power)}\n\n${taskBlock(kind, view, ask, label)}`
+    : taskBlock(kind, view, ask, label)
 
   return [
-    { role: 'system', content: rulesBlock() },
-    { role: 'system', content: selfBlock(view) },
-    { role: 'user', content: `${observationBlock(view)}\n\n${task}` },
+    { role: 'system', content: rulesBlock(label) },
+    { role: 'system', content: selfBlock(view, label) },
+    { role: 'user', content: `${observationBlock(view, label)}\n\n${task}` },
   ]
 }
 

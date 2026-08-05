@@ -524,3 +524,34 @@ describe('parseDecideRequest — 능력 개요', () => {
     expect(absent.ok && absent.value.view.powerSpent).toBe(false)
   })
 })
+
+describe('parseDecideRequest — scenarioId', () => {
+  /*
+   * 화이트리스트에서 빠지면 이 키를 실은 요청이 통째로 400이 된다.
+   * 그러면 LLM 경로가 죽고 폴백만 보이므로 «조용한 고장»이다. 여기서 고정한다.
+   */
+  it('아는 사건 id를 통과시킨다', () => {
+    const result = parseDecideRequest(validBody((b) => (b['scenarioId'] = 'theater')))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.scenarioId).toBe('theater')
+  })
+
+  it('없으면 null이다 — 옛 프론트도 그대로 돈다', () => {
+    const result = parseDecideRequest(validBody())
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.scenarioId).toBeNull()
+  })
+
+  it('모르는 값은 거부하지 않고 null로 떨어뜨린다', () => {
+    // 거부하면 사건이 하나 늘 때마다 워커를 먼저 배포해야 프론트가 산다.
+    const result = parseDecideRequest(validBody((b) => (b['scenarioId'] = '../../etc/passwd')))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.scenarioId).toBeNull()
+  })
+})

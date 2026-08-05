@@ -88,6 +88,9 @@ export default function GameScreen() {
   const [stage, setStage] = useState<Stage>('briefing')
   /** 브리핑에서 고른 사건. 카드 표시 이름과 좌석 직함이 여기서 나온다. */
   const [scenario, setScenario] = useState<Scenario | null>(null)
+  /* 판단자가 고정으로 붙들고 읽을 창구. state를 직접 닫아 두면 옛 값에 갇힌다. */
+  const scenarioRef = useRef<Scenario | null>(null)
+  scenarioRef.current = scenario
   /** 착석 직후 게임판 위에 얹히는 도입 세 문장. */
   const [opening, setOpening] = useState(false)
   const closeOpening = useCallback(() => setOpening(false), [])
@@ -147,7 +150,14 @@ export default function GameScreen() {
    */
   const open = (next: string) => {
     setSeed(next)
-    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf))
+    /*
+     * 사건은 이 시점에 아직 안 골랐다(브리핑에서 고른다). 그래서 값이 아니라 ref를
+     * 읽는 함수를 넘긴다 — AI 호출은 착석 이후에만 나므로 부를 때는 채워져 있다.
+     * 이게 없으면 워커가 저택 기준 카드 이름을 써서, 극장 판인데 「서재」라고 말한다.
+     */
+    store.start(next, 0, (_seed, powerOf) =>
+      llmDeciderForRound(powerOf, () => scenarioRef.current?.id ?? null),
+    )
     setStage('briefing')
   }
 
@@ -285,10 +295,18 @@ export default function GameScreen() {
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
   const isMyTurn = view.phase === 'suggest' && view.players[view.turnIndex]?.isMe === true
 
-  const submit = (action: (s: Suggestion) => void) => {
+  /*
+   * 제출이 «끝난 뒤에» 고른 것을 비운다.
+   *
+   * 곧바로 비웠더니 확정하는 순간 상 위 카드가 사라졌다 — store의 apply는 AI 반증까지
+   * 다 끝난 뒤 한 번만 상태를 쓰는데(store/game.ts), picked를 먼저 지우면 그 사이엔
+   * draft도 없고 live도 없어 「아직 아무것도 오르지 않았다」로 떨어진다. LLM이 느릴수록
+   * 그 빈 시간이 길어진다. 기다렸다 비우면 카드가 상에 놓인 채로 판정으로 이어진다.
+   */
+  const submit = async (action: (s: Suggestion) => Promise<void>) => {
     const suggestion = toSuggestion(picked)
     if (!suggestion) return
-    action(suggestion)
+    await action(suggestion)
     setPicked({})
   }
 

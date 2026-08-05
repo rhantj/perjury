@@ -153,8 +153,10 @@ export async function decide(
   view: GameView,
   ask: string | null = null,
   power: PowerBrief | null = null,
+  /** 카드 이름이 사건마다 다르다. 없으면 엔진 기본 이름으로 나간다 — prompt.ts labeller 참고. */
+  scenarioId: string | null = null,
 ): Promise<LlmResult> {
-  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power))
+  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power, scenarioId))
 
   let response: Response
   try {

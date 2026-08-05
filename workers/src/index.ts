@@ -187,6 +187,7 @@ export default {
         parsed.value.view,
         parsed.value.ask,
         parsed.value.power,
+        parsed.value.scenarioId,
       )
       if (!result.ok) {
         const status = result.code === 'upstream_timeout' ? 504 : result.code === 'invalid_upstream' ? 502 : 503

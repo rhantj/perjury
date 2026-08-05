@@ -118,7 +118,18 @@ function toIntent(power: PowerBrief | null, chosen: string | null): PowerIntent 
   }
 }
 
-export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
+/**
+ * 지금 어느 사건인가. **함수로 받는다.**
+ *
+ * 판단자는 store.start 시점에 만들어지는데 사건은 그 뒤 브리핑에서 골라진다 —
+ * 값으로 받으면 만들 때는 늘 null이다. AI 호출은 착석 이후에만 나므로 부를 때 읽으면 맞다.
+ */
+export type ScenarioLookup = () => string | null
+
+export function createLlmDecider(
+  powerOf: PowerLookup = () => null,
+  scenarioIdOf: ScenarioLookup = () => null,
+): Decider {
   /**
    * 예산 소진은 라운드 폴백이 아니라 **세션 폴백**이다.
    * 라운드마다 재시도하면 남은 라운드 내내 헛왕복이 쌓인다.
@@ -150,7 +161,17 @@ export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
         headers: { 'Content-Type': 'application/json' },
         // said가 undefined면 JSON.stringify가 키를 통째로 지운다 — 다른 kind는 ask를 보내지 않는다.
         // undefined인 키는 JSON.stringify가 통째로 지운다 — ask·power 둘 다 그 성질을 쓴다.
-        body: JSON.stringify({ v: 1, kind, sessionId, view, ask: said, power: power ?? undefined }),
+        // scenarioId를 실어야 워커가 사건에 맞는 카드 이름으로 프롬프트를 만든다 —
+        // 없으면 저택 기준 기본 이름이 나가서 극장 판에서도 「서재」라고 말한다.
+        body: JSON.stringify({
+          v: 1,
+          kind,
+          sessionId,
+          view,
+          ask: said,
+          power: power ?? undefined,
+          scenarioId: scenarioIdOf() ?? undefined,
+        }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     } catch {
@@ -200,7 +221,10 @@ export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
  * 라운드마다 새로 만들면 exhausted 플래그가 매 라운드 지워져서
  * 예산이 소진된 뒤에도 라운드마다 헛왕복이 나간다.
  */
-export function llmDeciderForRound(powerOf?: PowerLookup): DeciderForRound {
-  const decider = createLlmDecider(powerOf)
+export function llmDeciderForRound(
+  powerOf?: PowerLookup,
+  scenarioIdOf?: ScenarioLookup,
+): DeciderForRound {
+  const decider = createLlmDecider(powerOf, scenarioIdOf)
   return () => decider
 }
