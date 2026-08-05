@@ -194,6 +194,8 @@ function observationBlock(view: GameView, label: Label): string {
         return `- ${grant.round}R: «${label(f.cardId)}»는 정답이 ${f.isSolution ? '맞다' : '아니다'}`
       case 'claim':
         return `- ${grant.round}R: ${who(f.targetId)}의 반증은 ${f.truthful ? '참이었다' : '거짓이었다'}`
+      case 'parley':
+        return `- ${grant.round}R: 밀담에서 ${who(f.targetId)}는 ${f.truthful ? '사실을 말했다' : '거짓을 말했다'}`
     }
   })
 

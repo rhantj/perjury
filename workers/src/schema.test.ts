@@ -403,6 +403,28 @@ describe('parseDecideRequest — 능력으로 확인한 것', () => {
     expect(result.value.view.findings).toEqual([])
   })
 
+  /**
+   * 정보상은 사람 좌석 전용이라 지금은 이 finding이 워커까지 오지 않는다. 그래도 받는다 —
+   * 화이트리스트가 엔진 타입보다 좁으면, 나중에 이 경로가 열리는 순간 전 판이 400으로 떨어진다.
+   */
+  it('밀담 진위 finding을 통과시킨다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 2, ownerId: 'p1', finding: { kind: 'parley', targetId: 'p3', truthful: false } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.findings[0]?.finding).toEqual({
+      kind: 'parley',
+      targetId: 'p3',
+      truthful: false,
+    })
+  })
+
   it('모르는 finding 종류는 거부한다', () => {
     const result = parseDecideRequest(
       validBody((body) => {

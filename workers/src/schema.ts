@@ -51,7 +51,7 @@ export type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley
 const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse', 'parley']
 const PHASES: readonly Phase[] = ['suggest', 'refute', 'challenge', 'whisper', 'accuse', 'over']
 const FACTIONS: readonly Faction[] = ['citizen', 'culprit']
-const FINDING_KINDS = ['hand', 'weapon', 'claim'] as const
+const FINDING_KINDS = ['hand', 'weapon', 'claim', 'parley'] as const
 const POWER_NEEDS = ['player', 'weapon', 'none'] as const
 
 export interface DecideRequest {
@@ -294,6 +294,7 @@ function finding(value: unknown, where: string): Grant['finding'] {
       onlyKeys(obj, ['kind', 'cardId', 'isSolution'], where)
       return { kind, cardId: text(obj, 'cardId', where), isSolution: flag(obj, 'isSolution', where) }
     case 'claim':
+    case 'parley':
       onlyKeys(obj, ['kind', 'targetId', 'truthful'], where)
       return { kind, targetId: text(obj, 'targetId', where), truthful: flag(obj, 'truthful', where) }
   }

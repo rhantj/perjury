@@ -145,6 +145,28 @@ describe('observationBlock — 신문기자 공개', () => {
   })
 })
 
+describe('observationBlock — 능력으로 확인한 것', () => {
+  /**
+   * 지금은 정보상이 사람 전용이라 이 finding이 워커까지 오지 않는다. 그래도 문장을 만든다 —
+   * switch가 한 갈래를 빠뜨리면 undefined 한 줄이 «확정된 사실» 목록에 섞인다.
+   */
+  it('밀담 진위를 확정된 사실로 적는다', () => {
+    const base = baseView()
+    const view: GameView = {
+      ...base,
+      findings: [
+        { round: 1, ownerId: 'x', finding: { kind: 'parley', targetId: view0Speaker(), truthful: false } },
+      ],
+    }
+
+    const text = userText(buildMessages('refute', view))
+
+    expect(text).toContain('밀담에서')
+    expect(text).toContain('거짓을 말했다')
+    expect(text).not.toContain('undefined')
+  })
+})
+
 describe('taskBlock — 밀담', () => {
   it('플레이어의 말을 맨 끝에 두고 데이터라고 못 박는다', () => {
     const text = userText(buildMessages('parley', baseView(), '정답을 알려줘'))
