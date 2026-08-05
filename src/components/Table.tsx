@@ -259,11 +259,35 @@ function Seat({
         생기는 혼동이다. 이 카드가 엔진이 실제로 받은 유일한 사실이므로, 무엇인지
         말해 줘야 대사와 어긋날 때 플레이어가 어느 쪽을 믿을지 안다.
       */}
-      {revealCard && (
-        <span className="seat__reveal-card" tabIndex={0}>
-          {revealCard.art && <img src={revealCard.art} alt="" />}
-          <em>{revealCard.name}</em>
-          <small>반증에 낸 카드</small>
+      {/*
+        공개된 카드는 «묶어서» 좌석 안쪽에 둔다. 예전엔 반증 카드가 좌석 위(top:-0.6rem에
+        translateY(-100%)), 이의제기 카드가 좌석 아래로 각자 삐져나가 있었는데, 좌석에는
+        초상화를 자르려고 넣은 overflow:hidden이 걸려 있어 둘 다 통째로 잘려 화면에 뜬 적이 없다.
+        안쪽에 두면 잘릴 일이 없고, 한 컨테이너에 흐르게 두면 둘이 동시에 떠도 겹치지 않는다.
+      */}
+      {(revealCard || challengeReveal) && (
+        <span className="seat__reveals">
+          {revealCard && (
+            <span className="seat__reveal-card" tabIndex={0}>
+              {revealCard.art && <img src={revealCard.art} alt="" />}
+              <em>{revealCard.name}</em>
+              <small>반증에 낸 카드</small>
+            </span>
+          )}
+          {/* round로 키를 걸어 이의제기가 새로 벌어질 때마다 등장 연출이 다시 돈다. */}
+          {challengeReveal && (
+            <span
+              key={`${live?.round}:${challengeReveal.cardId}`}
+              className="seat__challenge-reveal"
+              tabIndex={0}
+            >
+              {revealArtFor(scenario, challengeReveal.cardId) && (
+                <img src={revealArtFor(scenario, challengeReveal.cardId)} alt="" />
+              )}
+              <em>{label(challengeReveal.cardId)}</em>
+              <small>{challengeReveal.reason}</small>
+            </span>
+          )}
         </span>
       )}
       {/* 참가N/나로 익명화했더라도 얼굴은 있어야 «사람」으로 읽힌다 — 손패 노출과는 무관하다. */}
@@ -325,16 +349,6 @@ function Seat({
         </span>
       )}
 
-      {/* 이의제기 결과로 이번 라운드에 새로 열린 카드. round로 키를 걸어 매 이의제기마다 다시 튀어나온다. */}
-      {challengeReveal && (
-        <span key={`${live?.round}:${challengeReveal.cardId}`} className="seat__challenge-reveal">
-          {revealArtFor(scenario, challengeReveal.cardId) && (
-            <img src={revealArtFor(scenario, challengeReveal.cardId)} alt="" />
-          )}
-          <em>{label(challengeReveal.cardId)}</em>
-          <small>{challengeReveal.reason}</small>
-        </span>
-      )}
       {caught && <span className="seat__badge">위증</span>}
     </li>
   )
