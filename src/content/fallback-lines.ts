@@ -51,6 +51,50 @@ const CHALLENGE_LINE: Record<string, (target: string) => string> = {
   s6: (target) => `${target}, 거짓이다.`,
 }
 
+/*
+ * 여기부터는 이의제기의 «결과»에 대한 반응이다.
+ *
+ * 이의제기는 한 사건이 아니라 두 박자다 — 지목이 있고, 그다음 판정이 있다.
+ * 지금까지는 앞 박자(CHALLENGE_LINE)만 있어서 판정이 난 뒤에도 좌석에는 그 전 발언이
+ * 그대로 남았다. 위증이 들통난 사람이 방금 한 거짓말을 계속 말하고 있고, 헛짚은 사람은
+ * 여전히 「거짓을 고했소」라고 우기는 화면이 된다 — 판이 뒤집힌 순간에 아무도 반응하지 않는다.
+ *
+ * 세 갈래로 나눈다. 같은 판정이라도 서 있는 자리가 다르면 할 말이 다르기 때문이다.
+ *   CAUGHT   지목당했고 실제로 위증이었다 — 들킨 쪽
+ *   CLEARED  지목당했지만 위증이 아니었다 — 누명을 벗은 쪽
+ *   WRONG    지목했는데 틀렸다 — 헛짚은 쪽
+ */
+
+/** 위증이 발각된 사람. 변명하거나, 체념하거나, 뻔뻔하거나 — 성격대로 갈린다. */
+const CAUGHT_LINE: Record<string, string> = {
+  s1: '…내가 잠시 착각했소.',
+  s2: '…죄송합니다. 제가 잘못 말씀드렸습니다.',
+  s3: '…들켰군요. 그럴 수밖에 없었습니다.',
+  s4: '뭐, 들켰으면 별수 없지.',
+  s5: '아, 아니 그게… 저, 저는…',
+  s6: '…그래. 거짓이었다.',
+}
+
+/** 의심받았지만 결백했던 사람. */
+const CLEARED_LINE: Record<string, string> = {
+  s1: '보시오. 내 말이 옳지 않았소.',
+  s2: '보셨지요. 저는 거짓을 말하지 않았습니다.',
+  s3: '…그러니까, 제 말이 맞았습니다.',
+  s4: '거봐. 괜한 사람 잡았네.',
+  s5: '제, 제가 뭐랬습니까. 정말이었다니까요.',
+  s6: '헛짚었군.',
+}
+
+/** 이의제기가 빗나간 사람. target은 participantLabel(「참가3」)이라 조사 처리가 필요 없다. */
+const WRONG_CALL_LINE: Record<string, (target: string) => string> = {
+  s1: (target) => `${target}, 내가 성급했소.`,
+  s2: (target) => `${target}님, 제가 잘못 보았습니다.`,
+  s3: (target) => `…${target}, 제가 틀렸습니다. 죄송합니다.`,
+  s4: (target) => `${target}, 아니었나. 뭐 그럴 수도 있지.`,
+  s5: (target) => `죄, 죄송합니다 ${target}. 제가 잘못 봤습니다.`,
+  s6: (target) => `${target}. 내가 틀렸다.`,
+}
+
 /** characterId가 목록에 없으면(자료 누락 등) 예전 고정 문구로 떨어진다 — 화면이 비지 않게. */
 export function refuteLine(characterId: CardId, cardName: string): string {
   const make = REFUTE_LINE[characterId]
@@ -68,6 +112,19 @@ export function suggestLine(characterId: CardId): string {
 export function challengeLine(characterId: CardId, target: string): string {
   const make = CHALLENGE_LINE[characterId]
   return make ? make(target) : `${target}, 거짓이다`
+}
+
+export function caughtLine(characterId: CardId): string {
+  return CAUGHT_LINE[characterId] ?? '…거짓이었다'
+}
+
+export function clearedLine(characterId: CardId): string {
+  return CLEARED_LINE[characterId] ?? '거짓이 아니었다'
+}
+
+export function wrongCallLine(characterId: CardId, target: string): string {
+  const make = WRONG_CALL_LINE[characterId]
+  return make ? make(target) : `${target}, 내가 틀렸다`
 }
 
 /**

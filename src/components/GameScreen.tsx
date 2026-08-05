@@ -10,6 +10,7 @@ import { pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { weaponArtFor } from '../content/weapon-art'
+import { CHALLENGE_LIMIT, challengesUsedIn } from '../engine/challenge'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { useGame } from '../store/game'
@@ -54,7 +55,28 @@ interface FlashEvent {
   art?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
   ms: number
+  /**
+   * 이 알림이 사라진 뒤 다음 알림까지 비워 두는 시간.
+   *
+   * 「의심 → 오판이 너무 빨리 넘어간다」는 피드백 — 두 알림이 한 사건의 두 박자인데
+   * 끝나자마자 곧바로 다음 게 뜨니 «지목»을 읽는 도중에 «판정»이 덮어썼다. 모든 플래시
+   * 키프레임이 opacity 0으로 끝나므로, 이 틈 동안 화면은 원탁으로 잠깐 돌아온다 —
+   * 그 한 박자가 있어야 둘이 별개의 사건으로 읽힌다.
+   */
+  gapMs?: number
 }
+
+/*
+ * 이의제기 연출의 두 박자 길이. 상수로 빼는 건 challengeCall을 «내가 걸 때»와
+ * «AI가 걸 때» 두 군데서 각각 큐에 넣기 때문이다 — 숫자를 양쪽에 적어 두면 한쪽만
+ * 고쳐져 같은 사건이 사람마다 다른 속도로 흐른다.
+ * 셋 다 game.css의 .action-flash--challengeCall / --caught / --wrongCall
+ * 애니메이션 길이와 쌍이다. 한쪽만 고치면 연출이 끝나기 전에 잘리거나, 끝난 뒤에도
+ * 빈 화면이 남는다.
+ */
+const CHALLENGE_CALL_MS = 2000
+const CHALLENGE_BEAT_MS = 520
+const CHALLENGE_RESULT_MS = 2800
 
 /** 손패 카드 사진. MyPlate.artFor와 같은 소스 — id 접두사가 종류별로 갈려 하나만 걸린다. */
 function cardArtFor(scenario: Scenario, id: CardId): string | undefined {
@@ -93,7 +115,7 @@ export default function GameScreen() {
     window.setTimeout(() => {
       flashBusyRef.current = false
       runFlashQueue()
-    }, next.ms)
+    }, next.ms + (next.gapMs ?? 0))
   }, [])
   const enqueueFlash = useCallback(
     (event: FlashEvent) => {
@@ -189,7 +211,8 @@ export default function GameScreen() {
         kind: 'challengeCall',
         text: `${challenger} → ${target} 위증 의심!`,
         detail: '이의를 제기했다',
-        ms: 1200,
+        ms: CHALLENGE_CALL_MS,
+        gapMs: CHALLENGE_BEAT_MS,
       })
     }
 
@@ -199,7 +222,7 @@ export default function GameScreen() {
         text: `${target} 위증 발각!`,
         detail: penalty ? `${challenger}이(가) 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: 2200,
+        ms: CHALLENGE_RESULT_MS,
       })
     } else {
       enqueueFlash({
@@ -209,7 +232,7 @@ export default function GameScreen() {
           ? `${target}은(는) 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
           : `${target}은(는) 위증이 아니었다`,
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: 2200,
+        ms: CHALLENGE_RESULT_MS,
       })
     }
   }, [view?.phase, view?.round, scenario, enqueueFlash])
@@ -271,10 +294,18 @@ export default function GameScreen() {
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
   const isMyTurn = view.phase === 'suggest' && view.players[view.turnIndex]?.isMe === true
 
-  const submit = (action: (s: Suggestion) => void) => {
+  /*
+   * 제출이 «끝난 뒤에» 고른 것을 비운다.
+   *
+   * 곧바로 비웠더니 확정하는 순간 상 위 카드가 사라졌다 — store의 apply는 AI 반증까지
+   * 다 끝난 뒤 한 번만 상태를 쓰는데(store/game.ts), picked를 먼저 지우면 그 사이엔
+   * draft도 없고 live도 없어 「아직 아무것도 오르지 않았다」로 떨어진다. LLM이 느릴수록
+   * 그 빈 시간이 길어진다. 기다렸다 비우면 카드가 상에 놓인 채로 판정으로 이어진다.
+   */
+  const submit = async (action: (s: Suggestion) => Promise<void>) => {
     const suggestion = toSuggestion(picked)
     if (!suggestion) return
-    action(suggestion)
+    await action(suggestion)
     setPicked({})
   }
 
@@ -380,7 +411,8 @@ export default function GameScreen() {
           />
 
           <div className="stage">
-            <Table view={view} scenario={scenario} />
+            {/* picked를 그대로 넘겨 «고르는 즉시» 그 카드가 상에 올라가게 한다. */}
+            <Table view={view} scenario={scenario} draft={picked} />
 
             {/*
               라운드마다, 그리고 밀담 한 건이 끝날 때마다 새로 마운트한다 —
@@ -441,7 +473,8 @@ export default function GameScreen() {
                   kind: 'challengeCall',
                   text: `${participantLabel(view, targetId)} 위증 의심!`,
                   detail: '이의를 제기한다',
-                  ms: 1200,
+                  ms: CHALLENGE_CALL_MS,
+                  gapMs: CHALLENGE_BEAT_MS,
                 })
                 store.challenge(targetId)
               }}
@@ -649,7 +682,19 @@ function ChallengeBar({
   onPass: () => void
 }) {
   const record = view.rounds[view.rounds.length - 1]
-  const hand = view.players.find((p) => p.isMe)?.hand ?? []
+  const me = view.players.find((p) => p.isMe)
+  const hand = me?.hand ?? []
+
+  /*
+   * 남은 이의제기 (decisions/008). 이의제기는 이기든 지든 내 패 1장을 소모하므로
+   * 판당 2회가 상한이고, 공개되지 않은 패가 없으면 아예 걸 수 없다.
+   * 규칙이 있는데 안 보이면 없는 것과 같아서 숫자로 내건다 — 그리고 엔진이 거절하기
+   * «전에» 눌리지 않아야 한다. 세는 방법은 엔진 한 곳에서 가져온다.
+   */
+  const left = CHALLENGE_LIMIT - challengesUsedIn(view.rounds, view.viewerId)
+  const hidden = hand.filter((c) => !(me?.revealed ?? []).includes(c))
+  const blocked =
+    left <= 0 ? `판당 ${CHALLENGE_LIMIT}회를 다 썼다` : hidden.length === 0 ? '낼 수 있는 패가 없다' : null
 
   const targets = (record?.declarations ?? []).filter(
     (d) => d.claim.kind === 'refute' && d.playerId !== view.viewerId,
@@ -657,6 +702,10 @@ function ChallengeBar({
 
   return (
     <div className="actions__row">
+      <span className="actions__quota">
+        이의제기 <b>{Math.max(0, left)}</b>/{CHALLENGE_LIMIT}
+        {blocked && <em>{blocked}</em>}
+      </span>
       {targets.map((d) => {
         const cardId = d.claim.kind === 'refute' ? d.claim.cardId : ''
         const provable = hand.includes(cardId)
@@ -665,6 +714,8 @@ function ChallengeBar({
             key={d.playerId}
             type="button"
             className={`btn${provable ? ' btn--held' : ''}`}
+            disabled={blocked !== null}
+            title={blocked ?? undefined}
             onClick={() => onChallenge(d.playerId)}
           >
             {participantLabel(view, d.playerId)} 위증

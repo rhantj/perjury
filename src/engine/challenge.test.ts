@@ -217,3 +217,75 @@ describe('shield — 밀정', () => {
     expect(after.pending).toHaveLength(1)
   })
 })
+
+/** 지난 라운드에 이 사람이 이의제기했던 기록을 심는다. 현재 라운드는 맨 뒤에 남긴다. */
+function withPastChallenges(state: GameState, challengerId: PlayerId, times: number): GameState {
+  const current = state.rounds[state.rounds.length - 1]
+  if (!current) throw new Error('라운드가 없다')
+  const past = Array.from({ length: times }, (_, i) => ({
+    ...current,
+    round: i + 1,
+    challenge: {
+      challengerId,
+      targetId: 'p3',
+      cardId: 'p1',
+      success: false,
+      reveals: [],
+      line: null,
+    },
+  }))
+  return { ...state, rounds: [...past, { ...current, round: times + 1 }] }
+}
+
+/** 그 사람의 손패를 전부 공개된 상태로 만든다. */
+function withEmptyHiddenHand(state: GameState, id: PlayerId): GameState {
+  return {
+    ...state,
+    players: state.players.map((p) => (p.id === id ? { ...p, revealed: [...p.hand] } : p)),
+  }
+}
+
+describe('challenge — 횟수 제한 (decisions/008)', () => {
+  it('두 번까지는 할 수 있다', () => {
+    expect(() => challenge(withPastChallenges(staged(), 'p2', 1), 'p2', 'p3')).not.toThrow()
+  })
+
+  it('세 번째는 거절한다', () => {
+    expect(() => challenge(withPastChallenges(staged(), 'p2', 2), 'p2', 'p3')).toThrow()
+  })
+
+  it('횟수는 사람마다 따로 센다 — 남이 두 번 썼다고 내가 못 하는 게 아니다', () => {
+    expect(() => challenge(withPastChallenges(staged(), 'p4', 2), 'p2', 'p3')).not.toThrow()
+  })
+})
+
+describe('challenge — 자격 조건 (decisions/008)', () => {
+  /*
+   * 손패가 전부 공개된 사람의 이의제기는 «비용이 0»이다 — pickHidden이 null을 돌려줘
+   * 페널티가 없기 때문이다. 값이 없는 행동은 남발되므로 아예 막는다.
+   */
+  it('공개되지 않은 손패가 없으면 거절한다', () => {
+    expect(() => challenge(withEmptyHiddenHand(staged(), 'p4'), 'p4', 'p3')).toThrow()
+  })
+
+  it('성공할 수 있는 사람이라도 패가 다 열렸으면 못 한다', () => {
+    // p2는 p1을 쥐고 있어 원래는 성공하지만, 증명하려면 낼 카드가 있어야 한다.
+    expect(() => challenge(withEmptyHiddenHand(staged(), 'p2'), 'p2', 'p3')).toThrow()
+  })
+})
+
+describe('challenge — 공개 카드 중복 (decisions/008)', () => {
+  it('이미 공개된 카드를 증명에 써도 revealed에 두 번 쌓이지 않는다', () => {
+    // p2의 증명 카드 p1이 이미 공개돼 있는 상황을 만든다.
+    const base = staged()
+    const seeded: GameState = {
+      ...base,
+      players: base.players.map((p) => (p.id === 'p2' ? { ...p, revealed: ['p1'] } : p)),
+    }
+    const after = challenge(seeded, 'p2', 'p3')
+    const revealed = revealedOf(after, 'p2')
+
+    expect(revealed.filter((c) => c === 'p1')).toHaveLength(1)
+    expect(new Set(revealed).size).toBe(revealed.length)
+  })
+})

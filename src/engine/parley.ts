@@ -38,6 +38,39 @@ function currentRound(state: GameState): RoundRecord {
 }
 
 /**
+ * 한 판에 걸 수 있는 밀담 횟수 (decisions/009).
+ *
+ * 라운드마다 문이 열리므로 제한이 없으면 8라운드 = 8번이고, 그러면 «언제 쓸까»가 사라진다.
+ * 3회로 묶어 밀담을 **아껴 쓰는 자원**으로 만든다.
+ */
+export const PARLEY_LIMIT = 3
+
+/**
+ * 지금까지 성사된 밀담 수.
+ *
+ * **상태로 들지 않는다.** 기록에서 세면 나오는 값을 따로 저장하면 되감기·재현에서
+ * 어긋날 자리가 하나 더 생긴다(decisions/008과 같은 이유).
+ *
+ * 기록 배열만 받는 이유도 같다 — GameView에 「남은 횟수」를 더하면 그 뷰가 그대로 워커로 간다.
+ * 워커 스키마는 화이트리스트로 키를 검사하므로(workers/src/schema.ts) 필드를 늘리려면
+ * **워커를 함께 넓히고 워커부터 배포해야** 한다. 세는 방법을 여기 한 벌만 두면 그 일이 없다.
+ *
+ * **라운드가 아니라 밀담 하나하나를 센다.** 전화교환수는 한 라운드에 둘을 걸 수 있는데
+ * (결정 007), 라운드로 세면 그 판이 예산 3회를 넘겨 여섯 번까지 말하게 된다.
+ * 회선이 느는 것은 «몰아 쓸 자유»지 «총량이 느는 것»이 아니다.
+ *
+ * 건너뛴 라운드는 배열이 비어 있어 0으로 센다. **말을 건 것만 값을 치른다.**
+ */
+export function parleysUsedIn(rounds: readonly { readonly parleys: readonly unknown[] }[]): number {
+  return rounds.reduce((total, round) => total + round.parleys.length, 0)
+}
+
+/** 지금 밀담을 걸 수 있는가. 화면이 버튼을 막을 때와 엔진이 거절할 때가 같은 기준을 쓴다. */
+export function canParley(state: GameState): boolean {
+  return parleysUsedIn(state.rounds) < PARLEY_LIMIT
+}
+
+/**
  * 밀담을 기록하고 다음 라운드를 연다.
  *
  * **길이는 검증하지 않는다.** 룰이 아니라 경계의 일이라 프론트와 워커가 맡는다(설계 §5).
@@ -62,6 +95,16 @@ export function parley(
   if (targetId === human.id) throw new Error('자기 자신과는 밀담할 수 없다')
   if (!state.players.some((p) => p.id === targetId)) throw new Error(`없는 플레이어: ${targetId}`)
 
+  /*
+   * 판당 상한 (decisions/009). 라운드당 1회와 **다른 것을 막는다** —
+   * 아래 라운드당 1회는 «한 라운드 안에서 두 번»을, 이쪽은 «판 전체에서 네 번»을 막는다.
+   *
+   * skipParley에는 걸지 않는다. 한도가 나가는 문까지 막으면 밀담 페이즈가 갇힌다.
+   */
+  if (!canParley(state)) {
+    throw new Error(`밀담은 판당 ${PARLEY_LIMIT}회까지다`)
+  }
+
   const record = currentRound(state)
   if (record.parleys.length >= state.parleyAllowance) {
     throw new Error('이번 라운드에 걸 수 있는 밀담을 다 썼다')
@@ -80,8 +123,14 @@ export function parley(
     truthful,
   )
 
-  // 허용을 다 써야 라운드가 넘어간다. 회선이 남아 있으면 밀담 페이즈에 그대로 머문다.
-  return parleys.length >= state.parleyAllowance ? nextRound(written) : written
+  /*
+   * 허용을 다 써야 라운드가 넘어간다. 회선이 남아 있으면 밀담 페이즈에 그대로 머문다.
+   *
+   * **판당 예산이 먼저 마르는 경우도 함께 넘긴다.** 전화교환수의 회선 2개 중 하나만 쓰고
+   * 예산이 떨어지면, 라운드 허용치는 남았는데 거는 것마다 거절당해 페이즈에 갇힌다.
+   */
+  const roundDone = parleys.length >= state.parleyAllowance
+  return roundDone || !canParley(written) ? nextRound(written) : written
 }
 
 /** 밀담 없이 라운드를 넘긴다. 건너뛰기와 폴백이 같은 문으로 나간다. */

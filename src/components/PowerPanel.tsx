@@ -56,7 +56,8 @@ export default function PowerPanel({
     return (
       <div className="power power--spent">
         <span className="power__mark">已 회선 개통</span>
-        <p className="power__waiting">라운드마다 두 사람과 따로 이야기할 수 있다</p>
+        {/* 총량은 그대로다(결정 009 추가). 「두 번 더 쓴다」로 읽히면 예산이 늘어난 줄 안다. */}
+        <p className="power__waiting">한 라운드에 두 사람까지 — 판당 횟수는 그대로다</p>
       </div>
     )
   }

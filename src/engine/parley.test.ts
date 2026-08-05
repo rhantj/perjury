@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { skipChallenge } from './challenge'
-import { parley, skipParley } from './parley'
+import { PARLEY_LIMIT, canParley, parley, parleysUsedIn, skipParley } from './parley'
 import { declareAll, suggest } from './round'
 import { createGame } from './setup'
 import { usePower } from './power'
@@ -124,6 +124,104 @@ describe('parley — 밀담을 남기고 라운드를 넘긴다', () => {
     }
 
     expect(() => parley(already, otherId(base), '또', '또')).toThrow(/다 썼다/)
+  })
+})
+
+/** 밀담을 이미 times번 마친 판을 만든다. 지난 라운드 기록을 앞에 깔고 현재 라운드를 뒤에 둔다. */
+function withPastParleys(state: GameState, times: number): GameState {
+  const current = state.rounds[state.rounds.length - 1]
+  if (!current) throw new Error('라운드가 없다')
+  const past = Array.from({ length: times }, (_, i) => ({
+    ...current,
+    round: i + 1,
+    parleys: [{ targetId: 'p3', askLine: '지난 라운드', replyLine: '지난 라운드' }],
+  }))
+  return { ...state, rounds: [...past, { ...current, round: times + 1 }] }
+}
+
+describe('parley — 판당 횟수 제한 (decisions/009)', () => {
+  it(`판당 ${PARLEY_LIMIT}회까지 쓸 수 있다`, () => {
+    const state = withPastParleys(atWhisper(), PARLEY_LIMIT - 1)
+
+    expect(() => parley(state, otherId(state), '마지막', '마지막')).not.toThrow()
+  })
+
+  it(`${PARLEY_LIMIT + 1}번째는 거절한다`, () => {
+    const state = withPastParleys(atWhisper(), PARLEY_LIMIT)
+
+    expect(() => parley(state, otherId(state), '한 번 더', '한 번 더')).toThrow(/판당/)
+  })
+
+  it('건너뛴 라운드는 횟수를 쓰지 않는다', () => {
+    const state = atWhisper()
+
+    const next = skipParley(state)
+
+    expect(parleysUsedIn(next.rounds)).toBe(0)
+  })
+
+  it('쓴 횟수는 기록에서 센다 — 상태로 들지 않는다', () => {
+    const state = withPastParleys(atWhisper(), 2)
+
+    expect(parleysUsedIn(state.rounds)).toBe(2)
+  })
+
+  it('canParley는 한도를 다 쓰면 false다', () => {
+    expect(canParley(withPastParleys(atWhisper(), PARLEY_LIMIT - 1))).toBe(true)
+    expect(canParley(withPastParleys(atWhisper(), PARLEY_LIMIT))).toBe(false)
+  })
+
+  /*
+   * 한도가 밀담 페이즈를 막으면 판이 그 자리에 선다. 나가는 문은 반드시 열려 있어야 한다 —
+   * 이의제기 때 같은 종류의 사고를 배포본에서 겪었다(ai/flow.ts 주석 참고).
+   */
+  it('한도를 다 써도 skipParley로 라운드는 넘어간다', () => {
+    const state = withPastParleys(atWhisper(), PARLEY_LIMIT)
+
+    const next = skipParley(state)
+
+    expect(next.phase).toBe('suggest')
+    expect(next.round).toBe(state.round + 1)
+  })
+})
+
+/**
+ * 회선이 늘어도 판당 예산은 그대로다(결정 010). 전화교환수의 능력은 «몰아 쓸 자유»지
+ * «총량이 느는 것»이 아니다 — 라운드로 세면 그 좌석만 판당 여섯 번 말하게 된다.
+ */
+describe('parley — 회선 증가와 판당 예산', () => {
+  /** 전화교환수 자리. 라운드당 두 회선으로 판을 연다. */
+  function twoLines(state: GameState = fresh()): GameState {
+    return atWhisper({ ...state, parleyAllowance: 2 })
+  }
+
+  it('한 라운드에 둘을 걸면 예산도 둘이 준다', () => {
+    const state = twoLines()
+
+    const once = parley(state, otherId(state), '먼저', '먼저')
+    const twice = parley(once, thirdId(state), '다음', '다음')
+
+    expect(parleysUsedIn(twice.rounds)).toBe(2)
+    expect(canParley(twice)).toBe(true)
+  })
+
+  it(`회선이 둘이어도 판당 ${PARLEY_LIMIT}번을 넘지 못한다`, () => {
+    const state = withPastParleys(twoLines(), PARLEY_LIMIT)
+
+    expect(() => parley(state, otherId(state), '한 번 더', '한 번 더')).toThrow(/판당/)
+  })
+
+  /*
+   * 예산이 한 번 남았는데 회선이 둘이면, 라운드 허용치는 남았는데 거는 것마다 거절당한다.
+   * 라운드가 넘어가지 않으면 그 자리에서 판이 선다.
+   */
+  it('예산이 라운드 허용치보다 먼저 마르면 그 라운드에서 넘어간다', () => {
+    const state = withPastParleys(twoLines(), PARLEY_LIMIT - 1)
+
+    const next = parley(state, otherId(state), '마지막', '마지막')
+
+    expect(canParley(next)).toBe(false)
+    expect(next.phase).toBe('suggest')
   })
 })
 

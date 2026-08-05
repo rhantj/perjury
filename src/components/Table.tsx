@@ -6,9 +6,17 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
-import { challengeLine, passLine, refuteLine, suggestLine } from '../content/fallback-lines'
+import {
+  caughtLine,
+  challengeLine,
+  clearedLine,
+  passLine,
+  refuteLine,
+  suggestLine,
+  wrongCallLine,
+} from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
-import type { CardId, Claim, PlayerId } from '../engine/types'
+import type { CardId, CardKind, Claim, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
 
 /** 반증 카드의 종류에 맞는 그림을 고른다 — 범인·수단·장소 중 어느 것이든 나올 수 있다. */
@@ -48,7 +56,20 @@ const REVEAL_STEP_MS = 700
 interface Props {
   view: GameView
   scenario: Scenario
+  /**
+   * 아직 확정하지 않은 내 제안. 추리표에서 하나 누를 때마다 그 카드가 상 위에 올라간다.
+   *
+   * GameScreen의 picked를 그대로 받는다 — 여기서 상태를 따로 들면 두 벌이 어긋난다.
+   */
+  draft?: Partial<Record<CardKind, CardId>>
 }
+
+/** 상에 올라가는 순서. 확정 제안의 카드 순서(범인·수단·장소)와 같아야 «같은 자리»로 읽힌다. */
+const DRAFT_SLOTS = [
+  { kind: 'suspect', name: '범인' },
+  { kind: 'weapon', name: '수단' },
+  { kind: 'place', name: '장소' },
+] as const
 
 /** 좌석이 놓이는 자리. 다섯을 위·좌우로 두르고 내 자리는 아래 가운데다. */
 const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
@@ -57,7 +78,7 @@ const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
  * 원탁. 격자로 늘어놓으면 «명단»이고, 둘러앉혀야 «자리»가 된다 —
  * 내가 저 다섯을 마주 보고 있다는 배치 자체가 이 게임의 구도다.
  */
-export default function Table({ view, scenario }: Props) {
+export default function Table({ view, scenario, draft }: Props) {
   const record = view.rounds[view.rounds.length - 1]
   /*
    * 원탁 가운데는 «지금 걸려 있는 제안»의 자리다. 고발로 넘어가면 걸려 있는 제안이 없다.
@@ -83,6 +104,8 @@ export default function Table({ view, scenario }: Props) {
 
   const me = view.players.find((p) => p.isMe)
   const others = view.players.filter((p) => !p.isMe)
+
+  const draftCount = DRAFT_SLOTS.filter(({ kind }) => draft?.[kind]).length
 
   /*
    * 반증은 동시 선언이라 엔진에는 한 번에 전부 도착한다(설계 §1.4.1) — 그걸 그대로
@@ -164,6 +187,29 @@ export default function Table({ view, scenario }: Props) {
               />
             </ul>
           </div>
+        ) : draftCount > 0 ? (
+          /*
+           * 확정 전 «올리는 중». live가 있으면 그쪽이 이긴다 — 남이 낸 제안이 상에 놓여
+           * 있는데 내 미확정 패가 그 자리를 덮으면 지금 판이 뭘 묻고 있는지가 사라진다.
+           * 제안 페이즈에는 이번 라운드 기록이 아직 없어서 live가 null이고, 그래서
+           * 이 분기가 바로 «내가 고르는 동안»과 겹친다.
+           */
+          <div className="centre__claim centre__claim--draft">
+            <span className="centre__by">올리는 중 · {draftCount}/3</span>
+            <ul className="centre__cards">
+              {DRAFT_SLOTS.map(({ kind, name }) => {
+                const id = draft?.[kind]
+                // 카드 id를 키에 넣어 고른 것을 «바꾸면» 새 카드로 갈리며 놓이는 연출이 다시 돈다.
+                return id ? (
+                  <CentreCard key={`${kind}:${id}`} art={revealArtFor(scenario, id)} name={label(id)} />
+                ) : (
+                  <li key={kind} className="centre-card centre-card--empty">
+                    <span className="centre-card__slot">{name}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         ) : (
           // 문구가 «상황이 바뀌었다»를 알리는 자리라 읽어 주게 한다. 화면의 다른 대기 문구와 같은 처리다.
           idle && (
@@ -235,16 +281,39 @@ function Seat({
    * 같은 인물이면 같은 말투여야 한다. 이의제기 순간은 그 좌석의 반증/넘김 발언보다
    * 우선한다 — spoken의 challengeLine ?? … 순서와 같은 우선순위다.
    */
+  /*
+   * 이의제기 «판정»에 대한 반응. 지목(challengeLine)보다 뒤 박자이므로 이게 이긴다.
+   *
+   * 세 자리로 갈린다 — 들킨 쪽·누명을 벗은 쪽·헛짚은 쪽. 예전엔 판정이 난 뒤에도 각자
+   * 직전 발언이 그대로 남아서, 위증이 들통난 사람이 방금 한 거짓말을 계속 말하고 있고
+   * 헛짚은 사람은 여전히 「거짓을 고했소」라고 우겼다.
+   *
+   * 적중한 도전자만 지목 그대로 둔다 — 그 말이 옳았음이 방금 증명됐으므로 바꿀 이유가 없다.
+   */
+  const result = live?.challenge ?? null
+  const reaction =
+    result && result.targetId === player.id
+      ? result.success
+        ? caughtLine(player.characterId)
+        : clearedLine(player.characterId)
+      : result && result.challengerId === player.id && !result.success
+        ? wrongCallLine(player.characterId, participantLabel(view, result.targetId))
+        : null
+
   const say =
-    live?.challenge?.challengerId === player.id
-      ? `“${challengeLine(player.characterId, participantLabel(view, live.challenge.targetId))}”`
-      : isSuggester
-        ? `“${suggestLine(player.characterId)}”`
-        : declaration
-          ? revealed
-            ? declarationLine(declaration.claim, player.characterId, label)
-            : '…'
-          : null
+    // 판정 반응(main)이 맨 앞이고, 선언 문구는 declarationLine을 쓴다 —
+    // 인라인으로 refute/pass만 가르면 변호사의 「거부」가 침묵으로 뭉개진다.
+    reaction
+      ? `“${reaction}”`
+      : live?.challenge?.challengerId === player.id
+        ? `“${challengeLine(player.characterId, participantLabel(view, live.challenge.targetId))}”`
+        : isSuggester
+          ? `“${suggestLine(player.characterId)}”`
+          : declaration
+            ? revealed
+              ? declarationLine(declaration.claim, player.characterId, label)
+              : '…'
+            : null
 
   /*
    * LLM이 쓴 대사. 있으면 say 대신 이것만 렌더한다(아래 JSX) — 둘을 같이 띄우면 한 좌석에
@@ -254,9 +323,12 @@ function Seat({
    * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
    */
   const challengeLLMLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
-  const spoken =
-    challengeLLMLine ??
-    (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null)
+  const spoken = reaction
+    ? // 판정 반응이 있으면 LLM 대사를 덮는다 — 그쪽은 판정 «이전»에 쓰인 말이라,
+      // 들통난 사람이 방금 한 거짓말을, 헛짚은 사람이 빗나간 지목을 계속 말하게 된다.
+      null
+    : (challengeLLMLine ??
+      (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null))
 
   const art = suspectArtFor(player.characterId)
   /*
@@ -393,10 +465,29 @@ function Seat({
         </span>
       )}
 
+      {/*
+        공개된 패는 «그 사람 자리에» 카드로 남는다.
+        예전엔 「공개 넥타이 · 서재」처럼 한 줄 텍스트였는데, 이 판에서 카드는 전부 그림으로
+        다뤄지므로(손패·제안·상 위) 여기만 글자면 같은 것이 다른 물건으로 읽힌다. 그리고
+        이건 판이 끝날 때까지 남는 «증거»라, 대사처럼 흘러가는 줄과 같은 모양이면 안 된다.
+      */}
       {player.revealed.length > 0 && (
-        <span className="seat__revealed">
-          공개 {player.revealed.map((c) => label(c)).join(' · ')}
-        </span>
+        <ul className="seat__revealed">
+          {/*
+            중복을 걷어낸다. 엔진이 이의제기 성공 시 증명 카드를 «이미 공개된 것이어도»
+            reveals에 다시 넣어서(engine/challenge.ts) revealed에 같은 id가 두 번 쌓일 수
+            있다. 그대로 그리면 같은 카드가 두 장 보이고 key까지 충돌한다.
+            근본 해결은 엔진 쪽이다 — 여기서는 화면이 깨지지 않게만 막는다.
+          */}
+          {[...new Set(player.revealed)].map((cardId) => (
+            <li key={cardId} className="reveal-card" title={label(cardId)}>
+              {revealArtFor(scenario, cardId) && (
+                <img className="reveal-card__art" src={revealArtFor(scenario, cardId)} alt="" />
+              )}
+              <span className="reveal-card__name">{label(cardId)}</span>
+            </li>
+          ))}
+        </ul>
       )}
 
       {caught && <span className="seat__badge">위증</span>}
