@@ -39,7 +39,14 @@ export function createRuleDecider(seed: string): Decider {
      * 사전생성 대사 풀에서 답한다. 질문을 읽지 못하므로 무엇을 물어도 어긋나지 않는
      * «답을 피하는 말»만 들어 있다 — 프록시가 죽어도 밀담이 닫히지 않는 것이 요점이다(절대규칙 4).
      */
-    speakInParley: async (view) => parleyLine(characterOf(view), saltOf(seed, 'pl', view)),
+    /*
+     * 폴백 대사는 답을 피하는 말이라 주장 자체가 없다 — 그래서 truthful이 null이다.
+     * 정보상은 이 라운드에 아무것도 얻지 못하고 능력을 그대로 들고 다음 밀담을 기다린다.
+     */
+    speakInParley: async (view) => ({
+      line: parleyLine(characterOf(view), saltOf(seed, 'pl', view)),
+      truthful: null,
+    }),
   }
 }
 

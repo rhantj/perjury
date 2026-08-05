@@ -1,4 +1,6 @@
 import { cardKind } from './cards'
+import { resolveAfterDeclare } from './power'
+import { createRng, pickOne } from './rng'
 import type {
   CardId,
   Claim,
@@ -31,7 +33,33 @@ export function isPerjury(
   claim: Claim,
 ): boolean {
   if (claim.kind === 'refute') return !hand.includes(claim.cardId)
+  // 거부는 의무를 면제받은 것이라 어길 의무가 없다. 침묵과 갈리는 지점이 여기다.
+  if (claim.kind === 'refuse') return false
   return mustRefute(hand, suggestion)
+}
+
+/**
+ * 협잡꾼의 조작. 낸 카드를 제안된 나머지 중 하나로 «바꿔치기»한다.
+ *
+ * isPerjury를 뒤집는 것으로는 아무 일도 일어나지 않는다 — 이의제기 성공은 진위가 아니라
+ * **카드 소지**로 정해지기 때문이다(challenge.ts). 선언한 카드 자체를 바꿔야 물린다.
+ *
+ * 침묵·거부는 바꿀 카드가 없으므로 그대로 둔다. 대사도 손대지 않는다 —
+ * 말은 그대로인데 기록만 달라진 것이 이 능력의 무서움이다.
+ */
+function frameClaim(
+  state: GameState,
+  record: RoundRecord,
+  targetId: PlayerId,
+  claim: Claim,
+): Claim {
+  if (claim.kind !== 'refute') return claim
+  const others = suggestedCards(record.suggestion).filter((id) => id !== claim.cardId)
+  if (!others[0]) return claim
+  // 대상을 시드에 넣는다. 지금은 한 판에 협잡꾼도 대상도 하나뿐이라 없어도 되지만,
+  // 그 전제가 코드에 적혀 있지 않다. 이의제기(challenge.ts)가 이미 같은 이유로 양쪽을 넣는다.
+  const rng = createRng(`${state.seed}:frame:${record.round}:${targetId}:${claim.cardId}`)
+  return { kind: 'refute', cardId: pickOne(others, rng) }
 }
 
 function requirePlayer(state: GameState, playerId: PlayerId) {
@@ -84,7 +112,9 @@ export function suggest(
         suggestionLine: line,
         declarations: [],
         challenge: null,
-        parley: null,
+        exposed: [],
+        published: [],
+        parleys: [],
       },
     ],
   }
@@ -110,17 +140,38 @@ export function declareAll(
   const record = currentRound(state)
   const responders = state.players.filter((p) => p.id !== record.suggesterId)
   const allowed = suggestedCards(record.suggestion)
+  const refusing = new Set(
+    state.pending.filter((p) => p.use.kind === 'refuse-demand').map((p) => p.ownerId),
+  )
+  const framed = new Set(
+    state.pending.flatMap((p) => (p.use.kind === 'frame' ? [p.use.targetId] : [])),
+  )
 
   if (claims.size !== responders.length) {
     throw new Error(`선언은 ${responders.length}명 전원이 해야 한다 (받은 수: ${claims.size})`)
   }
 
   const declarations: Declaration[] = responders.map((player) => {
-    const claim = claims.get(player.id)
-    if (!claim) throw new Error(`${player.name}의 선언이 없다`)
-    if (claim.kind === 'refute' && !allowed.includes(claim.cardId)) {
-      throw new Error(`제안에 없는 카드로는 반증할 수 없다: ${claim.cardId}`)
+    const given = claims.get(player.id)
+    if (!given) throw new Error(`${player.name}의 선언이 없다`)
+    if (given.kind === 'refute' && !allowed.includes(given.cardId)) {
+      throw new Error(`제안에 없는 카드로는 반증할 수 없다: ${given.cardId}`)
     }
+    /*
+     * 「거부」는 «내는» 선언이 아니라 능력이 만드는 선언이다.
+     *
+     * 능력을 쓴 좌석은 무엇을 냈든 거부가 되고, 쓰지 않은 좌석이 거부를 내면 던진다.
+     * 엔진은 직업을 모르지만 pending은 안다 — 능력을 통과했다는 사실만으로 자격을 판정하므로
+     * 바깥 층(화면·AI·워커) 중 하나가 뚫려도 룰이 무너지지 않는다(작업 규칙 2).
+     */
+    if (given.kind === 'refuse' && !refusing.has(player.id)) {
+      throw new Error(`거부는 능력 없이 낼 수 없다: ${player.name}`)
+    }
+    const claim: Claim = refusing.has(player.id)
+      ? { kind: 'refuse' }
+      : framed.has(player.id)
+        ? frameClaim(state, record, player.id, given)
+        : given
     return {
       playerId: player.id,
       claim,
@@ -129,9 +180,19 @@ export function declareAll(
     }
   })
 
-  return {
-    ...state,
-    phase: 'challenge',
-    rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
-  }
+  return resolveAfterDeclare(
+    {
+      ...state,
+      phase: 'challenge',
+      /*
+       * 선언에 걸리는 능력은 여기서 쓰였다. 「1회」이므로 거둔다 —
+       * 남겨두면 매 라운드 거부하거나 매 라운드 조작하게 된다.
+       */
+      pending: state.pending.filter(
+        (p) => p.use.kind !== 'refuse-demand' && p.use.kind !== 'frame',
+      ),
+      rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
+    },
+    declarations,
+  )
 }

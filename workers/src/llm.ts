@@ -49,6 +49,12 @@ export type LlmResult =
        * 아는 프론트가 정한다 — 여기서 갈래를 두면 룰이 두 군데로 나뉜다(설계 §5.3).
        */
       readonly usePowerOn: string | null
+      /**
+       * 밀담에서 화자의 «자기 신고». 사실 주장을 하지 않았으면 null이다.
+       *
+       * 엔진이 텍스트를 판정할 수 없어서 말한 쪽이 스스로 낸다. 이걸 쓰는 것은 정보상뿐이다.
+       */
+      readonly truthful: boolean | null
       readonly usage: Usage
     }
   | { readonly ok: false; readonly code: UpstreamCode; readonly detail: string }
@@ -153,8 +159,10 @@ export async function decide(
   view: GameView,
   ask: string | null = null,
   power: PowerBrief | null = null,
+  /** 카드 표시 이름표. 사건마다 다르다 — 없으면 프롬프트가 엔진 기본 이름으로 떨어진다. */
+  names: Readonly<Record<string, string>> = {},
 ): Promise<LlmResult> {
-  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power))
+  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power, names))
 
   let response: Response
   try {
@@ -233,11 +241,14 @@ export async function decide(
 
   /* "none"은 «안 쓴다»다. 스키마가 필수로 열려 있어도 이 값으로 빠져나갈 수 있다. */
   const chosen = textField(parsed, 'usePowerOn')
+  // 모르는 값은 «주장 없음»으로 읽는다. 판정할 것이 없으면 정보상은 능력을 그대로 들고 있는다.
+  const said = textField(parsed, 'truthful')
   return {
     ok: true,
     decision,
     line: textField(parsed, 'line') ?? '',
     usePowerOn: !chosen || chosen === 'none' ? null : chosen,
+    truthful: said === 'yes' ? true : said === 'no' ? false : null,
     usage,
   }
 }

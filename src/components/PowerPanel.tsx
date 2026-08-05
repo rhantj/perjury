@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { cardLabel, participantLabel } from '../content/labels'
 import { cardsOfKind } from '../engine/cards'
+import { needsOf, usableIn } from '../engine/power'
 import type { Scenario } from '../content/scenarios'
 import type { Role } from '../content/roles'
 import type { PowerIntent } from '../engine/power'
@@ -41,6 +42,25 @@ export default function PowerPanel({
   const [picking, setPicking] = useState(false)
 
   if (role.effect === null) return null
+  /*
+   * 반증 요구 거부는 반증 줄의 버튼으로 쓴다 — 쓰는 순간이 곧 선언하는 순간이라
+   * 패널에서 미리 켜두면 두 번 조작하게 된다. 쓴 뒤의 표시는 여기 남긴다.
+   */
+  if (role.effect === 'refuse-demand' && !used) return null
+  /*
+   * 전화교환수는 사람 자리에서 «발동하는» 능력이 아니다 — 사람은 이미 모든 밀담에 끼어 있어
+   * 엿들을 것이 없고, 대신 회선이 하나 늘어난 채로 판이 시작된다(결정 007).
+   * 이 패널은 사람 자리에만 그려지므로 버튼 대신 상태만 적는다.
+   */
+  if (role.effect === 'eavesdrop') {
+    return (
+      <div className="power power--spent">
+        <span className="power__mark">已 회선 개통</span>
+        {/* 총량은 그대로다(결정 009 추가). 「두 번 더 쓴다」로 읽히면 예산이 늘어난 줄 안다. */}
+        <p className="power__waiting">한 라운드에 두 사람까지 — 판당 횟수는 그대로다</p>
+      </div>
+    )
+  }
 
   if (used) {
     return (
@@ -55,24 +75,30 @@ export default function PowerPanel({
             ))}
           </ul>
         ) : (
-          /* 지목만 하고 답은 나중에 나오는 능력(순사·사진사 등)이 여기 머문다. */
-          <p className="power__waiting">결과를 기다린다</p>
+          /* 알려줄 것이 없는 능력이 여기 머문다 — 답이 나중에 오거나(순사), 원래 없거나(밀정). */
+          <p className="power__waiting">{SPENT[role.effect] ?? '결과를 기다린다'}</p>
         )}
       </div>
     )
   }
 
   if (!picking) {
+    // 지금 눌러도 엔진이 거부하는 능력이 있다(순사는 선언 뒤에 지목해봐야 답이 없다).
+    // 눌렀다가 오류를 보게 두는 대신 미리 잠근다 — 판정은 엔진 것을 그대로 쓴다.
+    const inTime = usableIn(role.effect, view)
+    // 고를 것이 없는 능력은 고르는 단계를 건너뛴다. 빈 목록을 보여줄 이유가 없다.
+    const noTarget = needsOf(role.effect) === 'none'
     return (
       <div className="power">
         <button
           type="button"
           className="power__fire"
-          disabled={!enabled}
-          onClick={() => setPicking(true)}
+          disabled={!enabled || !inTime}
+          onClick={() => (noTarget ? onUse({}) : setPicking(true))}
         >
           능력 발동
         </button>
+        {!inTime && <span className="power__late">이번 라운드는 때를 놓쳤다</span>}
       </div>
     )
   }
@@ -123,6 +149,25 @@ export default function PowerPanel({
 const ASK: Partial<Record<NonNullable<Role['effect']>, string>> = {
   'inspect-hand': '누구의 손패를 볼 것인가',
   'check-weapon': '어느 수단을 확인할 것인가',
+  'verify-claim': '누구의 반증을 확인할 것인가',
+  photograph: '누구를 촬영할 것인가',
+  publish: '누구의 지난 선언을 신문에 실을 것인가',
+  frame: '누구의 반증을 조작할 것인가',
+}
+
+/** 알려줄 사실이 «원래» 없는 능력. 기다린다고 쓰면 오지 않을 답을 기다리게 된다. */
+const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
+  shield: '뒤를 봐주는 자가 붙었다',
+  // 결과는 좌석 배지로 전체에 뜬다. 여기서 다시 알려줄 것이 없다.
+  photograph: '촬영해 두었다 — 다음 라운드에 거짓을 말하면 드러난다',
+  // 결과는 기록에 남아 전원이 읽는다. 여기서 다시 알려줄 것이 없다.
+  publish: '신문에 실었다 — 기록에서 읽을 수 있다',
+  // 이쪽은 패널이 아니라 반증 줄의 「답변 거부」 버튼으로 쓴다.
+  'refuse-demand': '이번 반증 요구에 답하지 않는다',
+  // 밀담을 걸어야 답이 나온다. 아직 안 걸었으면 여기서 기다린다.
+  'detect-lie': '다음 밀담에서 상대의 말을 가려낸다',
+  // 결과는 그 좌석의 기록에 그대로 나타난다. 여기서 다시 알려주면 조작한 쪽이 드러난다.
+  frame: '이번 라운드 그의 반증에 손을 써두었다',
 }
 
 /**
@@ -140,5 +185,7 @@ function describe(scenario: Scenario, view: GameView, grant: Grant): string {
       return `«${cardLabel(scenario, finding.cardId)}»는 사건의 수단이 ${finding.isSolution ? '맞다' : '아니다'}`
     case 'claim':
       return `${participantLabel(view, finding.targetId)}의 반증은 ${finding.truthful ? '참이었다' : '거짓이었다'}`
+    case 'parley':
+      return `밀담에서 ${participantLabel(view, finding.targetId)}는 ${finding.truthful ? '사실을 말했다' : '거짓을 말했다'}`
   }
 }

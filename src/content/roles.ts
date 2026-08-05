@@ -35,6 +35,15 @@ export interface Role {
    * 판이 시작되지 않는다 — 능력만 없고 이야기 소재로는 그대로 쓴다.
    */
   effect: PowerUse['kind'] | null
+  /**
+   * **사람 좌석에만 배정된다.** 없으면 누구에게나 간다.
+   *
+   * 능력이 「밀담 상대의 말」을 다루는 직업이 여기 걸린다. 밀담은 언제나 사람이 걸므로
+   * 그런 능력이 AI에게 가면 판정 대상이 «사람이 타이핑한 자유 텍스트»가 되는데,
+   * 엔진은 텍스트를 읽지 않고 AI 시야에는 사람의 손패가 없어서 어느 쪽도 판정할 수 없다.
+   * 손패를 넣어주면 그 좌석이 판을 꿰뚫어 보게 되므로 그것도 답이 아니다.
+   */
+  humanOnly?: true
 }
 
 export const ROLES: readonly Role[] = [
@@ -54,16 +63,21 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '한 명의 이번 라운드 반증이 참인지 통보받는다.',
     flavor: '조선인 순사. 동족을 잡는 자리라 아무도 그를 믿지 않는다.',
-    effect: null,
+    effect: 'verify-claim',
   },
   {
     id: 'reporter',
     ko: '신문기자',
     hanja: '新聞記者',
     side: 'citizen',
-    power: '자기가 본 반증 1건을 전체에 공개한다.',
+    /*
+     * 원래 문구는 「자기가 본 반증 1건을 전체에 공개한다」였다.
+     * 반증 선언 자체는 이미 전원이 들은 공개 정보라, 공개할 것이 없어 능력이 비어 보였다.
+     * 감춰져 있던 것은 그것이 참이었나뿐이다.
+     */
+    power: '한 명의 지난 선언 1건, 그 진위를 전체에 공개한다.',
     flavor: '검열을 뚫는 특종. 공개하겠다는 «협박»이 본체다.',
-    effect: null,
+    effect: 'publish',
   },
   {
     id: 'lawyer',
@@ -72,7 +86,7 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '반증 요구를 1회 거부한다.',
     flavor: '합법적 침묵. 거부하는 것 자체가 의심을 산다.',
-    effect: null,
+    effect: 'refuse-demand',
   },
   {
     id: 'broker',
@@ -81,16 +95,21 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '밀담 상대 발언의 참·거짓만 판정한다.',
     flavor: '명동 뒷골목의 거짓말 탐지기. 단 한 번뿐이다.',
-    effect: null,
+    effect: 'detect-lie',
+    humanOnly: true,
   },
   {
     id: 'operator',
     ko: '전화교환수',
     hanja: '電話交換手',
     side: 'citizen',
-    power: '이번 라운드 밀담 1건을 엿듣는다.',
+    /*
+     * 사람이 쥐면 엿들을 것이 없다 — 사람은 이미 모든 밀담에 끼어 있다.
+     * 그래서 사람에게는 회선이 하나 늘고, AI에게는 남의 밀담이 보인다(결정 007).
+     */
+    power: '한 라운드에 두 사람과 밀담한다(판당 횟수는 그대로) — 남의 자리에서는 엿듣는다.',
     flavor: '경성우편국. 모든 말이 이 사람을 지나간다.',
-    effect: null,
+    effect: 'eavesdrop',
   },
   {
     id: 'apothecary',
@@ -108,7 +127,7 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '한 명을 촬영한다 — 그가 다음 라운드에 위증하면 즉시 발각된다.',
     flavor: '증거는 남는다. 쓰는 순간부터 억지력이 된다.',
-    effect: null,
+    effect: 'photograph',
   },
   {
     id: 'trickster',
@@ -117,7 +136,7 @@ export const ROLES: readonly Role[] = [
     side: 'culprit',
     power: '타인의 반증 1회를 조작한다.',
     flavor: '무고한 사람을 거짓말쟁이로 만든다.',
-    effect: null,
+    effect: 'frame',
   },
   {
     id: 'spy',
@@ -126,12 +145,15 @@ export const ROLES: readonly Role[] = [
     side: 'culprit',
     power: '자기 위증 1회는 이의제기를 당해도 실패 처리된다.',
     flavor: '뒤를 봐주는 자가 있다. 한 번은 빠져나간다.',
-    effect: null,
+    effect: 'shield',
   },
 ]
 
 /**
  * 6명에게 6개를 배정한다. 10종 중 4종은 그 판에 등장하지 않는다.
+ *
+ * 사람 전용 직업(humanOnly)은 AI 좌석을 만나면 건너뛴다. 사람이 그 진영이 아니면
+ * 그 판에는 아예 등장하지 않는다 — 풀에 남은 채 아무도 뽑지 않는 것이 정상 상태다.
  *
  * 시드를 `:roles`로 파생시키는 이유는 격리다. createGame의 rng를 같이 쓰면
  * 여기서 난수를 뽑는 순간 기존 시드의 카드 배분이 전부 달라진다 —
@@ -142,7 +164,7 @@ export const ROLES: readonly Role[] = [
  */
 export function assignRoles(
   seed: string,
-  players: readonly { id: PlayerId; faction: Faction }[],
+  players: readonly { id: PlayerId; faction: Faction; isHuman?: boolean }[],
 ): Record<PlayerId, Role> {
   const rng = createRng(`${seed}:roles`)
   const forCulprit = shuffle(
@@ -154,14 +176,23 @@ export function assignRoles(
     rng,
   )
 
-  let culpritTaken = 0
-  let citizenTaken = 0
   const assigned: Record<PlayerId, Role> = {}
+  const used = new Set<string>()
 
-  for (const player of players) {
-    const picked =
-      player.faction === 'culprit' ? forCulprit[culpritTaken++] : forCitizen[citizenTaken++]
+  /*
+   * **사람이 먼저 뽑는다.** 좌석 순서대로 돌면서 AI가 사람 전용 직업을 건너뛰게 하면,
+   * 건너뛴 그 직업은 사람 차례가 오기 전에 지나가 버려 아무에게도 가지 않는다.
+   * 사람을 앞에 세우면 사람 전용 직업이 다른 직업과 똑같은 확률로 사람에게 온다.
+   */
+  const order = [...players.filter((p) => p.isHuman), ...players.filter((p) => !p.isHuman)]
+
+  for (const player of order) {
+    const pool = player.faction === 'culprit' ? forCulprit : forCitizen
+    const picked = pool.find(
+      (role) => !used.has(role.id) && (player.isHuman || !role.humanOnly),
+    )
     if (!picked) throw new Error(`직업 풀이 모자란다: ${player.id}`)
+    used.add(picked.id)
     assigned[player.id] = picked
   }
 

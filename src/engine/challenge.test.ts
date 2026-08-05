@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { challenge, skipChallenge } from './challenge'
 import { declareAll, suggest } from './round'
+import { usePower } from './power'
 import { createGame } from './setup'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
 
@@ -165,6 +166,55 @@ describe('이의제기 대사', () => {
 
   it('대사를 주지 않으면 null이다', () => {
     expect(challenge(staged(), 'p2', 'p3').rounds[0]?.challenge?.line).toBeNull()
+  })
+})
+
+describe('shield — 밀정', () => {
+  /** p2가 p1을 쥐고 있으니 평소라면 p3의 위증이 잡힌다. */
+  it('보호가 없으면 위증이 잡힌다', () => {
+    const after = challenge(staged(), 'p2', 'p3')
+
+    expect(after.rounds[0]?.challenge?.success).toBe(true)
+  })
+
+  it('보호가 걸려 있으면 카드가 잡혀도 실패한다', () => {
+    const shielded = usePower(staged(), 'p3', { kind: 'shield' })
+    const after = challenge(shielded, 'p2', 'p3')
+
+    expect(after.rounds[0]?.challenge?.success).toBe(false)
+  })
+
+  /** 실패한 이의제기의 벌칙은 고발자가 받는다. 옳게 잡고도 손해를 보는 것이 이 능력이다. */
+  it('막힌 이의제기의 벌칙은 고발자에게 간다', () => {
+    const shielded = usePower(staged(), 'p3', { kind: 'shield' })
+    const after = challenge(shielded, 'p2', 'p3')
+
+    expect(revealedOf(after, 'p2')).toHaveLength(1)
+    expect(revealedOf(after, 'p3')).toHaveLength(0)
+  })
+
+  it('한 번 막으면 소진된다', () => {
+    const shielded = usePower(staged(), 'p3', { kind: 'shield' })
+    const after = challenge(shielded, 'p2', 'p3')
+
+    expect(after.pending).toHaveLength(0)
+  })
+
+  /** 어차피 실패할 이의제기까지 막아주면 보호가 헛되이 사라진다. */
+  it('잡히지 않았으면 보호가 남는다', () => {
+    const shielded = usePower(staged(), 'p3', { kind: 'shield' })
+    const after = challenge(shielded, 'p4', 'p3')
+
+    expect(after.rounds[0]?.challenge?.success).toBe(false)
+    expect(after.pending).toHaveLength(1)
+  })
+
+  it('남의 보호는 나를 지켜주지 않는다', () => {
+    const shielded = usePower(staged(), 'p5', { kind: 'shield' })
+    const after = challenge(shielded, 'p2', 'p3')
+
+    expect(after.rounds[0]?.challenge?.success).toBe(true)
+    expect(after.pending).toHaveLength(1)
   })
 })
 

@@ -68,25 +68,26 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
   ]
 
   for (const d of round.declarations) {
-    out.push(
-      d.claim.kind === 'refute'
-        ? {
-            tone: 'refute',
-            who: nameOf(view, d.playerId),
-            face: participantInitial(view, d.playerId),
-            quote: d.line,
-            mine: d.playerId === view.viewerId,
-            text: `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`,
-          }
-        : {
-            tone: 'pass',
-            who: nameOf(view, d.playerId),
-            face: participantInitial(view, d.playerId),
-            quote: d.line,
-            mine: d.playerId === view.viewerId,
-            text: '없습니다.',
-          },
-    )
+    const said = (tone: string, text: string): Line => ({
+      tone,
+      who: nameOf(view, d.playerId),
+      face: participantInitial(view, d.playerId),
+      quote: d.line,
+      mine: d.playerId === view.viewerId,
+      text,
+    })
+    switch (d.claim.kind) {
+      case 'refute':
+        out.push(said('refute', `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`))
+        break
+      case 'pass':
+        out.push(said('pass', '없습니다.'))
+        break
+      // 침묵과 갈라 적는다 — 「없습니다」로 뭉치면 위증이 아니라는 사실이 지워진다.
+      case 'refuse':
+        out.push(said('refuse', '답변을 거부합니다.'))
+        break
+    }
   }
 
   if (round.challenge) {
@@ -113,23 +114,58 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
     }
   }
 
-  if (round.parley) {
-    const { targetId, askLine, replyLine } = round.parley
+  /*
+   * 사진사·신문기자가 밝힌 것. 이의제기와 달리 잡은 사람이 없으므로 지문으로 둔다.
+   *
+   * 좌석 배지만으로는 부족하다 — 신문기자가 새기는 곳은 «지난» 라운드라 좌석(현재 라운드만
+   * 그린다)에는 뜰 자리가 없고, 발각도 라운드가 넘어가면 사라져 나중에 되짚을 수 없다.
+   */
+  for (const id of round.exposed) {
+    out.push({
+      tone: 'caught',
+      who: null,
+      face: null,
+      quote: null,
+      mine: false,
+      text: `${nameOf(view, id)}의 위증이 사진에 찍혔다.`,
+    })
+  }
+
+  for (const p of round.published) {
+    out.push({
+      tone: p.truthful ? 'reveal' : 'caught',
+      who: null,
+      face: null,
+      quote: null,
+      mine: false,
+      text: `${nameOf(view, p.playerId)}의 이 선언이 ${p.truthful ? '참' : '거짓'}이었음이 신문에 실렸다.`,
+    })
+  }
+
+  /*
+   * 밀담은 여러 건일 수 있다(사람이 전화교환수면 라운드당 둘).
+   *
+   * 엿듣는 좌석에는 자기가 끼지 않은 밀담도 실린다. 그때 「내가 이야기했다」로 쓰면
+   * 거짓말이 되므로, 건 사람은 언제나 사람 좌석으로 적는다.
+   */
+  const asker = view.players.find((p) => p.isHuman)
+  for (const { targetId, askLine, replyLine } of round.parleys) {
+    const askerId = asker?.id ?? view.viewerId
     out.push({
       tone: 'parley',
       who: null,
       face: null,
       quote: null,
       mine: false,
-      text: `${subject(view, view.viewerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
+      text: `${subject(view, askerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
     })
     out.push({
       tone: 'parley',
-      who: nameOf(view, view.viewerId),
-      face: participantInitial(view, view.viewerId),
+      who: nameOf(view, askerId),
+      face: participantInitial(view, askerId),
       quote: null,
-      mine: true,
-      // 내가 쓴 말이다. LLM 대사가 아니라 quote가 아닌 text에 둔다.
+      mine: askerId === view.viewerId,
+      // 사람이 쓴 말이다. LLM 대사가 아니라 quote가 아닌 text에 둔다.
       text: askLine,
     })
     out.push({

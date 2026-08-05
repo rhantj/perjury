@@ -264,6 +264,36 @@ describe('반증 — 제안에 없는 카드', () => {
     expect(declarations.every((d) => d.claim.kind === 'pass')).toBe(true)
   })
 
+  /**
+   * 선언을 침묵으로 바꾸면 대사도 함께 버려야 한다. 남기면 기록에는 「넘김」인데
+   * 좌석에서는 "그건 내가 쥐고 있소"라고 말한다 — 플레이어가 본 그 어긋남이 여기서 난다.
+   */
+  it('stepAi — 좁혀서 침묵이 된 선언의 대사는 남지 않는다', async () => {
+    const loud: Decider = {
+      ...stubborn,
+      chooseClaim: () =>
+        Promise.resolve({ value: { kind: 'refute', cardId: 's6' } as Claim, line: '그 칼은 내가 쥐고 있소' }),
+    }
+
+    const next = await stepAi(suggested(), loud)
+
+    const declarations = next.rounds[next.rounds.length - 1]?.declarations ?? []
+    expect(declarations.every((d) => d.line === null)).toBe(true)
+  })
+
+  /** 좁혀지지 않은 선언의 대사까지 버리면 안 된다. */
+  it('stepAi — 성립하는 선언의 대사는 그대로 남는다', async () => {
+    const legal: Decider = {
+      ...stubborn,
+      chooseClaim: () => Promise.resolve({ value: { kind: 'pass' } as Claim, line: '본 적 없소' }),
+    }
+
+    const next = await stepAi(suggested(), legal)
+
+    const declarations = next.rounds[next.rounds.length - 1]?.declarations ?? []
+    expect(declarations.some((d) => d.line === '본 적 없소')).toBe(true)
+  })
+
   it('declareWithHuman — AI 선언만 좁히고 사람 선언은 그대로 낸다', async () => {
     const state = suggested()
 
@@ -375,7 +405,7 @@ describe('stepAi — 밀담 페이즈', () => {
     const next = await stepAi(whisper, createRuleDecider('flow-whisper'))
 
     expect(next.round).toBe(base.round + 1)
-    expect(next.rounds[next.rounds.length - 1]?.parley).toBeNull()
+    expect(next.rounds[next.rounds.length - 1]?.parleys).toEqual([])
   })
 })
 
@@ -418,14 +448,24 @@ describe('AI 능력 발동', () => {
     expect(mine[0]?.finding.kind).toBe('hand')
   })
 
-  it('능력이 없는 좌석은 쓰겠다고 해도 발동하지 않는다', async () => {
+  /**
+   * 전원이 «같은 대상에게 쓰겠다»는 한 가지 의사만 냈는데도 좌석마다 다른 일이 일어난다.
+   * 종류가 의사가 아니라 배정표에서 나오기 때문이다 — 여기가 무너지면 AI가 남의 능력을 쓴다.
+   */
+  it('같은 의사를 내도 좌석마다 자기 직업의 능력이 나간다', async () => {
     const game = gameWhereSeatIsCoroner()
+    const roles = assignRoles(game.seed, game.players)
     const started = suggest(game, 'p0', SUGGESTION)
 
     const after = await stepAi(started, wanting('p2', game.seed))
 
-    // p1만 검시관이다. 나머지 좌석은 같은 의사를 냈지만 effect가 null이라 발동하지 않는다.
-    expect(after.powersUsed).toEqual(['p1'])
+    expect(after.grants.find((g) => g.ownerId === 'p1')?.finding.kind).toBe('hand')
+
+    // 알게 된 사실의 «종류»는 그 좌석 직업이 내는 것과 일치해야 한다.
+    const producedBy: Record<string, string> = { 'inspect-hand': 'hand', 'check-weapon': 'weapon' }
+    for (const grant of after.grants) {
+      expect(grant.finding.kind).toBe(producedBy[roles[grant.ownerId]?.effect ?? ''])
+    }
   })
 
   /** 엔진이 거절해도 판은 계속 돌아야 한다 — AI의 잘못된 요구가 라운드를 멈추면 안 된다. */

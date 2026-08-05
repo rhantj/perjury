@@ -12,6 +12,13 @@ export interface SetupOptions {
   /** 사람이 앉을 자리. 기본 0번. */
   humanIndex?: number
   totalRounds?: number
+  /**
+   * 라운드당 밀담 건수. 사람이 전화교환수면 2다(결정 007).
+   *
+   * 엔진이 직업을 조회하지 않고 밖에서 받는 이유는 content → engine 한 방향 의존 때문이다.
+   * 판을 만드는 쪽(store)이 배정표를 이미 갖고 있다.
+   */
+  parleyAllowance?: number
 }
 
 /**
@@ -25,6 +32,7 @@ export function createGame({
   seed,
   humanIndex = 0,
   totalRounds = DEFAULT_ROUNDS,
+  parleyAllowance = 1,
 }: SetupOptions): GameState {
   const rng = createRng(seed)
 
@@ -73,6 +81,7 @@ export function createGame({
     powersUsed: [],
     grants: [],
     pending: [],
+    parleyAllowance,
     outcome: null,
   }
 }

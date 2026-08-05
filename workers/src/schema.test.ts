@@ -244,7 +244,6 @@ interface TestRound {
   suggestionLine: string | null
   declarations: { playerId: string; claim: { kind: string; cardId?: string }; line: string | null }[]
   challenge: null
-  parley: null
 }
 
 interface TestView {
@@ -290,7 +289,6 @@ function validView(): TestView {
         suggestionLine: null,
         declarations: [{ playerId: 'p1', claim: { kind: 'refute', cardId: 's2' }, line: null }],
         challenge: null,
-        parley: null,
       },
     ],
     solution: null,
@@ -347,7 +345,9 @@ describe('parseDecideRequest — 밀담', () => {
     if (!round) throw new Error('테스트 시야에 라운드가 없다')
     const withParley = {
       ...view,
-      rounds: [{ ...round, parley: { targetId: 'p1', askLine: '묻는다', replyLine: '답한다' } }],
+      rounds: [
+        { ...round, parleys: [{ targetId: 'p1', askLine: '묻는다', replyLine: '답한다' }] },
+      ],
     }
 
     const parsed = parseDecideRequest(
@@ -366,7 +366,7 @@ describe('parseDecideRequest — 밀담', () => {
       rounds: [
         {
           ...round,
-          parley: { targetId: 'p1', askLine: 'a', replyLine: 'b', hand: ['s1'] },
+          parleys: [{ targetId: 'p1', askLine: 'a', replyLine: 'b', hand: ['s1'] }],
         },
       ],
     }
@@ -401,6 +401,28 @@ describe('parseDecideRequest — 능력으로 확인한 것', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.value.view.findings).toEqual([])
+  })
+
+  /**
+   * 정보상은 사람 좌석 전용이라 지금은 이 finding이 워커까지 오지 않는다. 그래도 받는다 —
+   * 화이트리스트가 엔진 타입보다 좁으면, 나중에 이 경로가 열리는 순간 전 판이 400으로 떨어진다.
+   */
+  it('밀담 진위 finding을 통과시킨다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 2, ownerId: 'p1', finding: { kind: 'parley', targetId: 'p3', truthful: false } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.findings[0]?.finding).toEqual({
+      kind: 'parley',
+      targetId: 'p3',
+      truthful: false,
+    })
   })
 
   it('모르는 finding 종류는 거부한다', () => {
@@ -522,5 +544,46 @@ describe('parseDecideRequest — 능력 개요', () => {
 
     expect(spent.ok && spent.value.view.powerSpent).toBe(true)
     expect(absent.ok && absent.value.view.powerSpent).toBe(false)
+  })
+})
+
+describe('발각 명단', () => {
+  /** 라운드 하나를 꺼내 exposed를 세팅한다. undefined면 항목 자체를 넣지 않는다. */
+  function withExposed(exposed: unknown) {
+    return validBody((body) => {
+      const rounds = view(body)['rounds'] as Record<string, unknown>[]
+      const round = rounds[0]
+      if (!round) throw new Error('라운드가 없다')
+      if (exposed !== undefined) round['exposed'] = exposed
+    })
+  }
+
+  /** 옛 프론트 번들에는 이 항목이 없다. 워커 먼저 배포 순서 때문에 반드시 생기는 구간이다. */
+  it('없으면 빈 배열로 읽는다', () => {
+    const result = parseDecideRequest(withExposed(undefined))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.rounds[0]?.exposed).toEqual([])
+  })
+
+  it('있으면 그대로 읽는다', () => {
+    const result = parseDecideRequest(withExposed(['p2']))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.rounds[0]?.exposed).toEqual(['p2'])
+  })
+
+  it('좌석 수를 넘으면 거부한다', () => {
+    const result = parseDecideRequest(withExposed(['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']))
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('문자열이 아닌 것이 섞이면 거부한다', () => {
+    const result = parseDecideRequest(withExposed([1]))
+
+    expect(result.ok).toBe(false)
   })
 })

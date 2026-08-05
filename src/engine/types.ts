@@ -45,6 +45,13 @@ export interface Suggestion {
 export type Claim =
   | { readonly kind: 'refute'; readonly cardId: CardId }
   | { readonly kind: 'pass' }
+  /**
+   * 변호사의 거부. 침묵과 달리 **반증 의무 자체를 면제**받으므로 위증이 되지 않는다.
+   *
+   * 이것은 «고를 수 있는 선언»이 아니다. 고르게 두면 변호사가 아닌 좌석도 거부할 수 있다.
+   * 능력을 쓴 좌석의 선언을 엔진이 이걸로 바꾼다(round.ts의 declareAll).
+   */
+  | { readonly kind: 'refuse' }
 
 export interface Declaration {
   readonly playerId: PlayerId
@@ -110,8 +117,13 @@ export type PowerUse =
   | { readonly kind: 'verify-claim'; readonly targetId: PlayerId }
   /** 사진사 — 지목한 사람이 «다음» 라운드에 위증하면 이의제기 없이 드러난다. */
   | { readonly kind: 'photograph'; readonly targetId: PlayerId }
-  /** 신문기자 — 지난 반증 1건의 진위를 전체에 공개한다. */
-  | { readonly kind: 'publish'; readonly round: number; readonly targetId: PlayerId }
+  /**
+   * 신문기자 — 지목한 사람의 «가장 최근» 지난 반증, 그 진위를 전체에 공개한다.
+   *
+   * 어느 라운드인지는 고르지 않는다. 고르게 하면 AI가 두 가지를 골라야 해서
+   * 능력 개요(사람 하나 / 카드 하나 / 없음)로 표현할 수 없고 워커 계약이 넓어진다.
+   */
+  | { readonly kind: 'publish'; readonly targetId: PlayerId }
   /** 밀정 — 자기 위증 1회는 이의제기를 당해도 실패 처리된다. */
   | { readonly kind: 'shield' }
   /** 변호사 — 반증 요구를 1회 거부한다. */
@@ -128,6 +140,13 @@ export type Finding =
   | { readonly kind: 'hand'; readonly targetId: PlayerId; readonly cardId: CardId }
   | { readonly kind: 'weapon'; readonly cardId: CardId; readonly isSolution: boolean }
   | { readonly kind: 'claim'; readonly targetId: PlayerId; readonly truthful: boolean }
+  /**
+   * 정보상 — 밀담 상대가 «자기 입으로 신고한» 참·거짓.
+   *
+   * 엔진이 텍스트를 판정한 것이 아니다. 말한 쪽이 자기 거짓말 여부를 함께 낸 것을 옮겨 담는다.
+   * 그래서 룰 엔진 순수성과 부딪히지 않는다 — 밀담은 원래 룰이 읽지 않는 자리다.
+   */
+  | { readonly kind: 'parley'; readonly targetId: PlayerId; readonly truthful: boolean }
 
 /**
  * 「누가 무엇을 알게 됐는가」 한 건.
@@ -158,8 +177,25 @@ export interface RoundRecord {
   readonly suggestionLine: string | null
   readonly declarations: readonly Declaration[]
   readonly challenge: ChallengeRecord | null
-  /** 이 라운드에 오간 밀담. 라운드당 최대 하나다. 없으면 null이다. */
-  readonly parley: ParleyRecord | null
+  /**
+   * 사진사에게 발각된 위증자. **이의제기를 거치지 않고 전체가 본다.**
+   *
+   * isPerjury를 처음으로 밖에 내보내는 자리다. 한 사람만 알면 이의제기와 다를 게 없으므로
+   * Grant가 아니라 라운드 기록에 남긴다 — 여기 있는 것은 모든 시야에 그대로 실린다.
+   */
+  readonly exposed: readonly PlayerId[]
+  /**
+   * 신문기자가 이 라운드의 반증에 대해 공개한 진위. 발각(exposed)과 달리 참도 실린다 —
+   * 「거짓이 아니었다」도 판을 움직이는 정보이기 때문이다.
+   */
+  readonly published: readonly { readonly playerId: PlayerId; readonly truthful: boolean }[]
+  /**
+   * 이 라운드에 오간 밀담. 보통 한 건이고, 사람이 전화교환수면 두 건이다(결정 007).
+   *
+   * 배열인 이유가 「여러 건이 흔해서」는 아니다. 허용치를 상태로 두면 한 건이라는 규칙이
+   * 자료 구조에 박히지 않아, 회선이 늘어나는 능력을 룰 한 줄로 표현할 수 있다.
+   */
+  readonly parleys: readonly ParleyRecord[]
 }
 
 export interface Vote {
@@ -216,6 +252,13 @@ export interface GameState {
    * 그 사이를 여기서 들고 있다가 해소되면 grants나 라운드 기록으로 옮긴다.
    */
   readonly pending: readonly PendingPower[]
+  /**
+   * 라운드당 걸 수 있는 밀담 건수. 기본 1이고, 사람이 전화교환수면 2다(결정 007).
+   *
+   * **엔진은 직업을 모르므로** 이 값은 판을 만들 때 밖에서 받는다(SetupOptions).
+   * 직업을 엔진이 조회하게 만들면 content → engine 한 방향 의존이 뒤집힌다.
+   */
+  readonly parleyAllowance: number
   /** 최종 고발 결과. 판이 끝나기 전에는 null이다. */
   readonly outcome: Outcome | null
 }

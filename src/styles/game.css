@@ -450,6 +450,14 @@
   color: var(--color-muted);
 }
 
+/* 잠긴 이유를 버튼 옆에 적는다. 잠긴 버튼만 두면 고장으로 읽힌다. */
+.power__late {
+  display: block;
+  margin-top: 0.24rem;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+}
+
 .plate__once {
   justify-self: start;
   margin-top: 0.24rem;
@@ -1347,12 +1355,26 @@
   animation: seat-badge-in 360ms var(--ease-out-expo);
 }
 
+/* 이의제기와 달리 잡은 사람이 없다. 인장색으로 「증거가 나왔다」만 말한다. */
+.seat__shot-badge {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  color: var(--color-seal);
+  border: 1px solid var(--color-seal);
+  border-radius: 0.1rem;
+  padding: 0.1rem 0.36rem;
+  background: oklch(14% 0.02 250 / 0.7);
+  animation: seat-badge-in 360ms var(--ease-out-expo);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seat__say,
   .seat__line,
   .seat__revealed,
   .seat__badge,
-  .seat__suggest-badge {
+  .seat__suggest-badge,
+  .seat__shot-badge {
     animation-duration: 0.01ms;
   }
   .seat--reveal {
@@ -2049,6 +2071,12 @@
 }
 .btn--ghost {
   color: var(--color-muted);
+}
+
+/* 변호사에게만 뜬다. 침묵과 나란히 놓이므로 색으로 갈라둔다 — 이쪽은 권리 행사다. */
+.btn--refuse {
+  border-color: var(--tone-key);
+  color: var(--tone-key);
 }
 
 /* 최종 고발. 이 화면에서 유일한 붉은색이라 되돌릴 수 없는 행동임이 색으로 읽힌다. */

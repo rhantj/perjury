@@ -16,7 +16,7 @@ import {
   wrongCallLine,
 } from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
-import type { CardId, CardKind, PlayerId } from '../engine/types'
+import type { CardId, CardKind, Claim, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
 
 /** 반증 카드의 종류에 맞는 그림을 고른다 — 범인·수단·장소 중 어느 것이든 나올 수 있다. */
@@ -28,6 +28,25 @@ function revealArtFor(scenario: Scenario, cardId: CardId): string | undefined {
       return weaponArtFor(scenario, cardId)
     case 'place':
       return placeArtFor(scenario, cardId)
+  }
+}
+
+/**
+ * LLM 대사가 없을 때 좌석이 하는 말. 거부는 침묵과 갈라야 한다 —
+ * 「없습니다」로 뭉치면 변호사가 무엇을 했는지 화면에서 사라진다.
+ */
+function declarationLine(
+  claim: Claim,
+  characterId: CardId,
+  label: (id: CardId) => string,
+): string {
+  switch (claim.kind) {
+    case 'refute':
+      return `“${refuteLine(characterId, label(claim.cardId))}”`
+    case 'pass':
+      return `“${passLine(characterId)}”`
+    case 'refuse':
+      return '“답변을 거부하오.”'
   }
 }
 
@@ -61,7 +80,24 @@ const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
  */
 export default function Table({ view, scenario, draft }: Props) {
   const record = view.rounds[view.rounds.length - 1]
-  const live = record?.round === view.round ? record : null
+  /*
+   * 원탁 가운데는 «지금 걸려 있는 제안»의 자리다. 고발로 넘어가면 걸려 있는 제안이 없다.
+   *
+   * 라운드 번호만으로는 갈리지 않는다 — 마지막 라운드에서는 nextRound도 finish도 round를
+   * 올리지 않고 페이즈만 바꾸므로(engine/progress.ts), 지난 라운드의 제안이 고발과 판결까지 남는다.
+   * 최종 고발을 고르는 자리에 남의 지난 제안이 깔려 있으면 그것을 답으로 읽게 된다.
+   *
+   * over까지 함께 끊는다. 판결문이 덮긴 하지만 페이드인이 도는 동안 뒤로 비친다.
+   */
+  const settled = view.phase === 'accuse' || view.phase === 'over'
+  const live = record?.round === view.round && !settled ? record : null
+  /** 상이 비었을 때 뭐라고 적는가. 판결 중에는 아무것도 적지 않는다 — 판결문이 그 자리다. */
+  const idle =
+    view.phase === 'accuse'
+      ? '상이 치워졌다 — 이제 이름을 대야 한다'
+      : view.phase === 'over'
+        ? null
+        : '상 위에 아직 아무것도 오르지 않았다'
   const turnId = view.players[view.turnIndex]?.id
   const label = (id: CardId) => cardLabel(scenario, id)
   const tableArt = tableArtFor(scenario)
@@ -175,7 +211,12 @@ export default function Table({ view, scenario, draft }: Props) {
             </ul>
           </div>
         ) : (
-          <span className="centre__idle">상 위에 아직 아무것도 오르지 않았다</span>
+          // 문구가 «상황이 바뀌었다»를 알리는 자리라 읽어 주게 한다. 화면의 다른 대기 문구와 같은 처리다.
+          idle && (
+            <span className="centre__idle" role="status">
+              {idle}
+            </span>
+          )
         )}
       </li>
 
@@ -220,6 +261,16 @@ function Seat({
   const declaration = live?.declarations.find((d) => d.playerId === player.id)
   const isSuggester = live?.suggesterId === player.id
   const caught = live?.challenge?.targetId === player.id && live.challenge.success
+  /*
+   * 사진사에게 잡힌 위증. 이의제기와 같은 «들켰다» 처리를 받되 배지가 따로다 —
+   * 잡은 사람이 없기 때문이다. 발각은 전체 공개라 좌석마다 거를 것이 없다.
+   */
+  const shot = live?.exposed.includes(player.id) ?? false
+  /*
+   * 신문기자가 공개한 진위는 여기 그리지 않는다. 그가 새기는 곳은 «지난» 라운드이고
+   * 이 좌석은 진행 중인 라운드(live)만 그리므로, 배지가 뜰 수 있는 순간이 없다.
+   * 그 정보는 기록(Log)에 남는다.
+   */
 
   /*
    * LLM 대사가 없을 때(사람·규칙 기반 판단자·폴백 — declaration.line 등이 늘 null인
@@ -250,6 +301,8 @@ function Seat({
         : null
 
   const say =
+    // 판정 반응(main)이 맨 앞이고, 선언 문구는 declarationLine을 쓴다 —
+    // 인라인으로 refute/pass만 가르면 변호사의 「거부」가 침묵으로 뭉개진다.
     reaction
       ? `“${reaction}”`
       : live?.challenge?.challengerId === player.id
@@ -258,9 +311,7 @@ function Seat({
           ? `“${suggestLine(player.characterId)}”`
           : declaration
             ? revealed
-              ? declaration.claim.kind === 'refute'
-                ? `“${refuteLine(player.characterId, label(declaration.claim.cardId))}”`
-                : `“${passLine(player.characterId)}”`
+              ? declarationLine(declaration.claim, player.characterId, label)
               : '…'
             : null
 
@@ -314,7 +365,7 @@ function Seat({
         `seat--${slot}`,
         isTurn ? 'seat--turn' : '',
         player.isMe ? 'seat--me' : '',
-        caught ? 'seat--caught' : '',
+        caught || shot ? 'seat--caught' : '',
         revealing ? 'seat--reveal' : '',
         isSuggester ? 'seat--suggester' : '',
       ]
@@ -324,7 +375,7 @@ function Seat({
       {/*
         사유 라벨을 붙이는 이유 — 옆의 대사(seat__line)는 LLM이 쓴 자유 텍스트라 엔진이
         기록한 claim.cardId와 다른 카드를 부를 수 있다(대사는 룰에 관여하지 않는다,
-        engine/round.ts:99). 실제로 «백나경 그 패, 내 손에 있다»처럼 제안에도 없는
+        engine/round.ts의 declareAll 주석). 실제로 «백나경 그 패, 내 손에 있다»처럼 제안에도 없는
         이름을 대는 사례가 나왔다. 좌석 이름과 용의자 카드 이름이 같아서(setup.ts:57)
         생기는 혼동이다. 이 카드가 엔진이 실제로 받은 유일한 사실이므로, 무엇인지
         말해 줘야 대사와 어긋날 때 플레이어가 어느 쪽을 믿을지 안다.
@@ -373,6 +424,7 @@ function Seat({
         <span className="seat__face">{participantInitial(view, player.id)}</span>
         {isTurn && <span className="seat__turn-badge">차례</span>}
         {isSuggester && <span className="seat__suggest-badge">제안</span>}
+        {shot && <span className="seat__shot-badge">寫 발각</span>}
       </span>
 
       <span className="seat__id">

@@ -74,8 +74,19 @@ describe('createLlmDecider', () => {
     await createLlmDecider().chooseClaim(viewOf())
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
-    expect(Object.keys(body).sort()).toEqual(['kind', 'sessionId', 'v', 'view'])
+    expect(Object.keys(body).sort()).toEqual(['kind', 'names', 'sessionId', 'v', 'view'])
     expect(body.view.seed).toBeUndefined()
+  })
+
+  /** 카드 이름표는 시야가 아니라 형제 필드다 — view는 시야 격리 계약이 걸린 자료다. */
+  it('카드 표시 이름을 함께 보낸다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
+
+    await createLlmDecider(() => null, { w1: '명주 목도리' }).chooseClaim(viewOf())
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body.names).toEqual({ w1: '명주 목도리' })
+    expect(body.view.names).toBeUndefined()
   })
 
   it('네트워크 실패를 던진다', async () => {
@@ -207,7 +218,7 @@ describe('createLlmDecider — 밀담', () => {
       json: async () => ({ ok: true, kind: 'parley', decision: null, line: '  못  봤소  ' }),
     } as unknown as Response)
 
-    expect(await createLlmDecider().speakInParley(viewOf(), '묻는다')).toBe('못 봤소')
+    expect((await createLlmDecider().speakInParley(viewOf(), '묻는다'))?.line).toBe('못 봤소')
   })
 
   it('밀담 응답은 대사보다 넉넉히 120자까지 남긴다', async () => {
@@ -219,7 +230,7 @@ describe('createLlmDecider — 밀담', () => {
 
     const reply = await createLlmDecider().speakInParley(viewOf(), '묻는다')
 
-    expect(reply).toBe(`${'가'.repeat(120)}…`)
+    expect(reply?.line).toBe(`${'가'.repeat(120)}…`)
   })
 
   it('실패하면 던진다 — 폴백 래퍼가 받는다', async () => {

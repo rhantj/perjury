@@ -3,9 +3,10 @@ import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
-import { cardLabel, participantLabel } from '../content/labels'
+import { cardLabel, cardNames, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
+import { pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { weaponArtFor } from '../content/weapon-art'
@@ -148,7 +149,12 @@ export default function GameScreen() {
    */
   const open = (next: string) => {
     setSeed(next)
-    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf))
+    /*
+     * 카드 이름표를 함께 넘긴다. 사건을 여기서 뽑으므로(pickScenario) 판단자를 만드는 시점에
+     * 이미 정해져 있다 — 이게 없으면 모델이 엔진 기본 이름으로 말해 화면과 어긋난다.
+     */
+    const names = cardNames(pickScenario(next))
+    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf, names))
     setStage('briefing')
   }
 
@@ -281,6 +287,8 @@ export default function GameScreen() {
    * 멈춘 것처럼 보이고, 판단이 끝나 버튼이 갈리는 순간 클릭이 엉뚱한 곳에 떨어졌다.
    */
   const myMove = store.awaitingHuman()
+  // 이번 라운드에 이미 건 밀담 수. 회선이 둘인 좌석에서 패널을 다시 열 때 쓴다.
+  const liveParleys = view.rounds[view.rounds.length - 1]?.parleys.length ?? 0
 
   const picking = (view.phase === 'suggest' || view.phase === 'accuse') && myMove
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
@@ -312,6 +320,22 @@ export default function GameScreen() {
       claim.kind === 'refute' ? !hand.includes(claim.cardId) : suggested.some((c) => hand.includes(c))
     fireActionFlash(lying ? 'perjury' : 'refute')
     store.declare(claim)
+  }
+
+  /**
+   * 변호사의 답변 거부. 능력을 켠 뒤 선언한다 — 무엇을 내든 엔진이 거부로 바꾼다.
+   *
+   * 「거부」를 반증 버튼 옆에 그냥 두지 않는 이유는, 그러면 변호사가 아닌 좌석에도
+   * 눌러지는 버튼이 생기기 때문이다. 이 버튼은 능력을 통과하므로 직업이 곧 자격이다.
+   */
+  const handleRefuse = () => {
+    store.usePower({})
+    /*
+     * 능력이 실제로 걸렸을 때만 선언한다. 걸리지 않았는데 그냥 선언하면 침묵이 되고,
+     * 카드를 쥐고 있었다면 «위증이 되지 않는다»고 적힌 버튼이 위증을 만든다.
+     */
+    if (!store.powerUsed()) return
+    store.declare({ kind: 'pass' })
   }
 
   return (
@@ -391,10 +415,11 @@ export default function GameScreen() {
             <Table view={view} scenario={scenario} draft={picked} />
 
             {/*
-              라운드마다 새로 마운트한다 — 지난 라운드에 고른 상대·쓴 말이 남지 않게 한다.
+              라운드마다, 그리고 밀담 한 건이 끝날 때마다 새로 마운트한다 —
+              지난 밀담에 고른 상대·쓴 말이 남으면 두 번째 회선이 첫 번째를 되풀이한다.
             */}
             <Parley
-              key={view.round}
+              key={`${view.round}:${liveParleys}`}
               view={view}
               open={view.phase === 'whisper' && myMove}
               onAsk={store.askParley}
@@ -429,7 +454,12 @@ export default function GameScreen() {
               제안 확정
             </button>
           ) : view.phase === 'refute' ? (
-            <RefuteBar view={view} scenario={scenario} onRefute={handleRefute} />
+            <RefuteBar
+              view={view}
+              scenario={scenario}
+              onRefute={handleRefute}
+              onRefuse={role.effect === 'refuse-demand' && !store.powerUsed() ? handleRefuse : null}
+            />
           ) : view.phase === 'challenge' ? (
             <ChallengeBar
               view={view}
@@ -601,10 +631,13 @@ function RefuteBar({
   view,
   scenario,
   onRefute,
+  onRefuse,
 }: {
   view: GameView
   scenario: Scenario
   onRefute: (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => void
+  /** 변호사만 받는다. 그 외 좌석에는 null이라 버튼 자체가 없다. */
+  onRefuse: (() => void) | null
 }) {
   const record = view.rounds[view.rounds.length - 1]
   if (!record) return null
@@ -628,6 +661,12 @@ function RefuteBar({
       <button type="button" className="btn btn--ghost" onClick={() => onRefute({ kind: 'pass' })}>
         없습니다
       </button>
+      {onRefuse && (
+        <button type="button" className="btn btn--refuse" onClick={onRefuse}>
+          답변 거부
+          <small>위증이 되지 않는다</small>
+        </button>
+      )}
     </div>
   )
 }

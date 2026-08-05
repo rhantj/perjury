@@ -247,8 +247,7 @@ describe('useGame', () => {
 })
 
 /**
- * 시드마다 사람이 받는 직업이 다르다. 아래 시드는 p0에게 각각 검시관·약제사·밀정을 준다
- * (밀정은 아직 effect가 null이라 «능력 없는 좌석»을 대표한다).
+ * 시드마다 사람이 받는 직업이 다르다. 아래 시드는 p0에게 각각 검시관·약제사를 준다.
  */
 describe('능력 발동', () => {
   beforeEach(() => {
@@ -278,12 +277,18 @@ describe('능력 발동', () => {
     expect(found.cardId).toBe('w1')
   })
 
-  it('능력이 없는 직업이면 아무 일도 하지 않는다', async () => {
-    await game().start('power-s0', 0)
-    expect(game().role().effect).toBeNull()
+  /**
+   * 대상이 빠진 발동은 화면 실수다. 판을 오류로 멈추지 않고 조용히 무시해야 한다.
+   *
+   * 「effect가 null인 직업」으로 이걸 확인하지 않는다 — 그 직업들을 하나씩 구현하는 중이라
+   * 시드가 어떤 직업을 뽑느냐에 테스트가 매달리게 된다.
+   */
+  it('대상이 빠진 발동은 아무 일도 하지 않는다', async () => {
+    await game().start('power-s3', 0)
+    expect(game().role().effect).toBe('inspect-hand')
     const before = game().state
 
-    game().usePower({ targetId: 'p1' })
+    game().usePower({})
 
     expect(game().state).toBe(before)
     expect(game().powerUsed()).toBe(false)
@@ -339,7 +344,10 @@ describe('밀담', () => {
   function talkingDeciders(reply: string | null): DeciderForRound {
     const source = (seed: string): DeciderForRound => {
       const base = createRuleDecider(seed)
-      const decider: Decider = { ...base, speakInParley: async () => reply }
+      const decider: Decider = {
+        ...base,
+        speakInParley: async () => (reply === null ? null : { line: reply, truthful: null }),
+      }
       return () => decider
     }
     return source('parley-store')
@@ -357,7 +365,7 @@ describe('밀담', () => {
 
     const reply = await game().askParley('p1', '왜 침묵했지')
 
-    expect(reply).toBe('못 봤소')
+    expect(reply?.line).toBe('못 봤소')
     expect(game().state).toBe(before)
   })
 
@@ -377,7 +385,7 @@ describe('밀담', () => {
     const reply = await game().askParley('p1', '왜 침묵했지')
 
     expect(reply).not.toBeNull()
-    expect(reply?.length).toBeGreaterThan(0)
+    expect(reply?.line.length).toBeGreaterThan(0)
   })
 
   it('상대가 다르면 다른 말이 나온다 — 여섯이 한목소리로 답하지 않는다', async () => {
@@ -388,5 +396,26 @@ describe('밀담', () => {
     )
 
     expect(new Set(replies).size).toBeGreaterThan(1)
+  })
+})
+
+describe('전화교환수의 회선', () => {
+  beforeEach(() => {
+    useGame.getState().reset()
+  })
+
+  /** 엔진은 직업을 모른다. 회선 수를 정하는 것은 배정표를 아는 store다. */
+  it('사람이 전화교환수면 라운드당 밀담이 두 건이다', async () => {
+    await game().start('op-14', 0)
+
+    expect(game().role().effect).toBe('eavesdrop')
+    expect(game().state?.parleyAllowance).toBe(2)
+  })
+
+  it('다른 직업이면 한 건이다', async () => {
+    await game().start('power-s3', 0)
+
+    expect(game().role().effect).toBe('inspect-hand')
+    expect(game().state?.parleyAllowance).toBe(1)
   })
 })

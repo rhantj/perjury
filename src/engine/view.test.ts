@@ -283,19 +283,19 @@ describe('viewFor — 밀담은 낀 두 사람에게만 보인다', () => {
   it('사람에게는 자기가 건 밀담이 보인다', () => {
     const { state, humanId } = afterParley()
 
-    expect(viewFor(state, humanId).rounds[0]?.parley?.replyLine).toBe('아무것도 못 봤소')
+    expect(viewFor(state, humanId).rounds[0]?.parleys[0]?.replyLine).toBe('아무것도 못 봤소')
   })
 
   it('상대에게는 보인다 — 이것이 다음 라운드 프롬프트로 되돌아간다', () => {
     const { state, targetId } = afterParley()
 
-    expect(viewFor(state, targetId).rounds[0]?.parley?.askLine).toBe('왜 침묵했지')
+    expect(viewFor(state, targetId).rounds[0]?.parleys[0]?.askLine).toBe('왜 침묵했지')
   })
 
   it('제3자에게는 밀담이 있었다는 사실조차 보이지 않는다', () => {
     const { state, bystanderId } = afterParley()
 
-    expect(viewFor(state, bystanderId).rounds[0]?.parley).toBeNull()
+    expect(viewFor(state, bystanderId).rounds[0]?.parleys).toEqual([])
   })
 })
 
@@ -320,5 +320,60 @@ describe('viewFor — 능력으로 확인한 것', () => {
 
     if (found?.kind !== 'hand') throw new Error('finding 종류가 다르다')
     expect(HANDS[2]).toContain(found.cardId)
+  })
+})
+
+describe('viewFor — 전화교환수의 엿듣기', () => {
+  /** 사람이 아니고 밀담 상대도 아닌 좌석이 엿듣는다. 그 벽을 넘는 능력은 이것뿐이다. */
+  function eavesdropped() {
+    const base = createGame({ seed: 'eaves', humanIndex: 0 })
+    const human = base.players.find((p) => p.isHuman)
+    const others = base.players.filter((p) => !p.isHuman)
+    const target = others[0]
+    const listener = others[1]
+    if (!human || !target || !listener) throw new Error('자리가 모자란다')
+
+    const whisper: GameState = {
+      ...base,
+      phase: 'whisper',
+      rounds: [
+        {
+          round: 1,
+          suggesterId: human.id,
+          suggestion: { suspect: 's1', weapon: 'w1', place: 'p1' },
+          suggestionLine: null,
+          declarations: [],
+          challenge: null,
+          exposed: [],
+          published: [],
+          parleys: [{ targetId: target.id, askLine: '왜 침묵했지', replyLine: '못 봤소' }],
+        },
+      ],
+    }
+    const bystander = others[2]
+    if (!bystander) throw new Error('제3자가 없다')
+    return { whisper, listenerId: listener.id, bystanderId: bystander.id }
+  }
+
+  it('능력이 없으면 남의 밀담은 보이지 않는다', () => {
+    const { whisper, listenerId } = eavesdropped()
+
+    expect(viewFor(whisper, listenerId).rounds[0]?.parleys).toEqual([])
+  })
+
+  it('엿듣는 좌석에는 자기가 끼지 않은 밀담도 실린다', () => {
+    const { whisper, listenerId } = eavesdropped()
+    const listening = usePower(whisper, listenerId, { kind: 'eavesdrop' })
+
+    expect(listening.rounds[0]?.parleys).toHaveLength(1)
+    expect(viewFor(listening, listenerId).rounds[0]?.parleys[0]?.replyLine).toBe('못 봤소')
+  })
+
+  /** 엿듣기는 자기 시야만 넓힌다. 남의 시야는 그대로여야 한다. */
+  it('엿들어도 다른 좌석의 시야는 그대로다', () => {
+    const { whisper, listenerId, bystanderId } = eavesdropped()
+    const listening = usePower(whisper, listenerId, { kind: 'eavesdrop' })
+
+    expect(viewFor(listening, bystanderId).rounds[0]?.parleys).toEqual([])
   })
 })

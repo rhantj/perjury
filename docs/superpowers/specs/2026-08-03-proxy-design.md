@@ -490,12 +490,15 @@ export function createLlmDecider(): Decider
 
 | 층 | 값 | 실패 시 |
 |---|---|---|
-| 프록시 → Anthropic | 25초 (`AbortSignal.timeout`) | 504 `upstream_timeout` |
-| 프론트 → 프록시 | 30초 (`AbortController`) | throw → 라운드 폴백 |
+| 프록시 → Anthropic | 15초 (`AbortSignal.timeout`) | 504 `upstream_timeout` |
+| 프론트 → 프록시 | 20초 (`AbortController`) | throw → 그 호출만 폴백 |
 | 라운드 전체 | 없음 | — |
 
 프록시 타임아웃을 프론트보다 짧게 잡는 이유는, 프록시가 먼저 끊어야 **어떤 실패인지 code로 알 수 있기**
 때문이다. 프론트가 먼저 끊으면 전부 "네트워크 실패"로 뭉개진다.
+
+값은 처음 25초/30초로 잡았다가 실측 후 15초/20초로 내렸다 — 근거는
+[결정 010](../../decisions/010-상류-대기-시간.md)에 있다. 순서만 지키면 값은 바뀔 수 있다.
 
 Workers 무료 티어의 CPU 시간 제한(요청당 10ms)은 문제가 되지 않는다.
 Anthropic 응답 대기는 I/O 대기라 CPU 시간에 산입되지 않는다.

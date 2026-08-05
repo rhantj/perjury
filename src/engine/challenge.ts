@@ -138,7 +138,17 @@ export function challenge(
   }
 
   const cardId = declaration.claim.cardId
-  const success = challenger.hand.includes(cardId)
+  /*
+   * 잡혔는가와 성공했는가를 나눈다.
+   *
+   * 밀정의 보호는 «잡힌» 위증만 막는다. 어차피 실패할 이의제기까지 삼키면
+   * 보호가 헛되이 사라지고, 밀정은 아무것도 얻지 못한 채 능력만 잃는다.
+   */
+  const caught = challenger.hand.includes(cardId)
+  const shield = caught
+    ? state.pending.find((p) => p.ownerId === targetId && p.use.kind === 'shield')
+    : undefined
+  const success = caught && !shield
 
   // 상황에서 시드를 파생시킨다. 함수는 순수하게 두면서 판은 재현 가능하게 유지한다.
   const rng = createRng(`${state.seed}:challenge:${record.round}:${challengerId}:${targetId}`)
@@ -158,7 +168,8 @@ export function challenge(
   }
 
   return closeRound(
-    state,
+    // 쓴 보호는 여기서 거둔다. 「위증 1회」이므로 라운드가 아니라 한 번 막는 것으로 끝난다.
+    shield ? { ...state, pending: state.pending.filter((p) => p !== shield) } : state,
     record,
     { challengerId, targetId, cardId, success, reveals, line },
     applyReveals(state, reveals),

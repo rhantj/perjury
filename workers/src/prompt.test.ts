@@ -26,7 +26,9 @@ function withRound(patch: Partial<RoundView>): GameView {
     suggestionLine: null,
     declarations: [{ playerId: speaker.id, claim: { kind: 'pass' }, line: null }],
     challenge: null,
-    parley: null,
+    exposed: [],
+    published: [],
+    parleys: [],
     ...patch,
   }
   return { ...view, round: 2, rounds: [round] }
@@ -86,7 +88,7 @@ describe('observationBlock — 오간 말이 기록에 실린다', () => {
 
   it('밀담이 있으면 오간 두 마디가 모두 실린다', () => {
     const view = withRound({
-      parley: { targetId: view0Speaker(), askLine: '왜 침묵했지', replyLine: '못 봤소' },
+      parleys: [{ targetId: view0Speaker(), askLine: '왜 침묵했지', replyLine: '못 봤소' }],
     })
     const text = userText(buildMessages('refute', view))
 
@@ -96,6 +98,72 @@ describe('observationBlock — 오간 말이 기록에 실린다', () => {
 
   it('밀담이 없으면 밀담 줄이 아예 나오지 않는다', () => {
     expect(userText(buildMessages('refute', withRound({})))).not.toContain('밀담')
+  })
+})
+
+describe('observationBlock — 사진사 발각', () => {
+  it('발각된 사람이 있으면 확정된 사실로 실린다', () => {
+    const text = userText(buildMessages('refute', withRound({ exposed: [view0Speaker()] })))
+
+    expect(text).toContain('사진으로 드러났다')
+    expect(text).toContain('확정된 사실')
+  })
+
+  /** 잡은 사람이 없는 것이 이의제기와의 차이다. 촬영자를 흘리면 사진사가 노출된다. */
+  it('누가 찍었는지는 나오지 않는다', () => {
+    const text = userText(buildMessages('refute', withRound({ exposed: [view0Speaker()] })))
+
+    expect(text).not.toContain('사진사')
+    expect(text).not.toContain('촬영')
+  })
+
+  it('발각이 없으면 그 줄이 아예 나오지 않는다', () => {
+    expect(userText(buildMessages('refute', withRound({})))).not.toContain('사진')
+  })
+})
+
+describe('observationBlock — 신문기자 공개', () => {
+  it('참이었으면 참으로 실린다', () => {
+    const view = withRound({ published: [{ playerId: view0Speaker(), truthful: true }] })
+
+    expect(userText(buildMessages('refute', view))).toContain('참이었음이 신문에 실렸다')
+  })
+
+  it('거짓이었으면 거짓으로 실린다', () => {
+    const view = withRound({ published: [{ playerId: view0Speaker(), truthful: false }] })
+
+    expect(userText(buildMessages('refute', view))).toContain('거짓이었음이 신문에 실렸다')
+  })
+
+  /** 공개한 사람이 드러나면 신문기자가 노출된다. 실리는 것은 진위뿐이다. */
+  it('누가 실었는지는 나오지 않는다', () => {
+    const view = withRound({ published: [{ playerId: view0Speaker(), truthful: false }] })
+    const text = userText(buildMessages('refute', view))
+
+    expect(text).not.toContain('신문기자')
+    expect(text).not.toContain('기자')
+  })
+})
+
+describe('observationBlock — 능력으로 확인한 것', () => {
+  /**
+   * 지금은 정보상이 사람 전용이라 이 finding이 워커까지 오지 않는다. 그래도 문장을 만든다 —
+   * switch가 한 갈래를 빠뜨리면 undefined 한 줄이 «확정된 사실» 목록에 섞인다.
+   */
+  it('밀담 진위를 확정된 사실로 적는다', () => {
+    const base = baseView()
+    const view: GameView = {
+      ...base,
+      findings: [
+        { round: 1, ownerId: 'x', finding: { kind: 'parley', targetId: view0Speaker(), truthful: false } },
+      ],
+    }
+
+    const text = userText(buildMessages('refute', view))
+
+    expect(text).toContain('밀담에서')
+    expect(text).toContain('거짓을 말했다')
+    expect(text).not.toContain('undefined')
   })
 })
 
@@ -114,6 +182,6 @@ describe('schemaFor — 밀담', () => {
   it('line만 요구한다 — 고를 것이 없다', () => {
     const schema = schemaFor('parley', baseView())
 
-    expect(schema['required']).toEqual(['line'])
+    expect(schema['required']).toEqual(['line', 'truthful'])
   })
 })
