@@ -1000,6 +1000,14 @@
   text-align: center;
   color: oklch(96% 0.01 84);
 }
+/* 이 카드가 «실제로 낸 것»임을 말해 주는 라벨 — 옆 대사와 어긋날 때의 판단 기준이다. */
+.seat__reveal-card small {
+  font-size: 0.56rem;
+  line-height: 1.2;
+  text-align: center;
+  letter-spacing: 0.02em;
+  color: oklch(78% 0.01 84);
+}
 @keyframes seat-reveal-card-pop {
   0% {
     opacity: 0;
