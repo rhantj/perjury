@@ -264,6 +264,36 @@ describe('반증 — 제안에 없는 카드', () => {
     expect(declarations.every((d) => d.claim.kind === 'pass')).toBe(true)
   })
 
+  /**
+   * 선언을 침묵으로 바꾸면 대사도 함께 버려야 한다. 남기면 기록에는 「넘김」인데
+   * 좌석에서는 "그건 내가 쥐고 있소"라고 말한다 — 플레이어가 본 그 어긋남이 여기서 난다.
+   */
+  it('stepAi — 좁혀서 침묵이 된 선언의 대사는 남지 않는다', async () => {
+    const loud: Decider = {
+      ...stubborn,
+      chooseClaim: () =>
+        Promise.resolve({ value: { kind: 'refute', cardId: 's6' } as Claim, line: '그 칼은 내가 쥐고 있소' }),
+    }
+
+    const next = await stepAi(suggested(), loud)
+
+    const declarations = next.rounds[next.rounds.length - 1]?.declarations ?? []
+    expect(declarations.every((d) => d.line === null)).toBe(true)
+  })
+
+  /** 좁혀지지 않은 선언의 대사까지 버리면 안 된다. */
+  it('stepAi — 성립하는 선언의 대사는 그대로 남는다', async () => {
+    const legal: Decider = {
+      ...stubborn,
+      chooseClaim: () => Promise.resolve({ value: { kind: 'pass' } as Claim, line: '본 적 없소' }),
+    }
+
+    const next = await stepAi(suggested(), legal)
+
+    const declarations = next.rounds[next.rounds.length - 1]?.declarations ?? []
+    expect(declarations.some((d) => d.line === '본 적 없소')).toBe(true)
+  })
+
   it('declareWithHuman — AI 선언만 좁히고 사람 선언은 그대로 낸다', async () => {
     const state = suggested()
 

@@ -64,6 +64,18 @@ function legalClaim(suggestion: Suggestion, claim: Claim): Claim {
 }
 
 /**
+ * 선언을 좁히면서 대사도 같이 본다.
+ *
+ * **좁혀진 대사는 버린다.** 대사는 버린 그 선언을 설명하려고 쓴 말이라,
+ * 남기면 기록에는 「넘김」인데 좌석에서는 "그건 내가 쥐고 있소"라고 말한다.
+ * 플레이어에게는 AI가 룰을 어긴 것처럼 보인다.
+ */
+function legalSpoken(suggestion: Suggestion, spoken: Spoken<Claim>): Spoken<Claim> {
+  const value = legalClaim(suggestion, spoken.value)
+  return value === spoken.value ? spoken : { ...spoken, value, line: null }
+}
+
+/**
  * 좌석별 (선언, 대사)를 엔진이 받는 두 갈래로 나눈다. declareAll이 룰과 연출을 따로 받기 때문이다.
  *
  * **여기서는 좁히지 않는다.** legalClaim은 부르는 쪽에서 «AI 선언에만» 걸어야 한다 —
@@ -196,7 +208,7 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
       const spokens = await Promise.all(
         others.map(async (p) => {
           const spoken = await decider.chooseClaim(viewFor(state, p.id))
-          return [p.id, { ...spoken, value: legalClaim(record.suggestion, spoken.value) }] as const
+          return [p.id, legalSpoken(record.suggestion, spoken)] as const
         }),
       )
       const armed = withPowers(
@@ -251,7 +263,7 @@ export async function declareWithHuman(
       // 사람의 선언은 그대로 낸다 — 대사도 없고, legalClaim으로 조용히 바꾸지도 않는다.
       if (p.id === human.id) return [p.id, { value: humanClaim, line: null }] as const
       const spoken = await decider.chooseClaim(viewFor(state, p.id))
-      return [p.id, { ...spoken, value: legalClaim(record.suggestion, spoken.value) }] as const
+      return [p.id, legalSpoken(record.suggestion, spoken)] as const
     }),
   )
   const armed = withPowers(
