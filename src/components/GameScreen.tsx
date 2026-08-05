@@ -53,7 +53,28 @@ interface FlashEvent {
   art?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
   ms: number
+  /**
+   * 이 알림이 사라진 뒤 다음 알림까지 비워 두는 시간.
+   *
+   * 「의심 → 오판이 너무 빨리 넘어간다」는 피드백 — 두 알림이 한 사건의 두 박자인데
+   * 끝나자마자 곧바로 다음 게 뜨니 «지목»을 읽는 도중에 «판정»이 덮어썼다. 모든 플래시
+   * 키프레임이 opacity 0으로 끝나므로, 이 틈 동안 화면은 원탁으로 잠깐 돌아온다 —
+   * 그 한 박자가 있어야 둘이 별개의 사건으로 읽힌다.
+   */
+  gapMs?: number
 }
+
+/*
+ * 이의제기 연출의 두 박자 길이. 상수로 빼는 건 challengeCall을 «내가 걸 때»와
+ * «AI가 걸 때» 두 군데서 각각 큐에 넣기 때문이다 — 숫자를 양쪽에 적어 두면 한쪽만
+ * 고쳐져 같은 사건이 사람마다 다른 속도로 흐른다.
+ * 셋 다 game.css의 .action-flash--challengeCall / --caught / --wrongCall
+ * 애니메이션 길이와 쌍이다. 한쪽만 고치면 연출이 끝나기 전에 잘리거나, 끝난 뒤에도
+ * 빈 화면이 남는다.
+ */
+const CHALLENGE_CALL_MS = 2000
+const CHALLENGE_BEAT_MS = 520
+const CHALLENGE_RESULT_MS = 2800
 
 /** 손패 카드 사진. MyPlate.artFor와 같은 소스 — id 접두사가 종류별로 갈려 하나만 걸린다. */
 function cardArtFor(scenario: Scenario, id: CardId): string | undefined {
@@ -92,7 +113,7 @@ export default function GameScreen() {
     window.setTimeout(() => {
       flashBusyRef.current = false
       runFlashQueue()
-    }, next.ms)
+    }, next.ms + (next.gapMs ?? 0))
   }, [])
   const enqueueFlash = useCallback(
     (event: FlashEvent) => {
@@ -183,7 +204,8 @@ export default function GameScreen() {
         kind: 'challengeCall',
         text: `${challenger} → ${target} 위증 의심!`,
         detail: '이의를 제기했다',
-        ms: 1200,
+        ms: CHALLENGE_CALL_MS,
+        gapMs: CHALLENGE_BEAT_MS,
       })
     }
 
@@ -193,7 +215,7 @@ export default function GameScreen() {
         text: `${target} 위증 발각!`,
         detail: penalty ? `${challenger}이(가) 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: 2200,
+        ms: CHALLENGE_RESULT_MS,
       })
     } else {
       enqueueFlash({
@@ -203,7 +225,7 @@ export default function GameScreen() {
           ? `${target}은(는) 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
           : `${target}은(는) 위증이 아니었다`,
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: 2200,
+        ms: CHALLENGE_RESULT_MS,
       })
     }
   }, [view?.phase, view?.round, scenario, enqueueFlash])
@@ -411,7 +433,8 @@ export default function GameScreen() {
                   kind: 'challengeCall',
                   text: `${participantLabel(view, targetId)} 위증 의심!`,
                   detail: '이의를 제기한다',
-                  ms: 1200,
+                  ms: CHALLENGE_CALL_MS,
+                  gapMs: CHALLENGE_BEAT_MS,
                 })
                 store.challenge(targetId)
               }}
