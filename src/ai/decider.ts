@@ -1,3 +1,4 @@
+import type { PowerIntent } from '../engine/power'
 import type { Claim, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 
@@ -12,6 +13,18 @@ export interface Spoken<T> {
   readonly value: T
   /** 없으면 null. 규칙 기반 판단자와 사람에겐 대사가 없다. */
   readonly line: string | null
+  /**
+   * 이 판단과 함께 직업 능력을 쓰겠다는 의사. 없으면 안 쓴다.
+   *
+   * **종류가 없는 것이 핵심이다.** 종류까지 실으면 LLM이 남의 능력을 쓸 수 있다.
+   * 종류는 flow가 좌석의 직업에서 뽑아 붙인다(결정 007).
+   *
+   * 판단 호출에 얹는 이유는 호출 수 때문이다. 능력 전용 메서드를 두면 라운드당 12번이
+   * 18번이 되고, 호출당 3.6%인 실패율(결정 006)에 노출되는 면이 1.5배가 된다.
+   * 제안자는 chooseSuggestion을, 나머지는 chooseClaim을 정확히 한 번씩 부르므로
+   * 이 둘을 합치면 매 라운드 전원이 정확히 한 번 물어보게 된다.
+   */
+  readonly power?: PowerIntent | null
 }
 
 /** 대사 없는 판단. 규칙 기반 구현이 쓴다. */

@@ -1,4 +1,5 @@
-import type { Faction, Phase } from '../../src/engine/types'
+import type { PowerBrief } from '../../src/ai/power-brief'
+import type { Faction, Grant, Phase } from '../../src/engine/types'
 import type { GameView } from '../../src/engine/view'
 
 /**
@@ -25,6 +26,8 @@ export const LIMITS = {
   declarations: 6,
   reveals: 6,
   votes: 6,
+  /** 능력은 한 판에 한 번뿐이므로 한 사람 앞으로 오는 것은 사실상 1건이다. 넉넉히 잡는다. */
+  findings: 6,
   /** 이름·카드 id 등 문자열 전반. */
   stringLength: 200,
   /**
@@ -46,6 +49,8 @@ export type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley
 const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse', 'parley']
 const PHASES: readonly Phase[] = ['suggest', 'refute', 'challenge', 'whisper', 'accuse', 'over']
 const FACTIONS: readonly Faction[] = ['citizen', 'culprit']
+const FINDING_KINDS = ['hand', 'weapon', 'claim'] as const
+const POWER_NEEDS = ['player', 'weapon', 'none'] as const
 
 export interface DecideRequest {
   readonly v: 1
@@ -55,6 +60,13 @@ export interface DecideRequest {
   /** 밀담에서 플레이어가 한 말. 다른 kind에서는 반드시 null이다. */
   readonly ask: string | null
   readonly view: GameView
+  /**
+   * 이 좌석이 아직 쓸 수 있는 직업 능력. 없으면 null이다.
+   *
+   * **워커는 직업 이름도 능력 종류도 모른다.** 프롬프트에 붙일 문구와 «무엇을 고르게
+   * 할 것인가»만 받는다 — 종류를 알면 룰이 프론트와 워커 두 군데로 갈린다(설계 §5.3).
+   */
+  readonly power: PowerBrief | null
 }
 
 export type Validated<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string }
@@ -194,6 +206,22 @@ function challengeRecord(value: unknown, where: string) {
   }
 }
 
+/**
+ * 좌석이 쓸 수 있는 능력 개요.
+ *
+ * text는 프롬프트에 그대로 들어가므로 **좌석 대사와 같은 상한**을 건다 —
+ * 프론트가 보내는 값이라 위조 가능하고, 여기가 인젝션 표면을 좁히는 자리다.
+ */
+function powerBrief(value: unknown, where: string): PowerBrief {
+  const obj = record(value, where)
+  onlyKeys(obj, ['text', 'needs'], where)
+  const text_ = obj['text']
+  if (typeof text_ !== 'string') bad(where, 'text가 문자열이 아니다')
+  if (text_.length === 0) bad(where, 'text가 비었다')
+  if (text_.length > LIMITS.lineLength) bad(where, `text가 ${LIMITS.lineLength}자를 넘는다`)
+  return { text: text_, needs: oneOf(obj, 'needs', POWER_NEEDS, where) }
+}
+
 /** 밀담 기록. viewFor가 이미 낀 두 사람에게만 실었으므로, 여기서는 모양과 길이만 본다. */
 function parleyRecord(value: unknown, where: string) {
   const obj = record(value, where)
@@ -208,6 +236,41 @@ function parleyRecord(value: unknown, where: string) {
     targetId: text(obj, 'targetId', where),
     askLine: bounded('askLine'),
     replyLine: bounded('replyLine'),
+  }
+}
+
+/**
+ * 능력으로 확인한 것 한 건. viewFor가 이미 주인만 골라 실었으므로 모양만 본다.
+ *
+ * 프롬프트에 «사실»로 들어가는 값이라 종류를 좁게 받는다 — 모르는 kind를 통과시키면
+ * prompt.ts의 switch가 undefined를 한 줄 뱉는다.
+ */
+function finding(value: unknown, where: string): Grant['finding'] {
+  const obj = record(value, where)
+  const kind = oneOf(obj, 'kind', FINDING_KINDS, where)
+
+  switch (kind) {
+    case 'hand':
+      onlyKeys(obj, ['kind', 'targetId', 'cardId'], where)
+      return { kind, targetId: text(obj, 'targetId', where), cardId: text(obj, 'cardId', where) }
+    case 'weapon':
+      onlyKeys(obj, ['kind', 'cardId', 'isSolution'], where)
+      return { kind, cardId: text(obj, 'cardId', where), isSolution: flag(obj, 'isSolution', where) }
+    case 'claim':
+      onlyKeys(obj, ['kind', 'targetId', 'truthful'], where)
+      return { kind, targetId: text(obj, 'targetId', where), truthful: flag(obj, 'truthful', where) }
+  }
+}
+
+function grant(value: unknown, index: number): Grant {
+  const where = `findings[${index}]`
+  const obj = record(value, where)
+  onlyKeys(obj, ['round', 'ownerId', 'finding'], where)
+
+  return {
+    round: count(obj, 'round', where),
+    ownerId: text(obj, 'ownerId', where),
+    finding: finding(obj['finding'], `${where}.finding`),
   }
 }
 
@@ -248,7 +311,19 @@ function gameView(value: unknown): GameView {
   const obj = record(value, where)
   onlyKeys(
     obj,
-    ['viewerId', 'round', 'totalRounds', 'phase', 'turnIndex', 'players', 'rounds', 'solution', 'outcome'],
+    [
+      'viewerId',
+      'round',
+      'totalRounds',
+      'phase',
+      'turnIndex',
+      'players',
+      'rounds',
+      'findings',
+      'powerSpent',
+      'solution',
+      'outcome',
+    ],
     where,
   )
 
@@ -266,6 +341,17 @@ function gameView(value: unknown): GameView {
     turnIndex: count(obj, 'turnIndex', where),
     players: players.map(player),
     rounds: list(obj, 'rounds', LIMITS.rounds, where).map(roundView),
+    /*
+     * 없으면 빈 배열로 본다. 워커와 프론트는 따로 배포되므로, 필수로 받으면 워커가 먼저
+     * 올라간 순간 캐시된 옛 번들이 전부 400을 맞고 폴백으로 떨어진다.
+     * **워커를 먼저 배포하고 프론트를 나중에** 올리면 이 관용 하나로 창이 닫힌다.
+     */
+    findings:
+      obj['findings'] === undefined
+        ? []
+        : list(obj, 'findings', LIMITS.findings, where).map(grant),
+    // findings와 같은 이유로 관용한다 — 워커를 먼저 배포하는 순서를 지키기 위한 창이다.
+    powerSpent: obj['powerSpent'] === undefined ? false : flag(obj, 'powerSpent', where),
     solution: obj['solution'] === null ? null : suggestion(obj['solution'], `${where}.solution`),
     outcome: null,
   }
@@ -286,7 +372,7 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
 
   try {
     const obj = record(raw, 'body')
-    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view'], 'body')
+    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view', 'power'], 'body')
     if (obj['v'] !== 1) bad('body', '모르는 계약 버전이다')
 
     const kind = oneOf(obj, 'kind', KINDS, 'body')
@@ -313,6 +399,10 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
         v: 1,
         kind,
         sessionId: text(obj, 'sessionId', 'body'),
+        power:
+          obj['power'] === undefined || obj['power'] === null
+            ? null
+            : powerBrief(obj['power'], 'body.power'),
         ask,
         view: gameView(obj['view']),
       },

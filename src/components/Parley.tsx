@@ -11,8 +11,6 @@ interface ParleyProps {
   view: GameView
   /** 사람이 지금 밀담할 수 있는가. 밀담 페이즈이고 AI가 판단 중이 아닐 때만 true다. */
   open: boolean
-  /** 이번 라운드가 규칙 기반 폴백인가. true면 처음부터 닫는다 — 자유 텍스트는 규칙으로 못 만든다. */
-  blocked: boolean
   onAsk: (targetId: PlayerId, ask: string) => Promise<string | null>
   onDone: (targetId: PlayerId, ask: string, reply: string) => void
   onSkip: () => void
@@ -27,7 +25,7 @@ type Step = 'pick' | 'write' | 'waiting' | 'read' | 'failed'
  * **라운드마다 새로 마운트한다**(부르는 쪽이 key={view.round}를 준다). 그래야 지난 라운드의
  * 고른 상대·쓴 말이 남지 않는다. useEffect로 지우는 것보다 상태가 하나 적다.
  */
-export default function Parley({ view, open, blocked, onAsk, onDone, onSkip }: ParleyProps) {
+export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProps) {
   const [step, setStep] = useState<Step>('pick')
   const [targetId, setTargetId] = useState<PlayerId | null>(null)
   const [ask, setAsk] = useState('')
@@ -48,28 +46,7 @@ export default function Parley({ view, open, blocked, onAsk, onDone, onSkip }: P
     )
   }
 
-  /*
-   * 이번 라운드가 이미 폴백이면 **상대를 고르기 전에** 닫는다(설계 §9).
-   * 규칙 기반 판단자는 밀담에 답하지 않으므로, 열어두면 상대를 고르고 200자를 쓰고
-   * 기다린 뒤에야 «이뤄지지 않았다»를 보게 된다. 배포본에서 실제로 그렇게 나갔다.
-   *
-   * **닫아도 넘어가는 문은 남긴다.** 라운드를 넘기는 것은 밀담의 두 출구뿐이라,
-   * 여기서 버튼을 빼면 판이 밀담에 갇힌다.
-   */
-  if (blocked) {
-    return (
-      <section className="parley">
-        <span className="parley__kicker">密談 · 밀담</span>
-        <p className="parley__note">연결이 끊겨 이번 라운드의 밀담은 열리지 않는다.</p>
-        <div className="parley__opts">
-          <button type="button" className="btn btn--ghost" onClick={onSkip}>
-            넘어간다
-          </button>
-        </div>
-      </section>
-    )
-  }
-
+  /** 답이 오지 않으면 'failed'로 간다 — 폴백 라운드라고 미리 닫지는 않는다. */
   const send = async () => {
     if (!targetId) return
     const said = ask.trim()

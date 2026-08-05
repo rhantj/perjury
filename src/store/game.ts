@@ -2,11 +2,15 @@ import { create } from 'zustand'
 import { createRoundFallback, perRound } from '../ai/decider'
 import type { DeciderForRound, FallbackReason } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
+import { powerLookup } from '../ai/power-brief'
+import type { PowerLookup } from '../ai/power-brief'
 import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
 import { parley, skipParley } from '../engine/parley'
+import { buildPowerUse, usePower } from '../engine/power'
+import type { PowerIntent } from '../engine/power'
 import { accuse } from '../engine/progress'
 import { suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
@@ -46,7 +50,7 @@ interface GameStore {
   start: (
     seed: string,
     humanIndex?: number,
-    makeDeciders?: (seed: string) => DeciderForRound,
+    makeDeciders?: (seed: string, powerOf: PowerLookup) => DeciderForRound,
   ) => Promise<void>
   /** 판을 버리고 표지로 돌아간다. 브리핑에서 되돌아 나오는 경로가 이것뿐이다. */
   reset: () => void
@@ -58,6 +62,16 @@ interface GameStore {
   role: () => Role
   /** 사람이 지금 결정해야 하는가. 화면은 이 값으로 조작 가능 여부를 정한다. */
   awaitingHuman: () => boolean
+
+  /** 내 능력이 이미 소진됐는가. 능력은 한 판에 한 번뿐이다. */
+  powerUsed: () => boolean
+  /**
+   * 내 능력을 발동한다. **종류를 인자로 받지 않는다** — 좌석에 배정된 직업에서 나온다.
+   * 화면이 종류를 정하게 두면 화면 버그가 곧 룰 위반이 된다(작업 규칙 2).
+   *
+   * 페이즈 전이가 아니라서 동기다. AI를 깨우지도, 라운드를 넘기지도 않는다.
+   */
+  usePower: (intent: PowerIntent) => void
 
   suggest: (suggestion: Suggestion) => Promise<void>
   declare: (claim: Claim) => Promise<void>
@@ -146,7 +160,13 @@ export const useGame = create<GameStore>((set, get) => {
     start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
       gameId += 1
       const myGameId = gameId
-      const chosen = makeDeciders(seed)
+      const initial = createGame({ seed, humanIndex })
+      /*
+       * 배정표는 판을 만들어야 나온다. 판단자가 이걸 스스로 구하려면 시드가 필요한데,
+       * LLM 구현체에 시드를 주면 판을 재계산해 정답을 뽑을 수 있다(rule-decider 주석).
+       * 그래서 «좌석 → 내 능력»으로 좁힌 조회 함수만 넘긴다.
+       */
+      const chosen = makeDeciders(seed, powerLookup(assignRoles(seed, initial.players)))
 
       /**
        * 어떤 팩토리를 꽂아도 규칙 기반 폴백이 붙는다.
@@ -160,7 +180,6 @@ export const useGame = create<GameStore>((set, get) => {
         )
       })
 
-      const initial = createGame({ seed, humanIndex })
       set({ state: initial, error: null, aiThinking: true, fallbackRound: false, fallbackReason: null })
 
       try {
@@ -189,6 +208,30 @@ export const useGame = create<GameStore>((set, get) => {
       const mine = assignRoles(state.seed, state.players)[humanId(state)]
       if (!mine) throw new Error('직업이 배정되지 않았다')
       return mine
+    },
+
+    powerUsed: () => {
+      const state = get().state
+      return state !== null && state.powersUsed.includes(humanId(state))
+    },
+
+    usePower: (intent) => {
+      const state = get().state
+      // AI가 판단하는 동안은 다른 조작과 마찬가지로 잠근다.
+      if (!state || get().aiThinking) return
+
+      const effect = get().role().effect
+      if (effect === null) return
+
+      const use = buildPowerUse(effect, intent)
+      // 대상이 빠진 발동은 화면 실수다. 판을 오류로 멈추지 않고 조용히 무시한다.
+      if (!use) return
+
+      try {
+        set({ state: usePower(state, humanId(state), use), error: null })
+      } catch (e) {
+        set({ error: messageOf(e) })
+      }
     },
 
     awaitingHuman: () => {

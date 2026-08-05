@@ -1,5 +1,6 @@
 import type { Claim, PlayerId, Suggestion } from '../../src/engine/types'
 import type { GameView } from '../../src/engine/view'
+import type { PowerBrief } from '../../src/ai/power-brief'
 import { buildMessages, schemaFor } from './prompt'
 import type { ChatMessage } from './prompt'
 import type { DecideKind } from './schema'
@@ -37,7 +38,19 @@ export type Decision =
   | { readonly kind: 'parley'; readonly decision: null }
 
 export type LlmResult =
-  | { readonly ok: true; readonly decision: Decision; readonly line: string; readonly usage: Usage }
+  | {
+      readonly ok: true
+      readonly decision: Decision
+      readonly line: string
+      /**
+       * 능력을 쓰겠다는 답. 안 쓰면 null이다.
+       *
+       * **워커는 이 값을 해석하지 않는다.** 「player id인가 카드 id인가」는 좌석의 직업을
+       * 아는 프론트가 정한다 — 여기서 갈래를 두면 룰이 두 군데로 나뉜다(설계 §5.3).
+       */
+      readonly usePowerOn: string | null
+      readonly usage: Usage
+    }
   | { readonly ok: false; readonly code: UpstreamCode; readonly detail: string }
 
 export interface Usage {
@@ -139,8 +152,9 @@ export async function decide(
   kind: DecideKind,
   view: GameView,
   ask: string | null = null,
+  power: PowerBrief | null = null,
 ): Promise<LlmResult> {
-  const { system, user } = toRequestShape(buildMessages(kind, view, ask))
+  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power))
 
   let response: Response
   try {
@@ -162,7 +176,7 @@ export async function decide(
         thinking: { type: 'disabled' },
         system,
         messages: [{ role: 'user', content: user }],
-        output_config: { format: { type: 'json_schema', schema: schemaFor(kind, view) } },
+        output_config: { format: { type: 'json_schema', schema: schemaFor(kind, view, power) } },
       }),
       signal: AbortSignal.timeout(config.timeoutMs),
     })
@@ -217,5 +231,13 @@ export async function decide(
       }
     : { promptTokens: 0, completionTokens: 0, cachedTokens: 0 }
 
-  return { ok: true, decision, line: textField(parsed, 'line') ?? '', usage }
+  /* "none"은 «안 쓴다»다. 스키마가 필수로 열려 있어도 이 값으로 빠져나갈 수 있다. */
+  const chosen = textField(parsed, 'usePowerOn')
+  return {
+    ok: true,
+    decision,
+    line: textField(parsed, 'line') ?? '',
+    usePowerOn: !chosen || chosen === 'none' ? null : chosen,
+    usage,
+  }
 }

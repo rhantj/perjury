@@ -1,6 +1,8 @@
 import type { Claim, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import type { Decider, DeciderForRound, FallbackReason, Spoken } from './decider'
+import type { PowerBrief, PowerLookup } from './power-brief'
+import type { PowerIntent } from '../engine/power'
 import { PROXY_URL } from './proxy-url'
 
 /**
@@ -96,7 +98,27 @@ function toTarget(value: unknown): PlayerId | null {
   return target
 }
 
-export function createLlmDecider(): Decider {
+/**
+ * 모델이 고른 «대상»을 능력 의사로 옮긴다.
+ *
+ * 워커는 이 값을 해석하지 않는다 — player id인지 카드 id인지는 좌석의 직업을 아는
+ * 이쪽만 안다. 종류를 워커에 알려주면 그 대응표가 두 군데에 살게 된다(설계 §5.3).
+ *
+ * 값이 실제로 존재하는 좌석·카드인지는 확인하지 않는다. 엔진이 거절하고 flow가 삼킨다.
+ */
+function toIntent(power: PowerBrief | null, chosen: string | null): PowerIntent | null {
+  if (!power || !chosen || chosen === 'none') return null
+  switch (power.needs) {
+    case 'player':
+      return { targetId: chosen }
+    case 'weapon':
+      return { cardId: chosen }
+    case 'none':
+      return {}
+  }
+}
+
+export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
   /**
    * 예산 소진은 라운드 폴백이 아니라 **세션 폴백**이다.
    * 라운드마다 재시도하면 남은 라운드 내내 헛왕복이 쌓인다.
@@ -110,13 +132,25 @@ export function createLlmDecider(): Decider {
   async function ask(kind: DecideKind, view: GameView, said?: string): Promise<Spoken<unknown>> {
     if (exhausted) throw new LlmUnavailableError('budget_exhausted')
 
+    /*
+     * 능력을 물어보는 턴은 **제안·반증뿐이다.** flow가 그 둘에서만 답을 걷기 때문이다
+     * (제안자는 suggest를, 나머지는 refute를 정확히 한 번씩 부르므로 이 둘이면 전원이
+     * 한 번씩 물어보게 된다). 다른 kind에도 실으면 모델이 답해도 버려지고, 프롬프트만
+     * 길어지고, 그 kind의 캐시 프리픽스까지 흔들린다.
+     *
+     * 이미 썼으면 역시 안 보낸다 — 쓸 수 없는 턴에 설명을 싣는 것도 같은 낭비다.
+     */
+    const asksPower = kind === 'suggest' || kind === 'refute'
+    const power = asksPower && !view.powerSpent ? powerOf(view.viewerId) : null
+
     let response: Response
     try {
       response = await fetch(`${PROXY_URL}/decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // said가 undefined면 JSON.stringify가 키를 통째로 지운다 — 다른 kind는 ask를 보내지 않는다.
-        body: JSON.stringify({ v: 1, kind, sessionId, view, ask: said }),
+        // undefined인 키는 JSON.stringify가 통째로 지운다 — ask·power 둘 다 그 성질을 쓴다.
+        body: JSON.stringify({ v: 1, kind, sessionId, view, ask: said, power: power ?? undefined }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     } catch {
@@ -138,12 +172,16 @@ export function createLlmDecider(): Decider {
     }
 
     // 대사 상한은 kind마다 다르다. 여기서는 자르지 않고 원문을 넘겨 부르는 쪽이 정하게 한다.
-    return { value: payload['decision'], line: typeof payload['line'] === 'string' ? payload['line'] : null }
+    return {
+      value: payload['decision'],
+      line: typeof payload['line'] === 'string' ? payload['line'] : null,
+      power: toIntent(power, asText(payload['usePowerOn'])),
+    }
   }
 
   /** 판단만 좁히고 대사는 좌석 상한으로 자른다. 대사는 룰에 관여하지 않으므로 검증 대상이 아니다. */
   function decide<T>(spoken: Spoken<unknown>, narrow: (value: unknown) => T): Spoken<T> {
-    return { value: narrow(spoken.value), line: toLine(spoken.line) }
+    return { value: narrow(spoken.value), line: toLine(spoken.line), power: spoken.power }
   }
 
   return {
@@ -162,7 +200,7 @@ export function createLlmDecider(): Decider {
  * 라운드마다 새로 만들면 exhausted 플래그가 매 라운드 지워져서
  * 예산이 소진된 뒤에도 라운드마다 헛왕복이 나간다.
  */
-export function llmDeciderForRound(): DeciderForRound {
-  const decider = createLlmDecider()
+export function llmDeciderForRound(powerOf?: PowerLookup): DeciderForRound {
+  const decider = createLlmDecider(powerOf)
   return () => decider
 }

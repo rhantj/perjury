@@ -378,3 +378,149 @@ describe('parseDecideRequest — 밀담', () => {
     expect(parsed.ok).toBe(false)
   })
 })
+
+describe('parseDecideRequest — 능력으로 확인한 것', () => {
+  it('findings를 통과시킨다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'hand', targetId: 'p3', cardId: 'w2' } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.findings).toHaveLength(1)
+  })
+
+  /** 워커와 프론트가 따로 배포되므로, 옛 번들이 보내는 요청도 받아야 한다. */
+  it('findings가 없으면 빈 배열로 본다', () => {
+    const result = parseDecideRequest(validBody())
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.findings).toEqual([])
+  })
+
+  it('모르는 finding 종류는 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'solution', targetId: 'p3', cardId: 'w2' } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('바깥에 모르는 필드가 섞이면 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'hand', targetId: 'p3', cardId: 'w2' }, seed: 'x' },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  /** 안쪽도 같은 벽이어야 한다 — 화이트리스트가 한 겹만 있으면 두 번째 벽이 아니다. */
+  it('finding 안쪽에 모르는 필드가 섞이면 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          {
+            round: 1,
+            ownerId: 'p1',
+            finding: { kind: 'hand', targetId: 'p3', cardId: 'w2', isPerjury: true },
+          },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('종류에 맞지 않는 필드 조합은 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        // weapon에는 targetId가 없다.
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'weapon', targetId: 'p3', isSolution: true } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+})
+
+describe('parseDecideRequest — 능력 개요', () => {
+  const brief = { text: '한 명의 손패 1장을 확인한다.', needs: 'player' }
+
+  it('power를 통과시킨다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = brief
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.power?.needs).toBe('player')
+  })
+
+  it('power가 없으면 null이다', () => {
+    const result = parseDecideRequest(validBody())
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.power).toBeNull()
+  })
+
+  it('모르는 needs는 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = { text: '무언가', needs: 'solution' }
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  /** text는 프롬프트에 그대로 들어간다 — 여기가 인젝션 표면을 좁히는 자리다. */
+  it('긴 text는 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = { text: '가'.repeat(200), needs: 'none' }
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('power에 모르는 필드가 섞이면 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = { ...brief, effect: 'inspect-hand' }
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('powerSpent를 통과시키고 없으면 false로 본다', () => {
+    const spent = parseDecideRequest(
+      validBody((body) => {
+        view(body)['powerSpent'] = true
+      }),
+    )
+    const absent = parseDecideRequest(validBody())
+
+    expect(spent.ok && spent.value.view.powerSpent).toBe(true)
+    expect(absent.ok && absent.value.view.powerSpent).toBe(false)
+  })
+})

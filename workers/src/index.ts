@@ -181,7 +181,13 @@ export default {
         timeoutMs: UPSTREAM_TIMEOUT_MS,
       }
 
-      const result = await decide(config, parsed.value.kind, parsed.value.view, parsed.value.ask)
+      const result = await decide(
+        config,
+        parsed.value.kind,
+        parsed.value.view,
+        parsed.value.ask,
+        parsed.value.power,
+      )
       if (!result.ok) {
         const status = result.code === 'upstream_timeout' ? 504 : result.code === 'invalid_upstream' ? 502 : 503
         return fail(result.code, result.detail, status, origin)
@@ -193,6 +199,7 @@ export default {
           kind: parsed.value.kind,
           decision: result.decision.decision,
           line: result.line,
+          usePowerOn: result.usePowerOn,
           budget: { remaining: verdict.remaining },
         },
         200,

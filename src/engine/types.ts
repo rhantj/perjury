@@ -93,6 +93,63 @@ export interface ParleyRecord {
   readonly replyLine: string
 }
 
+/**
+ * 능력 사용 선언. **종류는 쓰는 사람이 고르지 않는다** — 좌석에 배정된 직업에서 나온다.
+ *
+ * AI에게 종류를 고르게 하면 남의 능력을 쓸 수 있게 된다. AI는 「쓴다 + 대상」만 말하고,
+ * 호출부가 그 좌석의 직업을 조회해 종류를 붙인다(작업 규칙 2 — AI가 룰을 어길 수 없어야 한다).
+ *
+ * 직업 문구와의 대응은 content/roles.ts의 `effect`에 있다. 엔진은 직업 이름을 모른다.
+ */
+export type PowerUse =
+  /** 검시관 — 한 명의 손패 1장을 확인한다. */
+  | { readonly kind: 'inspect-hand'; readonly targetId: PlayerId }
+  /** 약제사 — 수단 카드 1장을 지정해 정답 여부를 확인한다. */
+  | { readonly kind: 'check-weapon'; readonly cardId: CardId }
+  /** 순사 — 한 명의 이번 라운드 반증이 참인지 통보받는다. 선언이 나와야 풀린다. */
+  | { readonly kind: 'verify-claim'; readonly targetId: PlayerId }
+  /** 사진사 — 지목한 사람이 «다음» 라운드에 위증하면 이의제기 없이 드러난다. */
+  | { readonly kind: 'photograph'; readonly targetId: PlayerId }
+  /** 신문기자 — 지난 반증 1건의 진위를 전체에 공개한다. */
+  | { readonly kind: 'publish'; readonly round: number; readonly targetId: PlayerId }
+  /** 밀정 — 자기 위증 1회는 이의제기를 당해도 실패 처리된다. */
+  | { readonly kind: 'shield' }
+  /** 변호사 — 반증 요구를 1회 거부한다. */
+  | { readonly kind: 'refuse-demand' }
+  /** 협잡꾼 — 타인의 반증 1회를 조작한다. */
+  | { readonly kind: 'frame'; readonly targetId: PlayerId }
+  /** 전화교환수 — 밀담 1건을 엿듣는다(사람이 쥐면 회선이 하나 는다). */
+  | { readonly kind: 'eavesdrop' }
+  /** 정보상 — 밀담 상대 발언의 참·거짓을 판정한다. */
+  | { readonly kind: 'detect-lie' }
+
+/** 능력으로 알게 된 사실. 이것만 시야에 실린다 — 능력 자체는 시야에 나가지 않는다. */
+export type Finding =
+  | { readonly kind: 'hand'; readonly targetId: PlayerId; readonly cardId: CardId }
+  | { readonly kind: 'weapon'; readonly cardId: CardId; readonly isSolution: boolean }
+  | { readonly kind: 'claim'; readonly targetId: PlayerId; readonly truthful: boolean }
+
+/**
+ * 「누가 무엇을 알게 됐는가」 한 건.
+ *
+ * 알게 된 사실을 그 사람의 손패나 시야에 바로 섞지 않고 따로 쌓는 이유는 출처가 남아야
+ * 하기 때문이다 — 능력으로 «확인한» 것과 추측한 것은 프롬프트에서 무게가 다르다.
+ */
+export interface Grant {
+  /** 알게 된 라운드. 프롬프트에서 「언제 알았나」로 쓴다. */
+  readonly round: number
+  /** 이것을 볼 수 있는 단 한 사람. */
+  readonly ownerId: PlayerId
+  readonly finding: Finding
+}
+
+/** 아직 답이 정해지지 않은 지목. 쓴 라운드를 함께 들고 있어야 «다음 라운드»를 판별할 수 있다. */
+export interface PendingPower {
+  readonly round: number
+  readonly ownerId: PlayerId
+  readonly use: PowerUse
+}
+
 export interface RoundRecord {
   readonly round: number
   readonly suggesterId: PlayerId
@@ -147,6 +204,18 @@ export interface GameState {
   readonly solution: Solution
   /** 지난 라운드 기록. 위증 모순 검출의 근거가 된다. */
   readonly rounds: readonly RoundRecord[]
+  /** 능력을 이미 쓴 사람. 능력은 한 판에 한 번뿐이라 이 목록이 곧 소진 여부다. */
+  readonly powersUsed: readonly PlayerId[]
+  /** 능력으로 밝혀진 것들. 각자 자기 앞으로 온 것만 본다 — viewFor가 거른다. */
+  readonly grants: readonly Grant[]
+  /**
+   * 답이 아직 안 나온 능력 지목.
+   *
+   * 능력의 절반은 «쓰는 시점»과 «답이 정해지는 시점»이 다르다 — 순사는 선언이 나와야,
+   * 밀정은 이의제기가 들어와야, 사진사는 다음 라운드가 와야 답이 생긴다.
+   * 그 사이를 여기서 들고 있다가 해소되면 grants나 라운드 기록으로 옮긴다.
+   */
+  readonly pending: readonly PendingPower[]
   /** 최종 고발 결과. 판이 끝나기 전에는 null이다. */
   readonly outcome: Outcome | null
 }

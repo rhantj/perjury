@@ -18,6 +18,7 @@ import Log from './Log'
 import MyPlate from './MyPlate'
 import Notebook from './Notebook'
 import Parley from './Parley'
+import PowerPanel from './PowerPanel'
 import Table from './Table'
 import Verdict from './Verdict'
 import '../styles/game.css'
@@ -125,7 +126,7 @@ export default function GameScreen() {
    */
   const open = (next: string) => {
     setSeed(next)
-    store.start(next, 0, () => llmDeciderForRound())
+    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf))
     setStage('briefing')
   }
 
@@ -322,7 +323,22 @@ export default function GameScreen() {
         </header>
 
         <main className="board">
-          <MyPlate view={view} scenario={scenario} role={role} />
+          <MyPlate
+            view={view}
+            scenario={scenario}
+            role={role}
+            powerSlot={
+              <PowerPanel
+                view={view}
+                scenario={scenario}
+                role={role}
+                used={store.powerUsed()}
+                findings={view.findings}
+                enabled={myMove}
+                onUse={store.usePower}
+              />
+            }
+          />
 
           <div className="stage">
             <Table view={view} scenario={scenario} />
@@ -334,7 +350,6 @@ export default function GameScreen() {
               key={view.round}
               view={view}
               open={view.phase === 'whisper' && myMove}
-              blocked={store.fallbackRound}
               onAsk={store.askParley}
               onDone={store.parley}
               onSkip={store.skipParley}
