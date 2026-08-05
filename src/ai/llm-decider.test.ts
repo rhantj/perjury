@@ -74,8 +74,19 @@ describe('createLlmDecider', () => {
     await createLlmDecider().chooseClaim(viewOf())
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
-    expect(Object.keys(body).sort()).toEqual(['kind', 'sessionId', 'v', 'view'])
+    expect(Object.keys(body).sort()).toEqual(['kind', 'names', 'sessionId', 'v', 'view'])
     expect(body.view.seed).toBeUndefined()
+  })
+
+  /** 카드 이름표는 시야가 아니라 형제 필드다 — view는 시야 격리 계약이 걸린 자료다. */
+  it('카드 표시 이름을 함께 보낸다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
+
+    await createLlmDecider(() => null, { w1: '명주 목도리' }).chooseClaim(viewOf())
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body.names).toEqual({ w1: '명주 목도리' })
+    expect(body.view.names).toBeUndefined()
   })
 
   it('네트워크 실패를 던진다', async () => {

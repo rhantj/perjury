@@ -1,4 +1,4 @@
-import { cardName } from '../engine/cards'
+import { CARDS, cardName } from '../engine/cards'
 import type { CardId, PlayerId } from '../engine/types'
 import type { GameView } from '../engine/view'
 import type { Scenario, Title } from './scenarios'
@@ -25,6 +25,16 @@ export function cardLabel(scenario: Scenario, id: CardId): string {
   if (place >= 0) return scenario.places[place] ?? cardName(id)
 
   return cardName(id)
+}
+
+/**
+ * 카드 전체의 표시 이름표. 프록시에 실어 보내 모델도 화면과 같은 이름으로 말하게 한다.
+ *
+ * 이걸 안 보내면 모델은 엔진 기본 이름만 알고, 화면은 사건별 이름으로 그린다 —
+ * 같은 카드를 두고 좌석 대사와 그 옆 카드 그림이 서로 다른 이름을 부른다.
+ */
+export function cardNames(scenario: Scenario): Record<CardId, string> {
+  return Object.fromEntries(CARDS.map((card) => [card.id, cardLabel(scenario, card.id)]))
 }
 
 /**

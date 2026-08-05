@@ -153,8 +153,10 @@ export async function decide(
   view: GameView,
   ask: string | null = null,
   power: PowerBrief | null = null,
+  /** 카드 표시 이름표. 사건마다 다르다 — 없으면 프롬프트가 엔진 기본 이름으로 떨어진다. */
+  names: Readonly<Record<string, string>> = {},
 ): Promise<LlmResult> {
-  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power))
+  const { system, user } = toRequestShape(buildMessages(kind, view, ask, power, names))
 
   let response: Response
   try {

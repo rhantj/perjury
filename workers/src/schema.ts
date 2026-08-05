@@ -28,6 +28,8 @@ export const LIMITS = {
   votes: 6,
   /** 능력은 한 판에 한 번뿐이므로 한 사람 앞으로 오는 것은 사실상 1건이다. 넉넉히 잡는다. */
   findings: 6,
+  /** 카드 표시 이름표. 카드는 15장이라 넉넉히 잡는다. */
+  cardNames: 32,
   /** 이름·카드 id 등 문자열 전반. */
   stringLength: 200,
   /**
@@ -67,6 +69,14 @@ export interface DecideRequest {
    * 할 것인가»만 받는다 — 종류를 알면 룰이 프론트와 워커 두 군데로 갈린다(설계 §5.3).
    */
   readonly power: PowerBrief | null
+  /**
+   * 카드 id → 이 사건에서 쓰는 표시 이름. 없으면 빈 객체다.
+   *
+   * 화면은 사건별 이름으로 카드를 그리는데(자하동의 「명주 목도리」가 극장에서는 다른 이름이다)
+   * 워커가 이걸 모르면 모델은 엔진 기본 이름으로 말한다 — 좌석 대사와 그 옆 카드 그림이 어긋난다.
+   * **시야(GameView)가 아니라 형제 필드로 받는다** — view는 시야 격리 계약이 걸린 자료다.
+   */
+  readonly names: Readonly<Record<string, string>>
 }
 
 export type Validated<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string }
@@ -153,6 +163,29 @@ function ids(obj: Record<string, unknown>, key: string, max: number, where: stri
 
 function cardIds(obj: Record<string, unknown>, key: string, where: string): string[] {
   return ids(obj, key, LIMITS.players * 3, where)
+}
+
+/**
+ * 카드 표시 이름표. 프롬프트에 그대로 들어가므로 개수와 길이를 모두 막는다.
+ *
+ * 없으면 빈 객체다 — 옛 프론트 번들은 이 필드를 모른다(워커 먼저 배포 순서).
+ * 모르는 카드 id가 섞여도 거부하지 않는다. 룰이 아니라 표시라, 쓰이지 않으면 그만이다.
+ */
+function cardNames(value: unknown): Record<string, string> {
+  if (value === undefined || value === null) return {}
+  const obj = record(value, 'body.names')
+  const keys = Object.keys(obj)
+  if (keys.length > LIMITS.cardNames) bad('body.names', `${LIMITS.cardNames}개를 넘는다`)
+
+  const out: Record<string, string> = {}
+  for (const key of keys) {
+    if (key.length > LIMITS.stringLength) bad('body.names', '카드 id가 너무 길다')
+    const name = obj[key]
+    if (typeof name !== 'string') bad('body.names', `${key}의 이름이 문자열이 아니다`)
+    if (name.length > LIMITS.stringLength) bad('body.names', `${key}의 이름이 너무 길다`)
+    out[key] = name
+  }
+  return out
 }
 
 function suggestion(value: unknown, where: string) {
@@ -405,7 +438,7 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
 
   try {
     const obj = record(raw, 'body')
-    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view', 'power'], 'body')
+    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view', 'power', 'names'], 'body')
     if (obj['v'] !== 1) bad('body', '모르는 계약 버전이다')
 
     const kind = oneOf(obj, 'kind', KINDS, 'body')
@@ -432,6 +465,7 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
         v: 1,
         kind,
         sessionId: text(obj, 'sessionId', 'body'),
+        names: cardNames(obj['names']),
         power:
           obj['power'] === undefined || obj['power'] === null
             ? null

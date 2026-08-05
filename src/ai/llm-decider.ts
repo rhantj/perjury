@@ -118,7 +118,16 @@ function toIntent(power: PowerBrief | null, chosen: string | null): PowerIntent 
   }
 }
 
-export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
+export function createLlmDecider(
+  powerOf: PowerLookup = () => null,
+  /**
+   * 카드 id → 이 사건에서 쓰는 표시 이름.
+   *
+   * 이걸 안 보내면 모델은 엔진 기본 이름으로 말하는데 화면은 사건별 이름으로 그린다 —
+   * 같은 카드를 두고 좌석 대사와 그 옆 카드 그림이 서로 다른 이름을 부르게 된다.
+   */
+  names: Readonly<Record<string, string>> = {},
+): Decider {
   /**
    * 예산 소진은 라운드 폴백이 아니라 **세션 폴백**이다.
    * 라운드마다 재시도하면 남은 라운드 내내 헛왕복이 쌓인다.
@@ -150,7 +159,15 @@ export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
         headers: { 'Content-Type': 'application/json' },
         // said가 undefined면 JSON.stringify가 키를 통째로 지운다 — 다른 kind는 ask를 보내지 않는다.
         // undefined인 키는 JSON.stringify가 통째로 지운다 — ask·power 둘 다 그 성질을 쓴다.
-        body: JSON.stringify({ v: 1, kind, sessionId, view, ask: said, power: power ?? undefined }),
+        body: JSON.stringify({
+          v: 1,
+          kind,
+          sessionId,
+          view,
+          ask: said,
+          power: power ?? undefined,
+          names,
+        }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     } catch {
@@ -200,7 +217,10 @@ export function createLlmDecider(powerOf: PowerLookup = () => null): Decider {
  * 라운드마다 새로 만들면 exhausted 플래그가 매 라운드 지워져서
  * 예산이 소진된 뒤에도 라운드마다 헛왕복이 나간다.
  */
-export function llmDeciderForRound(powerOf?: PowerLookup): DeciderForRound {
-  const decider = createLlmDecider(powerOf)
+export function llmDeciderForRound(
+  powerOf?: PowerLookup,
+  names?: Readonly<Record<string, string>>,
+): DeciderForRound {
+  const decider = createLlmDecider(powerOf, names)
   return () => decider
 }

@@ -3,9 +3,10 @@ import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
-import { cardLabel, participantLabel } from '../content/labels'
+import { cardLabel, cardNames, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
+import { pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { weaponArtFor } from '../content/weapon-art'
@@ -126,7 +127,12 @@ export default function GameScreen() {
    */
   const open = (next: string) => {
     setSeed(next)
-    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf))
+    /*
+     * 카드 이름표를 함께 넘긴다. 사건을 여기서 뽑으므로(pickScenario) 판단자를 만드는 시점에
+     * 이미 정해져 있다 — 이게 없으면 모델이 엔진 기본 이름으로 말해 화면과 어긋난다.
+     */
+    const names = cardNames(pickScenario(next))
+    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf, names))
     setStage('briefing')
   }
 
