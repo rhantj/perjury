@@ -6,11 +6,18 @@ describe('parleyLine — 폴백 밀담 대사', () => {
     expect(parleyLine('s1', 'r3:p2')).toBe(parleyLine('s1', 'r3:p2'))
   })
 
-  /** 8라운드 내내 같은 문장을 반복하면 폴백인 게 그대로 드러난다. */
-  it('salt가 다르면 같은 말만 반복하지 않는다', () => {
-    const said = new Set([1, 2, 3, 4, 5, 6, 7, 8].map((round) => parleyLine('s1', `r${round}`)))
+  /**
+   * 한 판이 8라운드다. 캐릭터마다 쓸 말이 몇 개 안 되면 같은 문장이 반복되고
+   * 폴백이라는 게 그대로 드러난다. 대사를 손댈 때 이 하한이 무너지지 않게 잡아 둔다.
+   */
+  it('캐릭터마다 서로 다른 말이 4개 이상 나온다', () => {
+    const salts = Array.from({ length: 20 }, (_, i) => `r${i}`)
 
-    expect(said.size).toBeGreaterThan(1)
+    for (const characterId of ['s1', 's2', 's3', 's4', 's5', 's6']) {
+      const said = new Set(salts.map((salt) => parleyLine(characterId, salt)))
+
+      expect(said.size, `${characterId}의 대사가 모자라다`).toBeGreaterThanOrEqual(4)
+    }
   })
 
   it('캐릭터마다 말투가 다르다', () => {
