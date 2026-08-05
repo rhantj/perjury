@@ -140,6 +140,13 @@ export type Finding =
   | { readonly kind: 'hand'; readonly targetId: PlayerId; readonly cardId: CardId }
   | { readonly kind: 'weapon'; readonly cardId: CardId; readonly isSolution: boolean }
   | { readonly kind: 'claim'; readonly targetId: PlayerId; readonly truthful: boolean }
+  /**
+   * 정보상 — 밀담 상대가 «자기 입으로 신고한» 참·거짓.
+   *
+   * 엔진이 텍스트를 판정한 것이 아니다. 말한 쪽이 자기 거짓말 여부를 함께 낸 것을 옮겨 담는다.
+   * 그래서 룰 엔진 순수성과 부딪히지 않는다 — 밀담은 원래 룰이 읽지 않는 자리다.
+   */
+  | { readonly kind: 'parley'; readonly targetId: PlayerId; readonly truthful: boolean }
 
 /**
  * 「누가 무엇을 알게 됐는가」 한 건.

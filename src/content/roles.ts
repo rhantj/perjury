@@ -95,7 +95,7 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '밀담 상대 발언의 참·거짓만 판정한다.',
     flavor: '명동 뒷골목의 거짓말 탐지기. 단 한 번뿐이다.',
-    effect: null,
+    effect: 'detect-lie',
     humanOnly: true,
   },
   {

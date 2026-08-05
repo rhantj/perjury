@@ -196,10 +196,10 @@ describe('createRoundFallback — 밀담', () => {
   it('preferred가 정상이면 그 대사가 그대로 나온다', async () => {
     const talking: Decider = {
       ...stub(PREFERRED),
-      speakInParley: () => Promise.resolve('그 밤엔 아무것도 못 봤소'),
+      speakInParley: () => Promise.resolve({ line: '그 밤엔 아무것도 못 봤소', truthful: null }),
     }
     const decider = createRoundFallback(talking, stub(FALLBACK))
 
-    expect(await decider.speakInParley(VIEW, '묻는다')).toBe('그 밤엔 아무것도 못 봤소')
+    expect((await decider.speakInParley(VIEW, '묻는다'))?.line).toBe('그 밤엔 아무것도 못 봤소')
   })
 })

@@ -3,6 +3,7 @@ import { skipChallenge } from './challenge'
 import { parley, skipParley } from './parley'
 import { declareAll, suggest } from './round'
 import { createGame } from './setup'
+import { usePower } from './power'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
 
 const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
@@ -198,5 +199,73 @@ describe('parleyAllowance — 전화교환수의 회선', () => {
     const first = parley(state, otherId(state), '하나', '답1')
 
     expect(skipParley(first).round).toBe(state.round + 1)
+  })
+})
+
+describe('detect-lie — 정보상', () => {
+  /** 능력의 주인은 언제나 사람이다 — 정보상은 사람 좌석에만 배정된다(content/roles.ts). */
+  function armed(): GameState {
+    const state = atWhisper()
+    return usePower(state, humanId(state), { kind: 'detect-lie' })
+  }
+
+  it('상대가 거짓을 신고하면 거짓으로 통보받는다', () => {
+    const state = armed()
+    const target = otherId(state)
+
+    const after = parley(state, target, '왜 침묵했지', '못 봤소', false)
+    const grant = after.grants[0]
+
+    if (grant?.finding.kind !== 'parley') throw new Error('finding 종류가 다르다')
+    expect(grant.finding.targetId).toBe(target)
+    expect(grant.finding.truthful).toBe(false)
+    expect(grant.ownerId).toBe(humanId(state))
+  })
+
+  it('사실을 신고하면 사실로 통보받는다', () => {
+    const after = parley(armed(), otherId(armed()), '묻는다', '답한다', true)
+    const grant = after.grants[0]
+
+    if (grant?.finding.kind !== 'parley') throw new Error('finding 종류가 다르다')
+    expect(grant.finding.truthful).toBe(true)
+  })
+
+  /** 얼버무린 말에는 판정할 것이 없다. 능력을 태우지 않고 다음 밀담을 기다린다. */
+  it('신고가 없으면 능력이 그대로 남는다', () => {
+    const state = armed()
+
+    const after = parley(state, otherId(state), '묻는다', '글쎄올시다', null)
+
+    expect(after.grants).toHaveLength(0)
+    expect(after.pending).toHaveLength(1)
+  })
+
+  it('한 번 판정하면 소진된다', () => {
+    const state = armed()
+
+    const after = parley(state, otherId(state), '묻는다', '답한다', false)
+
+    expect(after.pending).toHaveLength(0)
+  })
+
+  it('능력을 안 썼으면 신고가 와도 아무 일도 없다', () => {
+    const state = atWhisper()
+
+    const after = parley(state, otherId(state), '묻는다', '답한다', false)
+
+    expect(after.grants).toHaveLength(0)
+  })
+
+  /** 신고는 기록에 남기지 않는다. 남기면 능력 없이도 시야에서 그대로 읽힌다. */
+  it('밀담 기록에는 진위가 남지 않는다', () => {
+    const state = armed()
+
+    const after = parley(state, otherId(state), '묻는다', '답한다', false)
+
+    expect(Object.keys(after.rounds[0]?.parleys[0] ?? {}).sort()).toEqual([
+      'askLine',
+      'replyLine',
+      'targetId',
+    ])
   })
 })

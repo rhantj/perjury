@@ -193,6 +193,11 @@ export function createLlmDecider(
       value: payload['decision'],
       line: typeof payload['line'] === 'string' ? payload['line'] : null,
       power: toIntent(power, asText(payload['usePowerOn'])),
+      /*
+       * 밀담에서 화자가 스스로 낸 참·거짓. 모르는 값은 «주장 없음»으로 읽는다 —
+       * 여기서 잘못 읽으면 정보상이 없는 거짓말을 잡았다고 통보받는다.
+       */
+      truthful: payload['truthful'] === true ? true : payload['truthful'] === false ? false : null,
     }
   }
 
@@ -207,7 +212,12 @@ export function createLlmDecider(
     chooseChallengeTarget: async (view) => decide(await ask('challenge', view), toTarget),
     chooseAccusation: async (view) => decide(await ask('accuse', view), toSuggestion),
     // 결정이 없는 유일한 kind다. decision은 null이고 line만 쓴다.
-    speakInParley: async (view, said) => toLine((await ask('parley', view, said)).line, PARLEY_LINE_MAX),
+    speakInParley: async (view, said) => {
+      const spoken = await ask('parley', view, said)
+      const line = toLine(spoken.line, PARLEY_LINE_MAX)
+      // 대사가 없으면 밀담이 성립하지 않는다. 자기 신고만 있고 말이 없는 상태는 만들지 않는다.
+      return line === null ? null : { line, truthful: spoken.truthful ?? null }
+    },
   }
 }
 

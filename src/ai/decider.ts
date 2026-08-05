@@ -25,6 +25,11 @@ export interface Spoken<T> {
    * 이 둘을 합치면 매 라운드 전원이 정확히 한 번 물어보게 된다.
    */
   readonly power?: PowerIntent | null
+  /**
+   * 밀담에서 화자가 스스로 낸 참·거짓. 밀담이 아닌 kind에서는 언제나 null이다.
+   * 정보상만 이 값을 쓴다 — 엔진이 텍스트를 판정할 수 없어 말한 쪽이 신고하는 구조다.
+   */
+  readonly truthful?: boolean | null
 }
 
 /** 대사 없는 판단. 규칙 기반 구현이 쓴다. */
@@ -60,7 +65,19 @@ export interface Decider {
    *
    * 할 말이 없으면 null이다. 규칙 기반 구현은 언제나 null을 돌려준다.
    */
-  speakInParley(view: GameView, ask: string): Promise<string | null>
+  speakInParley(view: GameView, ask: string): Promise<ParleyReply | null>
+}
+
+/**
+ * 밀담 한 마디. **말한 쪽이 자기 거짓말 여부를 함께 낸다.**
+ *
+ * 정보상이 이 값을 쓴다. 엔진이 텍스트를 판정하는 것이 아니라 화자의 자기 신고를 옮기는 것이라
+ * 룰 엔진 순수성과 부딪히지 않는다 — 밀담은 원래 룰이 읽지 않는 자리다(types.ts).
+ */
+export interface ParleyReply {
+  readonly line: string
+  /** 판정할 것이 없었으면 null이다. 규칙 기반 구현은 언제나 null이다. */
+  readonly truthful: boolean | null
 }
 
 /**

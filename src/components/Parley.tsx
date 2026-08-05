@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
+import type { ParleyReply } from '../ai/decider'
 import type { PlayerId } from '../engine/types'
 import type { GameView } from '../engine/view'
 
@@ -11,8 +12,12 @@ interface ParleyProps {
   view: GameView
   /** 사람이 지금 밀담할 수 있는가. 밀담 페이즈이고 AI가 판단 중이 아닐 때만 true다. */
   open: boolean
-  onAsk: (targetId: PlayerId, ask: string) => Promise<string | null>
-  onDone: (targetId: PlayerId, ask: string, reply: string) => void
+  onAsk: (targetId: PlayerId, ask: string) => Promise<ParleyReply | null>
+  /**
+   * truthful은 «상대가 자기 입으로 신고한» 참·거짓이다. 화면은 이 값을 그리지 않고
+   * 그대로 넘기기만 한다 — 정보상이 걸어뒀을 때만 엔진이 능력 결과로 바꾼다.
+   */
+  onDone: (targetId: PlayerId, ask: string, reply: string, truthful: boolean | null) => void
   onSkip: () => void
 }
 
@@ -30,6 +35,8 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
   const [targetId, setTargetId] = useState<PlayerId | null>(null)
   const [ask, setAsk] = useState('')
   const [reply, setReply] = useState('')
+  /** 상대의 자기 신고. 화면에는 안 나온다 — 정보상만 결과로 받는다. */
+  const [truthful, setTruthful] = useState<boolean | null>(null)
 
   /*
    * 이번 라운드에 이미 이야기한 상대는 뺀다. 엔진이 거부하는 선택인데(engine/parley.ts)
@@ -66,7 +73,8 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
       setStep('failed')
       return
     }
-    setReply(answer)
+    setReply(answer.line)
+    setTruthful(answer.truthful)
     setStep('read')
   }
 
@@ -148,7 +156,7 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
           <button
             type="button"
             className="btn btn--go"
-            onClick={() => onDone(targetId, ask.trim(), reply)}
+            onClick={() => onDone(targetId, ask.trim(), reply, truthful)}
           >
             자리를 뜬다
           </button>
@@ -170,6 +178,7 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
                 setTargetId(null)
                 setAsk('')
                 setReply('')
+                setTruthful(null)
                 setStep('pick')
               }}
             >

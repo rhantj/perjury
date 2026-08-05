@@ -344,7 +344,10 @@ describe('밀담', () => {
   function talkingDeciders(reply: string | null): DeciderForRound {
     const source = (seed: string): DeciderForRound => {
       const base = createRuleDecider(seed)
-      const decider: Decider = { ...base, speakInParley: async () => reply }
+      const decider: Decider = {
+        ...base,
+        speakInParley: async () => (reply === null ? null : { line: reply, truthful: null }),
+      }
       return () => decider
     }
     return source('parley-store')
@@ -362,7 +365,7 @@ describe('밀담', () => {
 
     const reply = await game().askParley('p1', '왜 침묵했지')
 
-    expect(reply).toBe('못 봤소')
+    expect(reply?.line).toBe('못 봤소')
     expect(game().state).toBe(before)
   })
 
@@ -382,7 +385,7 @@ describe('밀담', () => {
     const reply = await game().askParley('p1', '왜 침묵했지')
 
     expect(reply).not.toBeNull()
-    expect(reply?.length).toBeGreaterThan(0)
+    expect(reply?.line.length).toBeGreaterThan(0)
   })
 
   it('상대가 다르면 다른 말이 나온다 — 여섯이 한목소리로 답하지 않는다', async () => {

@@ -201,6 +201,7 @@ export default {
           decision: result.decision.decision,
           line: result.line,
           usePowerOn: result.usePowerOn,
+          truthful: result.truthful,
           budget: { remaining: verdict.remaining },
         },
         200,

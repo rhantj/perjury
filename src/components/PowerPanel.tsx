@@ -163,6 +163,8 @@ const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
   publish: '신문에 실었다 — 기록에서 읽을 수 있다',
   // 이쪽은 패널이 아니라 반증 줄의 「답변 거부」 버튼으로 쓴다.
   'refuse-demand': '이번 반증 요구에 답하지 않는다',
+  // 밀담을 걸어야 답이 나온다. 아직 안 걸었으면 여기서 기다린다.
+  'detect-lie': '다음 밀담에서 상대의 말을 가려낸다',
   // 결과는 그 좌석의 기록에 그대로 나타난다. 여기서 다시 알려주면 조작한 쪽이 드러난다.
   frame: '이번 라운드 그의 반증에 손을 써두었다',
 }
@@ -182,5 +184,7 @@ function describe(scenario: Scenario, view: GameView, grant: Grant): string {
       return `«${cardLabel(scenario, finding.cardId)}»는 사건의 수단이 ${finding.isSolution ? '맞다' : '아니다'}`
     case 'claim':
       return `${participantLabel(view, finding.targetId)}의 반증은 ${finding.truthful ? '참이었다' : '거짓이었다'}`
+    case 'parley':
+      return `밀담에서 ${participantLabel(view, finding.targetId)}는 ${finding.truthful ? '사실을 말했다' : '거짓을 말했다'}`
   }
 }

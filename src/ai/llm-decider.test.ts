@@ -218,7 +218,7 @@ describe('createLlmDecider — 밀담', () => {
       json: async () => ({ ok: true, kind: 'parley', decision: null, line: '  못  봤소  ' }),
     } as unknown as Response)
 
-    expect(await createLlmDecider().speakInParley(viewOf(), '묻는다')).toBe('못 봤소')
+    expect((await createLlmDecider().speakInParley(viewOf(), '묻는다'))?.line).toBe('못 봤소')
   })
 
   it('밀담 응답은 대사보다 넉넉히 120자까지 남긴다', async () => {
@@ -230,7 +230,7 @@ describe('createLlmDecider — 밀담', () => {
 
     const reply = await createLlmDecider().speakInParley(viewOf(), '묻는다')
 
-    expect(reply).toBe(`${'가'.repeat(120)}…`)
+    expect(reply?.line).toBe(`${'가'.repeat(120)}…`)
   })
 
   it('실패하면 던진다 — 폴백 래퍼가 받는다', async () => {

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createRoundFallback, perRound } from '../ai/decider'
-import type { DeciderForRound, FallbackReason } from '../ai/decider'
+import type { DeciderForRound, FallbackReason, ParleyReply } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
 import { powerLookup } from '../ai/power-brief'
 import type { PowerLookup } from '../ai/power-brief'
@@ -86,9 +86,19 @@ interface GameStore {
    * 밀담은 진행에 필수가 아니므로 실패의 최선은 «어떻게든 응답을 만든다»가 아니라
    * «솔직히 닫고 넘어간다»이다. 화면은 null을 받으면 밀담을 닫고 건너뛰기만 남긴다.
    */
-  askParley: (targetId: PlayerId, ask: string) => Promise<string | null>
-  /** 오간 말을 기록하고 라운드를 넘긴다. 화면이 응답을 다 받은 뒤에만 부른다. */
-  parley: (targetId: PlayerId, askLine: string, replyLine: string) => Promise<void>
+  askParley: (targetId: PlayerId, ask: string) => Promise<ParleyReply | null>
+  /**
+   * 오간 말을 기록한다. 화면이 응답을 다 받은 뒤에만 부른다.
+   * 회선이 남아 있으면 라운드는 넘어가지 않는다(전화교환수).
+   *
+   * truthful은 «말한 쪽의 자기 신고»다. 정보상이 걸어뒀으면 그것이 판정 결과가 된다.
+   */
+  parley: (
+    targetId: PlayerId,
+    askLine: string,
+    replyLine: string,
+    truthful?: boolean | null,
+  ) => Promise<void>
   /** 밀담 없이 라운드를 넘긴다. */
   skipParley: () => Promise<void>
 }
@@ -268,8 +278,8 @@ export const useGame = create<GameStore>((set, get) => {
       }
     },
 
-    parley: (targetId, askLine, replyLine) =>
-      apply((s) => parley(s, targetId, askLine, replyLine)),
+    parley: (targetId, askLine, replyLine, truthful = null) =>
+      apply((s) => parley(s, targetId, askLine, replyLine, truthful)),
     skipParley: () => apply((s) => skipParley(s)),
   }
 })

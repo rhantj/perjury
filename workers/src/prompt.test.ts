@@ -160,6 +160,6 @@ describe('schemaFor — 밀담', () => {
   it('line만 요구한다 — 고를 것이 없다', () => {
     const schema = schemaFor('parley', baseView())
 
-    expect(schema['required']).toEqual(['line'])
+    expect(schema['required']).toEqual(['line', 'truthful'])
   })
 })
