@@ -34,14 +34,20 @@ export function parley(
   if (!state.players.some((p) => p.id === targetId)) throw new Error(`없는 플레이어: ${targetId}`)
 
   const record = currentRound(state)
-  /*
-   * 라운드당 1회. 이 전이가 곧바로 라운드를 넘기므로 화면에서는 여기에 닿을 수 없지만,
-   * 엔진의 계약은 «화면이 만들 수 있는 상태»가 아니라 «모든 상태»에 대한 것이다.
-   */
-  if (record.parley) throw new Error('이번 라운드에는 이미 밀담했다')
+  if (record.parleys.length >= state.parleyAllowance) {
+    throw new Error('이번 라운드에 걸 수 있는 밀담을 다 썼다')
+  }
+  // 같은 상대와 두 번 거는 것은 회선을 늘린 뜻이 아니다. 상대가 달라야 정보가 는다.
+  if (record.parleys.some((p) => p.targetId === targetId)) {
+    throw new Error('이번 라운드에 이미 이야기한 상대다')
+  }
 
-  const updated: RoundRecord = { ...record, parley: { targetId, askLine, replyLine } }
-  return nextRound({ ...state, rounds: [...state.rounds.slice(0, -1), updated] })
+  const parleys = [...record.parleys, { targetId, askLine, replyLine }]
+  const updated: RoundRecord = { ...record, parleys }
+  const written = { ...state, rounds: [...state.rounds.slice(0, -1), updated] }
+
+  // 허용을 다 써야 라운드가 넘어간다. 회선이 남아 있으면 밀담 페이즈에 그대로 머문다.
+  return parleys.length >= state.parleyAllowance ? nextRound(written) : written
 }
 
 /** 밀담 없이 라운드를 넘긴다. 건너뛰기와 폴백이 같은 문으로 나간다. */

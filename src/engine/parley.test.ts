@@ -52,17 +52,27 @@ function otherId(state: GameState): PlayerId {
   return other.id
 }
 
+/** 사람도 첫 상대도 아닌 세 번째 좌석. 두 번째 회선의 상대다. */
+function thirdId(state: GameState): PlayerId {
+  const first = otherId(state)
+  const other = state.players.find((p) => !p.isHuman && p.id !== first)
+  if (!other) throw new Error('상대가 모자란다')
+  return other.id
+}
+
 describe('parley — 밀담을 남기고 라운드를 넘긴다', () => {
   it('오간 말이 그 라운드 기록에 붙는다', () => {
     const state = atWhisper()
 
     const next = parley(state, otherId(state), '왜 침묵했지', '아무것도 못 봤소')
 
-    expect(next.rounds[0]?.parley).toEqual({
-      targetId: otherId(state),
-      askLine: '왜 침묵했지',
-      replyLine: '아무것도 못 봤소',
-    })
+    expect(next.rounds[0]?.parleys).toEqual([
+      {
+        targetId: otherId(state),
+        askLine: '왜 침묵했지',
+        replyLine: '아무것도 못 봤소',
+      },
+    ])
   })
 
   it('다음 라운드를 연다', () => {
@@ -107,10 +117,12 @@ describe('parley — 밀담을 남기고 라운드를 넘긴다', () => {
     if (!record) throw new Error('라운드 기록이 없다')
     const already: GameState = {
       ...base,
-      rounds: [{ ...record, parley: { targetId: otherId(base), askLine: '먼저', replyLine: '먼저' } }],
+      rounds: [
+        { ...record, parleys: [{ targetId: otherId(base), askLine: '먼저', replyLine: '먼저' }] },
+      ],
     }
 
-    expect(() => parley(already, otherId(base), '또', '또')).toThrow(/이미 밀담했다/)
+    expect(() => parley(already, otherId(base), '또', '또')).toThrow(/다 썼다/)
   })
 })
 
@@ -120,11 +132,71 @@ describe('skipParley — 밀담 없이 넘긴다', () => {
 
     const next = skipParley(state)
 
-    expect(next.rounds[0]?.parley).toBeNull()
+    expect(next.rounds[0]?.parleys).toEqual([])
     expect(next.round).toBe(2)
   })
 
   it('밀담 페이즈가 아니면 던진다', () => {
     expect(() => skipParley(fresh())).toThrow(/밀담 페이즈가 아니다/)
+  })
+})
+
+describe('parleyAllowance — 전화교환수의 회선', () => {
+  /** 사람이 전화교환수면 라운드당 두 번 건다. 기본은 한 번이다. */
+  function twoLines(): GameState {
+    return { ...atWhisper(), parleyAllowance: 2 }
+  }
+
+  it('기본 허용은 한 건이고 첫 밀담에 라운드가 넘어간다', () => {
+    const state = atWhisper()
+
+    const next = parley(state, otherId(state), '왜 침묵했지', '못 봤소')
+
+    expect(state.parleyAllowance).toBe(1)
+    expect(next.phase).toBe('suggest')
+    expect(next.round).toBe(state.round + 1)
+  })
+
+  it('허용이 두 건이면 첫 밀담은 라운드를 넘기지 않는다', () => {
+    const state = twoLines()
+
+    const next = parley(state, otherId(state), '왜 침묵했지', '못 봤소')
+
+    expect(next.phase).toBe('whisper')
+    expect(next.round).toBe(state.round)
+    expect(next.rounds[next.rounds.length - 1]?.parleys).toHaveLength(1)
+  })
+
+  it('허용을 다 쓰면 라운드가 넘어간다', () => {
+    const state = twoLines()
+    const first = parley(state, otherId(state), '하나', '답1')
+
+    const second = parley(first, thirdId(first), '둘', '답2')
+
+    expect(second.phase).toBe('suggest')
+    expect(second.round).toBe(state.round + 1)
+    expect(second.rounds[0]?.parleys).toHaveLength(2)
+  })
+
+  it('허용을 넘겨 걸면 거부한다', () => {
+    const state = atWhisper()
+    const after = parley(state, otherId(state), '하나', '답1')
+
+    expect(() => parley({ ...after, phase: 'whisper' }, thirdId(after), '둘', '답2')).toThrow()
+  })
+
+  /** 같은 사람과 두 번 거는 것은 회선을 늘린 뜻이 아니다. */
+  it('같은 상대와 두 번은 걸 수 없다', () => {
+    const state = twoLines()
+    const first = parley(state, otherId(state), '하나', '답1')
+
+    expect(() => parley(first, otherId(first), '둘', '답2')).toThrow()
+  })
+
+  it('건너뛰면 남은 허용과 상관없이 라운드가 넘어간다', () => {
+    const state = twoLines()
+    const first = parley(state, otherId(state), '하나', '답1')
+
+    expect(skipParley(first).round).toBe(state.round + 1)
   })
 })

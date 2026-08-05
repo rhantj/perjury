@@ -283,19 +283,19 @@ describe('viewFor — 밀담은 낀 두 사람에게만 보인다', () => {
   it('사람에게는 자기가 건 밀담이 보인다', () => {
     const { state, humanId } = afterParley()
 
-    expect(viewFor(state, humanId).rounds[0]?.parley?.replyLine).toBe('아무것도 못 봤소')
+    expect(viewFor(state, humanId).rounds[0]?.parleys[0]?.replyLine).toBe('아무것도 못 봤소')
   })
 
   it('상대에게는 보인다 — 이것이 다음 라운드 프롬프트로 되돌아간다', () => {
     const { state, targetId } = afterParley()
 
-    expect(viewFor(state, targetId).rounds[0]?.parley?.askLine).toBe('왜 침묵했지')
+    expect(viewFor(state, targetId).rounds[0]?.parleys[0]?.askLine).toBe('왜 침묵했지')
   })
 
   it('제3자에게는 밀담이 있었다는 사실조차 보이지 않는다', () => {
     const { state, bystanderId } = afterParley()
 
-    expect(viewFor(state, bystanderId).rounds[0]?.parley).toBeNull()
+    expect(viewFor(state, bystanderId).rounds[0]?.parleys).toEqual([])
   })
 })
 

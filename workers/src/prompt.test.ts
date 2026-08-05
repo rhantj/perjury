@@ -28,7 +28,7 @@ function withRound(patch: Partial<RoundView>): GameView {
     challenge: null,
     exposed: [],
     published: [],
-    parley: null,
+    parleys: [],
     ...patch,
   }
   return { ...view, round: 2, rounds: [round] }
@@ -88,7 +88,7 @@ describe('observationBlock — 오간 말이 기록에 실린다', () => {
 
   it('밀담이 있으면 오간 두 마디가 모두 실린다', () => {
     const view = withRound({
-      parley: { targetId: view0Speaker(), askLine: '왜 침묵했지', replyLine: '못 봤소' },
+      parleys: [{ targetId: view0Speaker(), askLine: '왜 침묵했지', replyLine: '못 봤소' }],
     })
     const text = userText(buildMessages('refute', view))
 

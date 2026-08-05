@@ -290,7 +290,6 @@ function validView(): TestView {
         suggestionLine: null,
         declarations: [{ playerId: 'p1', claim: { kind: 'refute', cardId: 's2' }, line: null }],
         challenge: null,
-        parley: null,
       },
     ],
     solution: null,
@@ -347,7 +346,9 @@ describe('parseDecideRequest — 밀담', () => {
     if (!round) throw new Error('테스트 시야에 라운드가 없다')
     const withParley = {
       ...view,
-      rounds: [{ ...round, parley: { targetId: 'p1', askLine: '묻는다', replyLine: '답한다' } }],
+      rounds: [
+        { ...round, parleys: [{ targetId: 'p1', askLine: '묻는다', replyLine: '답한다' }] },
+      ],
     }
 
     const parsed = parseDecideRequest(
@@ -366,7 +367,7 @@ describe('parseDecideRequest — 밀담', () => {
       rounds: [
         {
           ...round,
-          parley: { targetId: 'p1', askLine: 'a', replyLine: 'b', hand: ['s1'] },
+          parleys: [{ targetId: 'p1', askLine: 'a', replyLine: 'b', hand: ['s1'] }],
         },
       ],
     }

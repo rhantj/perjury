@@ -375,7 +375,7 @@ describe('stepAi — 밀담 페이즈', () => {
     const next = await stepAi(whisper, createRuleDecider('flow-whisper'))
 
     expect(next.round).toBe(base.round + 1)
-    expect(next.rounds[next.rounds.length - 1]?.parley).toBeNull()
+    expect(next.rounds[next.rounds.length - 1]?.parleys).toEqual([])
   })
 })
 

@@ -292,7 +292,7 @@ function roundView(value: unknown, index: number) {
       'challenge',
       'exposed',
       'published',
-      'parley',
+      'parleys',
     ],
     where,
   )
@@ -326,11 +326,16 @@ function roundView(value: unknown, index: number) {
             onlyKeys(item, ['playerId', 'truthful'], at)
             return { playerId: text(item, 'playerId', at), truthful: flag(item, 'truthful', at) }
           }),
-    // 없는 것과 null을 같게 읽는다 — 밀담이 없는 라운드가 기본이다.
-    parley:
-      obj['parley'] === null || obj['parley'] === undefined
-        ? null
-        : parleyRecord(obj['parley'], `${where}.parley`),
+    /*
+     * 없으면 빈 배열이다. 밀담이 없는 라운드가 기본이고, 옛 프론트 번들은 이 이름 자체를 모른다.
+     * 상한은 좌석 수 — 같은 라운드에 같은 상대와 두 번 걸 수 없으므로 그 이상은 나올 수 없다.
+     */
+    parleys:
+      obj['parleys'] === undefined
+        ? []
+        : list(obj, 'parleys', LIMITS.players, where).map((entry, i) =>
+            parleyRecord(entry, `${where}.parleys[${i}]`),
+          ),
   }
 }
 

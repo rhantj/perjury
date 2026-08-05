@@ -182,8 +182,13 @@ export interface RoundRecord {
    * 「거짓이 아니었다」도 판을 움직이는 정보이기 때문이다.
    */
   readonly published: readonly { readonly playerId: PlayerId; readonly truthful: boolean }[]
-  /** 이 라운드에 오간 밀담. 라운드당 최대 하나다. 없으면 null이다. */
-  readonly parley: ParleyRecord | null
+  /**
+   * 이 라운드에 오간 밀담. 보통 한 건이고, 사람이 전화교환수면 두 건이다(결정 007).
+   *
+   * 배열인 이유가 「여러 건이 흔해서」는 아니다. 허용치를 상태로 두면 한 건이라는 규칙이
+   * 자료 구조에 박히지 않아, 회선이 늘어나는 능력을 룰 한 줄로 표현할 수 있다.
+   */
+  readonly parleys: readonly ParleyRecord[]
 }
 
 export interface Vote {
@@ -240,6 +245,13 @@ export interface GameState {
    * 그 사이를 여기서 들고 있다가 해소되면 grants나 라운드 기록으로 옮긴다.
    */
   readonly pending: readonly PendingPower[]
+  /**
+   * 라운드당 걸 수 있는 밀담 건수. 기본 1이고, 사람이 전화교환수면 2다(결정 007).
+   *
+   * **엔진은 직업을 모르므로** 이 값은 판을 만들 때 밖에서 받는다(SetupOptions).
+   * 직업을 엔진이 조회하게 만들면 content → engine 한 방향 의존이 뒤집힌다.
+   */
+  readonly parleyAllowance: number
   /** 최종 고발 결과. 판이 끝나기 전에는 null이다. */
   readonly outcome: Outcome | null
 }

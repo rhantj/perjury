@@ -147,12 +147,10 @@ function observationBlock(view: GameView): string {
      * viewFor가 이미 «낀 두 사람»에게만 실었다(설계 §5.1). 여기서 다시 거르지 않는다 —
      * 같은 판단을 두 군데 두면 한쪽만 고치는 사고가 난다.
      */
-    const parley = round.parley
-      ? [
-          `  · [밀담] ${who(human?.id ?? '')} → ${who(round.parley.targetId)}: "${round.parley.askLine}"`,
-          `  · [밀담] ${who(round.parley.targetId)} → ${who(human?.id ?? '')}: "${round.parley.replyLine}"`,
-        ]
-      : []
+    const parley = round.parleys.flatMap((p) => [
+      `  · [밀담] ${who(human?.id ?? '')} → ${who(p.targetId)}: "${p.askLine}"`,
+      `  · [밀담] ${who(p.targetId)} → ${who(human?.id ?? '')}: "${p.replyLine}"`,
+    ])
     // 사진사에게 잡힌 위증. 이의제기와 달리 「누가 잡았는지」가 없다 — 증거만 나온 것이다.
     const exposed = round.exposed.map(
       (id) => `  · ${who(id)}의 반증이 거짓임이 사진으로 드러났다 — 이것은 확정된 사실이다`,

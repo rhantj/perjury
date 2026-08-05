@@ -51,12 +51,14 @@ export interface RoundView {
   /** 신문기자가 공개한 반증의 진위. 발각과 달리 「참이었다」도 실린다. */
   readonly published: readonly { readonly playerId: PlayerId; readonly truthful: boolean }[]
   /**
-   * 밀담. **낀 두 사람에게만 채워진다** — 나머지에게는 null이다.
+   * 밀담. **낀 두 사람에게만 실린다** — 나머지에게는 빈 배열이다.
    *
    * 내용만 감추고 「누가 누구와 따로 이야기했다」를 남길 수도 있지만 그러지 않는다.
    * 상대가 보이면 그것만으로 정보가 되고, 그걸 의도적으로 설계하려면 규칙이 하나 더 필요하다(설계 §5.1).
+   *
+   * 전화교환수가 엿듣는 좌석은 예외다 — 그에게는 자기가 끼지 않은 밀담도 실린다.
    */
-  readonly parley: ParleyRecord | null
+  readonly parleys: readonly ParleyRecord[]
 }
 
 export interface OutcomeView {
@@ -117,6 +119,13 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
   if (!viewer) throw new Error(`없는 플레이어: ${viewerId}`)
 
   const over = state.phase === 'over'
+  /*
+   * 엿듣는 좌석. 밀담은 원래 낀 두 사람만 보는데, 이 능력만이 그 벽을 넘는다.
+   * 「쓴 라운드부터」가 아니라 판 전체다 — 회선을 잡아둔 사람은 계속 듣는다.
+   */
+  const eavesdropping = new Set(
+    state.pending.filter((p) => p.use.kind === 'eavesdrop').map((p) => p.ownerId),
+  )
 
   const players: PlayerView[] = state.players.map((player) => {
     const isMe = player.id === viewerId
@@ -145,11 +154,13 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     challenge: record.challenge,
     exposed: record.exposed,
     published: record.published,
-    // 언제나 사람이 걸었으므로, 볼 수 있는 사람은 «사람»과 «지목당한 상대» 둘뿐이다.
-    parley:
-      record.parley && (viewer.isHuman || record.parley.targetId === viewerId)
-        ? record.parley
-        : null,
+    /*
+     * 언제나 사람이 걸었으므로, 볼 수 있는 사람은 «사람»과 «지목당한 상대» 둘뿐이다.
+     * 엿듣는 좌석은 여기에 더해진다 — 그 좌석에는 자기가 끼지 않은 밀담도 실린다.
+     */
+    parleys: viewer.isHuman || eavesdropping.has(viewerId)
+      ? record.parleys
+      : record.parleys.filter((p) => p.targetId === viewerId),
   }))
 
   const outcome: OutcomeView | null = state.outcome

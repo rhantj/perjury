@@ -114,7 +114,7 @@ export function suggest(
         challenge: null,
         exposed: [],
         published: [],
-        parley: null,
+        parleys: [],
       },
     ],
   }

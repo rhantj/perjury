@@ -142,23 +142,30 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
     })
   }
 
-  if (round.parley) {
-    const { targetId, askLine, replyLine } = round.parley
+  /*
+   * 밀담은 여러 건일 수 있다(사람이 전화교환수면 라운드당 둘).
+   *
+   * 엿듣는 좌석에는 자기가 끼지 않은 밀담도 실린다. 그때 「내가 이야기했다」로 쓰면
+   * 거짓말이 되므로, 건 사람은 언제나 사람 좌석으로 적는다.
+   */
+  const asker = view.players.find((p) => p.isHuman)
+  for (const { targetId, askLine, replyLine } of round.parleys) {
+    const askerId = asker?.id ?? view.viewerId
     out.push({
       tone: 'parley',
       who: null,
       face: null,
       quote: null,
       mine: false,
-      text: `${subject(view, view.viewerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
+      text: `${subject(view, askerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
     })
     out.push({
       tone: 'parley',
-      who: nameOf(view, view.viewerId),
-      face: participantInitial(view, view.viewerId),
+      who: nameOf(view, askerId),
+      face: participantInitial(view, askerId),
       quote: null,
-      mine: true,
-      // 내가 쓴 말이다. LLM 대사가 아니라 quote가 아닌 text에 둔다.
+      mine: askerId === view.viewerId,
+      // 사람이 쓴 말이다. LLM 대사가 아니라 quote가 아닌 text에 둔다.
       text: askLine,
     })
     out.push({
