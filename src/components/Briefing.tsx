@@ -4,7 +4,7 @@ import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { cardLabel, suspectNameAt, suspectTitleFull } from '../content/labels'
 import type { Role } from '../content/roles'
-import { ROLE_ART } from '../content/role-art'
+import { ROLE_ART, ROLE_ART_SIZE } from '../content/role-art'
 import { placeArtFor } from '../content/place-art'
 import { weaponArtFor } from '../content/weapon-art'
 import { SCENARIO_ART } from '../content/scenario-art'
@@ -356,8 +356,14 @@ function RoleAct({
       <div className="role__hold">
         <section className={`duty duty--${role.side}`} tabIndex={0}>
           <span className="duty__card">
-            {/* 482는 어느 원본에도 없던 값이다. 실제로 그려지는 상자(340×396)를 적어 로딩 전후 높이를 같게 둔다. */}
-            <img className="duty__art" src={ROLE_ART[role.id]} alt="" width={340} height={396} />
+            {/* 그림마다 비율이 달라 크기를 표에서 꺼내 온다 — 로딩 전후로 카드 높이가 같아진다. */}
+            <img
+              className="duty__art"
+              src={ROLE_ART[role.id]}
+              alt=""
+              width={ROLE_ART_SIZE[role.id]?.w}
+              height={ROLE_ART_SIZE[role.id]?.h}
+            />
           </span>
           <span className="duty__body">
             <span className="duty__kicker">직업 · 職業</span>

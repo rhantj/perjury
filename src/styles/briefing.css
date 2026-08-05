@@ -681,20 +681,17 @@
 }
 
 /*
- * 일러스트 카드. 금박 액자가 그림 안에 이미 있으므로 여기서 테두리를 더 두르지 않는다.
+ * 일러스트 카드. 금박 액자와 직업 이름 명패가 그림 안에 이미 있으므로 여기서 테두리를 더 두르지 않는다.
  *
- * 원본 웹피에는 아래쪽에 직업 이름 명패가 그려져 있는데, 열 장 중 constable·coroner·reporter는
- * 파일 자체가 명패 글자 중간에서 끝난다 — 아래 픽셀이 존재하지 않아 어떻게 놓아도 반쯤 잘려 보인다.
- * 그래서 명패 영역을 아예 보여주지 않는다. 직업 이름은 옆의 .duty__name이 텍스트로 이미 쓰므로
- * 잃는 정보가 없다. 396은 열 장의 명패 상단 y를 재서 가장 높은 값(spy 400)보다 위로 잡은 것이다.
- * 폭은 전부 340이라 잘리는 지점이 장마다 흔들리지 않는다.
+ * aspect-ratio를 걸지 않는다 — 높이는 그림이 정한다. 열 장의 비율이 같지 않고(reporter만 760×882,
+ * 나머지는 760×1018), 상자 비율을 하나로 박으면 cover가 아래를 잘라 명패를 먹거나 contain이
+ * 위아래에 빈 띠를 남긴다. 그림이 높이를 정하면 어떤 비율이 와도 명패가 온전히 남는다.
  */
 .duty__card {
   position: relative;
   display: block;
   /* cqw — duty의 실제 그리드 열 폭을 따른다. vw만 쓰면 옆 칸(손패)이 얼마나 남았는지 모르고 커진다. */
   width: clamp(8rem, 46cqw, 28rem);
-  aspect-ratio: 340 / 396;
   overflow: hidden;
   border-radius: 0.12rem;
   box-shadow: 0 8px 22px oklch(6% 0.02 250 / 0.6);
@@ -704,9 +701,7 @@
 .duty__art {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
   /* 갓등 하나짜리 방에 놓인 카드다 — 원본 그대로면 화면에서 이것만 밝게 뜬다. */
   filter: brightness(0.86) saturate(0.92);
   transition: filter var(--duration-normal) var(--ease-in-out);

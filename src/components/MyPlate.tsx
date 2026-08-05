@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cardLabel } from '../content/labels'
 import { placeArtFor } from '../content/place-art'
-import { ROLE_ART } from '../content/role-art'
+import { ROLE_ART, ROLE_ART_SIZE } from '../content/role-art'
 import type { Role } from '../content/roles'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
@@ -105,7 +105,13 @@ export default function MyPlate({ view, scenario, role }: Props) {
       </header>
 
       <div className="plate__who">
-        <img className="plate__art" src={ROLE_ART[role.id]} alt="" width={340} height={396} />
+        <img
+          className="plate__art"
+          src={ROLE_ART[role.id]}
+          alt=""
+          width={ROLE_ART_SIZE[role.id]?.w}
+          height={ROLE_ART_SIZE[role.id]?.h}
+        />
         <span className="plate__duty">
           <span className="plate__role">
             {role.ko}
