@@ -285,10 +285,18 @@ export default function GameScreen() {
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
   const isMyTurn = view.phase === 'suggest' && view.players[view.turnIndex]?.isMe === true
 
-  const submit = (action: (s: Suggestion) => void) => {
+  /*
+   * 제출이 «끝난 뒤에» 고른 것을 비운다.
+   *
+   * 곧바로 비웠더니 확정하는 순간 상 위 카드가 사라졌다 — store의 apply는 AI 반증까지
+   * 다 끝난 뒤 한 번만 상태를 쓰는데(store/game.ts), picked를 먼저 지우면 그 사이엔
+   * draft도 없고 live도 없어 「아직 아무것도 오르지 않았다」로 떨어진다. LLM이 느릴수록
+   * 그 빈 시간이 길어진다. 기다렸다 비우면 카드가 상에 놓인 채로 판정으로 이어진다.
+   */
+  const submit = async (action: (s: Suggestion) => Promise<void>) => {
     const suggestion = toSuggestion(picked)
     if (!suggestion) return
-    action(suggestion)
+    await action(suggestion)
     setPicked({})
   }
 
