@@ -323,12 +323,10 @@
   gap: 1.1rem;
   align-items: start;
 }
-/* 명패를 가리는 이유는 briefing.css의 .duty__card에 적어 두었다 — 같은 그림, 같은 396. */
+/* 높이는 그림이 정한다 — 이유는 briefing.css의 .duty__card에 적어 두었다. */
 .plate__art {
   width: 100%;
-  aspect-ratio: 340 / 396;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
   border-radius: 0.14rem;
   filter: brightness(0.9) saturate(0.94);
 }
