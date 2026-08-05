@@ -356,7 +356,8 @@ function RoleAct({
       <div className="role__hold">
         <section className={`duty duty--${role.side}`} tabIndex={0}>
           <span className="duty__card">
-            <img className="duty__art" src={ROLE_ART[role.id]} alt="" width={340} height={482} />
+            {/* 482는 어느 원본에도 없던 값이다. 실제로 그려지는 상자(340×396)를 적어 로딩 전후 높이를 같게 둔다. */}
+            <img className="duty__art" src={ROLE_ART[role.id]} alt="" width={340} height={396} />
           </span>
           <span className="duty__body">
             <span className="duty__kicker">직업 · 職業</span>

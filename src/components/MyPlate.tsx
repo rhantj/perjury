@@ -105,7 +105,7 @@ export default function MyPlate({ view, scenario, role }: Props) {
       </header>
 
       <div className="plate__who">
-        <img className="plate__art" src={ROLE_ART[role.id]} alt="" width={340} height={482} />
+        <img className="plate__art" src={ROLE_ART[role.id]} alt="" width={340} height={396} />
         <span className="plate__duty">
           <span className="plate__role">
             {role.ko}
