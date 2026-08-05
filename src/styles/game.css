@@ -1104,10 +1104,18 @@
     box-shadow: 0 0 0 1px var(--tone-key) inset, 0 0 22px oklch(74% 0.13 60 / 0.32);
   }
 }
+/*
+ * 번호칸(.seat__face) 오른쪽에 나란히 둔다 — 원래 둘 다 top-left 같은 좌표에 절대배치라
+ * «제안»이 번호를 통째로 덮었다. left는 번호칸의 오른쪽 끝(0.65 + 1.75rem)에서 시작하고,
+ * top/height를 번호칸과 같게 잡아 세로 중앙이 계산 없이 맞는다.
+ */
 .seat__suggest-badge {
   position: absolute;
-  top: 0.5rem;
-  left: 0.6rem;
+  top: 0.55rem;
+  left: 2.65rem;
+  display: grid;
+  place-items: center;
+  height: 1.75rem;
   font-family: var(--font-display);
   font-size: 0.6rem;
   letter-spacing: 0.14em;
