@@ -21,11 +21,55 @@ function requirePlayer(state: GameState, playerId: PlayerId): Player {
   return player
 }
 
+/**
+ * 한 사람이 한 판에 걸 수 있는 이의제기 횟수 (decisions/008).
+ *
+ * 규칙상 이의제기는 이기든 지든 내 패 1장을 소모하므로 손패 2장이면 자연히 두 번이
+ * 상한이다. 그걸 명시적 자원으로 만들어 화면에 보여주려고 상수로 둔다.
+ */
+export const CHALLENGE_LIMIT = 2
+
+/** 아직 공개되지 않은 손패. 이의제기에 낼 수 있는 카드이자 페널티로 깔 대상이다. */
+function hiddenHand(player: Player): readonly CardId[] {
+  return player.hand.filter((c) => !player.revealed.includes(c))
+}
+
 /** 아직 공개되지 않은 손패에서 1장. 남은 게 없으면 공개할 것도 없다. */
 function pickHidden(player: Player, rng: () => number): CardId | null {
-  const hidden = player.hand.filter((c) => !player.revealed.includes(c))
+  const hidden = hiddenHand(player)
   if (hidden.length === 0) return null
   return pickOne(hidden, rng)
+}
+
+/**
+ * 이 사람이 지금까지 건 이의제기 횟수.
+ *
+ * **상태로 들지 않는다.** 기록에서 세면 나오는 값을 따로 저장하면 되감기·재현에서
+ * 어긋날 자리가 하나 더 생긴다(decisions/008).
+ */
+export function challengesUsed(state: GameState, playerId: PlayerId): number {
+  return challengesUsedIn(state.rounds, playerId)
+}
+
+/**
+ * 기록 배열만 받는 판. **화면이 쓰는 입구다.**
+ *
+ * GameView에 「남은 횟수」 필드를 더하지 않으려고 이 모양으로 뺐다 — 그 뷰는 그대로
+ * 워커로 전송되고, 워커 스키마가 화이트리스트로 키를 검사하기 때문에(workers/src/schema.ts)
+ * 필드가 하나 늘면 모든 LLM 호출이 400으로 거절된다. 세는 방법은 여기 한 벌만 둔다.
+ */
+export function challengesUsedIn(
+  rounds: readonly { readonly challenge: { readonly challengerId: PlayerId } | null }[],
+  playerId: PlayerId,
+): number {
+  return rounds.filter((r) => r.challenge?.challengerId === playerId).length
+}
+
+/** 지금 이의제기를 걸 수 있는가. 화면이 버튼을 막을 때와 엔진이 거절할 때가 같은 기준을 쓴다. */
+export function canChallenge(state: GameState, playerId: PlayerId): boolean {
+  const player = state.players.find((p) => p.id === playerId)
+  if (!player) return false
+  return challengesUsed(state, playerId) < CHALLENGE_LIMIT && hiddenHand(player).length > 0
 }
 
 function applyReveals(state: GameState, reveals: readonly Reveal[]): Player[] {
@@ -71,6 +115,21 @@ export function challenge(
   const challenger = requirePlayer(state, challengerId)
   requirePlayer(state, targetId)
 
+  /*
+   * 횟수와 자격 (decisions/008). 둘은 다른 구멍을 막는다 —
+   * 횟수는 «양»을, 자격은 «값»을 보장한다.
+   *
+   * 자격이 따로 필요한 이유: 손패는 이의제기 말고도 비는 길이 있다(위증하다 걸리면
+   * 내 패가 열린다). 패가 다 열린 사람의 이의제기는 pickHidden이 null을 돌려줘
+   * 페널티가 아예 없는 «공짜 행동»이 되고, 값이 없는 행동은 남발된다.
+   */
+  if (challengesUsed(state, challengerId) >= CHALLENGE_LIMIT) {
+    throw new Error(`이의제기는 판당 ${CHALLENGE_LIMIT}회까지다: ${challengerId}`)
+  }
+  if (hiddenHand(challenger).length === 0) {
+    throw new Error(`공개되지 않은 손패가 없으면 이의제기할 수 없다: ${challengerId}`)
+  }
+
   const record = currentRound(state)
   const declaration = record.declarations.find((d) => d.playerId === targetId)
   if (!declaration) throw new Error('선언하지 않은 사람은 이의제기 대상이 아니다')
@@ -88,7 +147,11 @@ export function challenge(
   if (success) {
     const punished = pickHidden(requirePlayer(state, targetId), rng)
     if (punished) reveals.push({ playerId: targetId, cardId: punished })
-    reveals.push({ playerId: challengerId, cardId })
+    // 증명 카드가 이미 공개돼 있으면 또 넣지 않는다 — revealed에 같은 id가 두 번 쌓여
+    // 화면에 같은 카드가 두 장 그려졌다(decisions/008 «곁다리로 발견한 결함»).
+    if (!challenger.revealed.includes(cardId)) {
+      reveals.push({ playerId: challengerId, cardId })
+    }
   } else {
     const punished = pickHidden(challenger, rng)
     if (punished) reveals.push({ playerId: challengerId, cardId: punished })

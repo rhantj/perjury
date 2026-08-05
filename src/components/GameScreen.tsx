@@ -9,6 +9,7 @@ import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { weaponArtFor } from '../content/weapon-art'
+import { CHALLENGE_LIMIT, challengesUsedIn } from '../engine/challenge'
 import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { useGame } from '../store/game'
@@ -642,7 +643,19 @@ function ChallengeBar({
   onPass: () => void
 }) {
   const record = view.rounds[view.rounds.length - 1]
-  const hand = view.players.find((p) => p.isMe)?.hand ?? []
+  const me = view.players.find((p) => p.isMe)
+  const hand = me?.hand ?? []
+
+  /*
+   * 남은 이의제기 (decisions/008). 이의제기는 이기든 지든 내 패 1장을 소모하므로
+   * 판당 2회가 상한이고, 공개되지 않은 패가 없으면 아예 걸 수 없다.
+   * 규칙이 있는데 안 보이면 없는 것과 같아서 숫자로 내건다 — 그리고 엔진이 거절하기
+   * «전에» 눌리지 않아야 한다. 세는 방법은 엔진 한 곳에서 가져온다.
+   */
+  const left = CHALLENGE_LIMIT - challengesUsedIn(view.rounds, view.viewerId)
+  const hidden = hand.filter((c) => !(me?.revealed ?? []).includes(c))
+  const blocked =
+    left <= 0 ? `판당 ${CHALLENGE_LIMIT}회를 다 썼다` : hidden.length === 0 ? '낼 수 있는 패가 없다' : null
 
   const targets = (record?.declarations ?? []).filter(
     (d) => d.claim.kind === 'refute' && d.playerId !== view.viewerId,
@@ -650,6 +663,10 @@ function ChallengeBar({
 
   return (
     <div className="actions__row">
+      <span className="actions__quota">
+        이의제기 <b>{Math.max(0, left)}</b>/{CHALLENGE_LIMIT}
+        {blocked && <em>{blocked}</em>}
+      </span>
       {targets.map((d) => {
         const cardId = d.claim.kind === 'refute' ? d.claim.cardId : ''
         const provable = hand.includes(cardId)
@@ -658,6 +675,8 @@ function ChallengeBar({
             key={d.playerId}
             type="button"
             className={`btn${provable ? ' btn--held' : ''}`}
+            disabled={blocked !== null}
+            title={blocked ?? undefined}
             onClick={() => onChallenge(d.playerId)}
           >
             {participantLabel(view, d.playerId)} 위증
