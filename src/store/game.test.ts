@@ -278,4 +278,27 @@ describe('밀담', () => {
 
     expect(await game().askParley('p1', '묻는다')).toBeNull()
   })
+
+  /**
+   * 폴백은 «게임이 끝까지 간다»가 요점이다(절대규칙 4). 밀담이 닫히면 라운드를 넘기는
+   * 두 출구 중 하나가 사라지므로, 규칙 기반 판단자도 반드시 답해야 한다.
+   */
+  it('규칙 기반 판단자도 밀담에 답한다', async () => {
+    await game().start('rule-parley', 0, (seed) => ruleDeciderForRound(seed))
+
+    const reply = await game().askParley('p1', '왜 침묵했지')
+
+    expect(reply).not.toBeNull()
+    expect(reply?.length).toBeGreaterThan(0)
+  })
+
+  it('상대가 다르면 다른 말이 나온다 — 여섯이 한목소리로 답하지 않는다', async () => {
+    await game().start('rule-parley', 0, (seed) => ruleDeciderForRound(seed))
+
+    const replies = await Promise.all(
+      ['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => game().askParley(id, '묻는다')),
+    )
+
+    expect(new Set(replies).size).toBeGreaterThan(1)
+  })
 })

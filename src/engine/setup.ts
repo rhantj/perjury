@@ -70,6 +70,8 @@ export function createGame({
     players,
     solution,
     rounds: [],
+    powersUsed: [],
+    grants: [],
     outcome: null,
   }
 }

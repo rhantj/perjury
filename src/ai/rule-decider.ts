@@ -1,5 +1,6 @@
 import { challengeTargetFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
 import { silent } from './decider'
+import { parleyLine } from '../content/fallback-lines'
 import type { Decider, DeciderForRound } from './decider'
 import type { GameView } from '../engine/view'
 
@@ -17,9 +18,16 @@ function saltOf(seed: string, kind: string, view: GameView): string {
 }
 
 /**
- * 대사는 만들지 않는다(silent). 사전생성 대사 풀은 D8 작업이고, 여기서 급조하면
- * 폴백이 «LLM 흉내»를 내면서 실제로는 같은 문장을 반복하게 된다.
+ * 판단 대사는 만들지 않는다(silent). 반증·제안·이의제기의 빈 자리는 화면이
+ * content/fallback-lines.ts에서 캐릭터별로 채우므로, 여기서 또 만들면 두 곳이 갈린다.
+ *
+ * **밀담만 예외다.** 밀담 답변은 화면이 채울 수 없다 — 판단자가 돌려주지 않으면
+ * 「상대가 입을 열지 않는다」로 끝나 밀담 자체가 성립하지 않기 때문이다.
  */
+export function characterOf(view: GameView): string {
+  return view.players.find((p) => p.isMe)?.characterId ?? ''
+}
+
 export function createRuleDecider(seed: string): Decider {
   return {
     chooseSuggestion: async (view) => silent(suggestionFrom(view, saltOf(seed, 'sg', view))),
@@ -27,10 +35,10 @@ export function createRuleDecider(seed: string): Decider {
     chooseChallengeTarget: async (view) => silent(challengeTargetFrom(view)),
     chooseAccusation: async (view) => silent(voteFrom(view, saltOf(seed, 'vote', view))),
     /*
-     * 밀담에는 침묵한다. 사전생성 대사 풀은 D8 작업이고, 여기서 급조하면
-     * 폴백이 같은 문장을 8라운드 내내 반복한다. 화면은 «밀담이 이뤄지지 않았다»로 간다(설계 §6.6).
+     * 사전생성 대사 풀에서 답한다. 질문을 읽지 못하므로 무엇을 물어도 어긋나지 않는
+     * «답을 피하는 말»만 들어 있다 — 프록시가 죽어도 밀담이 닫히지 않는 것이 요점이다(절대규칙 4).
      */
-    speakInParley: async () => null,
+    speakInParley: async (view) => parleyLine(characterOf(view), saltOf(seed, 'pl', view)),
   }
 }
 

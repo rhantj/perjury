@@ -334,7 +334,6 @@ export default function GameScreen() {
               key={view.round}
               view={view}
               open={view.phase === 'whisper' && myMove}
-              blocked={store.fallbackRound}
               onAsk={store.askParley}
               onDone={store.parley}
               onSkip={store.skipParley}
