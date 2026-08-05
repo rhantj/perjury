@@ -59,7 +59,15 @@ const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
  */
 export default function Table({ view, scenario }: Props) {
   const record = view.rounds[view.rounds.length - 1]
-  const live = record?.round === view.round ? record : null
+  /*
+   * 원탁 가운데는 «지금 걸려 있는 제안»의 자리다. 고발로 넘어가면 걸려 있는 제안이 없다.
+   *
+   * 라운드 번호만으로는 갈리지 않는다 — 마지막 라운드에서는 nextRound가 round를 올리지 않고
+   * 페이즈만 accuse로 바꾸므로(engine/progress.ts), 지난 라운드의 제안이 고발 화면까지 남는다.
+   * 최종 고발을 고르는 자리에 남의 지난 제안이 깔려 있으면 그것을 답으로 읽게 된다.
+   */
+  const accusing = view.phase === 'accuse'
+  const live = record?.round === view.round && !accusing ? record : null
   const turnId = view.players[view.turnIndex]?.id
   const label = (id: CardId) => cardLabel(scenario, id)
   const tableArt = tableArtFor(scenario)
@@ -148,7 +156,9 @@ export default function Table({ view, scenario }: Props) {
             </ul>
           </div>
         ) : (
-          <span className="centre__idle">상 위에 아직 아무것도 오르지 않았다</span>
+          <span className="centre__idle">
+            {accusing ? '상이 치워졌다 — 이제 이름을 대야 한다' : '상 위에 아직 아무것도 오르지 않았다'}
+          </span>
         )}
       </li>
 
