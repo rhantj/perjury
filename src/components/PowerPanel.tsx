@@ -138,6 +138,7 @@ const ASK: Partial<Record<NonNullable<Role['effect']>, string>> = {
   'verify-claim': '누구의 반증을 확인할 것인가',
   photograph: '누구를 촬영할 것인가',
   publish: '누구의 지난 선언을 신문에 실을 것인가',
+  frame: '누구의 반증을 조작할 것인가',
 }
 
 /** 알려줄 사실이 «원래» 없는 능력. 기다린다고 쓰면 오지 않을 답을 기다리게 된다. */
@@ -149,6 +150,8 @@ const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
   publish: '신문에 실었다 — 기록에서 읽을 수 있다',
   // 이쪽은 패널이 아니라 반증 줄의 「답변 거부」 버튼으로 쓴다.
   'refuse-demand': '이번 반증 요구에 답하지 않는다',
+  // 결과는 그 좌석의 기록에 그대로 나타난다. 여기서 다시 알려주면 조작한 쪽이 드러난다.
+  frame: '이번 라운드 그의 반증에 손을 써두었다',
 }
 
 /**

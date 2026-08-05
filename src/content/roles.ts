@@ -122,7 +122,7 @@ export const ROLES: readonly Role[] = [
     side: 'culprit',
     power: '타인의 반증 1회를 조작한다.',
     flavor: '무고한 사람을 거짓말쟁이로 만든다.',
-    effect: null,
+    effect: 'frame',
   },
   {
     id: 'spy',

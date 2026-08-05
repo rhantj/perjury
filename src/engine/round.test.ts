@@ -359,3 +359,128 @@ describe('refuse — 변호사의 거부', () => {
     expect(mine?.line).toBe('답하지 않겠소')
   })
 })
+
+describe('frame — 협잡꾼의 조작', () => {
+  const TRICKSTER: PlayerId = 'p1'
+  const VICTIM: PlayerId = 'p2'
+
+  /** p2가 w1을 쥐고 그것으로 정직하게 반증한다. 조작이 없으면 참이다. */
+  const FRAME_HANDS: CardId[][] = [['s2'], ['s3'], ['w1'], ['s1'], ['p1'], ['s5']]
+
+  /** 조작을 거친 뒤 피해자의 기록에 남은 카드. 시드만 갈아끼워 비교하려고 뽑아 썼다. */
+  function framedCard(from: GameState): CardId {
+    const withCards: GameState = {
+      ...from,
+      solution: { suspect: 's6', weapon: 'w4', place: 'p5' },
+      players: from.players.map((p, i) => ({
+        ...p,
+        characterId: `s${i + 1}`,
+        hand: FRAME_HANDS[i] ?? [],
+      })),
+    }
+    const base = suggest(withCards, 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+    const claim = declareAll(state, honest()).rounds[0]?.declarations.find(
+      (d) => d.playerId === VICTIM,
+    )?.claim
+    if (claim?.kind !== 'refute') throw new Error('반증이 아니다')
+    return claim.cardId
+  }
+
+  function honest(): Map<PlayerId, Claim> {
+    const map = claims(ALL_PASS)
+    map.set(VICTIM, { kind: 'refute', cardId: 'w1' })
+    return map
+  }
+
+  it('조작이 없으면 낸 카드 그대로 참이다', () => {
+    const state = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const mine = declareAll(state, honest()).rounds[0]?.declarations.find(
+      (d) => d.playerId === VICTIM,
+    )
+
+    expect(mine?.claim).toEqual({ kind: 'refute', cardId: 'w1' })
+    expect(mine?.isPerjury).toBe(false)
+  })
+
+  it('조작당하면 내지 않은 카드로 선언한 것이 된다', () => {
+    const base = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+    const mine = declareAll(state, honest()).rounds[0]?.declarations.find(
+      (d) => d.playerId === VICTIM,
+    )
+
+    if (mine?.claim.kind !== 'refute') throw new Error('선언 종류가 다르다')
+    expect(mine.claim.cardId).not.toBe('w1')
+    // 바뀐 카드도 제안된 3장 안에서 골라야 기록이 룰과 어긋나지 않는다.
+    expect(['s1', 'w1', 'p1']).toContain(mine.claim.cardId)
+  })
+
+  /** 쥐지 않은 카드로 선언한 것이 되므로 그 카드를 쥔 제3자가 잡을 수 있다. */
+  it('조작당한 선언은 위증으로 판정된다', () => {
+    const base = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+    const mine = declareAll(state, honest()).rounds[0]?.declarations.find(
+      (d) => d.playerId === VICTIM,
+    )
+
+    expect(mine?.isPerjury).toBe(true)
+  })
+
+  /** 말은 그대로인데 기록만 달라진 것이 이 능력의 무서움이다. */
+  it('대사는 바꾸지 않는다', () => {
+    const base = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+    const lines = new Map([[VICTIM, '아편팅크는 내 손에 있소']])
+    const mine = declareAll(state, honest(), lines).rounds[0]?.declarations.find(
+      (d) => d.playerId === VICTIM,
+    )
+
+    expect(mine?.line).toBe('아편팅크는 내 손에 있소')
+  })
+
+  it('침묵은 조작할 것이 없다', () => {
+    const base = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+    const after = declareAll(state, claims(ALL_PASS))
+
+    expect(after.rounds[0]?.declarations.find((d) => d.playerId === VICTIM)?.claim.kind).toBe('pass')
+    expect(after.pending).toHaveLength(0)
+  })
+
+  it('한 번 쓰면 거둔다', () => {
+    const base = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+
+    expect(declareAll(state, honest()).pending).toHaveLength(0)
+  })
+
+  /** 순수성 회귀 방지. 같은 판을 두 번 돌리면 바뀐 카드까지 같아야 한다. */
+  it('같은 시드에서는 같은 카드로 바뀐다', () => {
+    const run = () => framedCard(createGame({ seed: 'fixture' }))
+
+    expect(run()).toBe(run())
+  })
+
+  /** 시드가 다르면 판도 다르다. 바뀐 카드가 시드에서 나온다는 것이 여기서 드러난다. */
+  it('시드가 다르면 다른 카드가 나올 수 있다', () => {
+    const picks = new Set(
+      ['fixture', 'frame-a', 'frame-b', 'frame-c', 'frame-d', 'frame-e'].map((seed) =>
+        framedCard(createGame({ seed })),
+      ),
+    )
+
+    expect(picks.size).toBeGreaterThan(1)
+  })
+
+  /** 조작 대상만 바뀐다. 나머지 좌석의 선언은 그대로여야 한다. */
+  it('지목하지 않은 좌석은 손대지 않는다', () => {
+    const base = suggest(withHands(FRAME_HANDS), 'p0', SUGGESTION)
+    const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
+    const given = honest()
+    given.set('p4', { kind: 'refute', cardId: 'p1' })
+
+    const mine = declareAll(state, given).rounds[0]?.declarations.find((d) => d.playerId === 'p4')
+    expect(mine?.claim).toEqual({ kind: 'refute', cardId: 'p1' })
+  })
+})
