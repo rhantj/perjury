@@ -1035,12 +1035,73 @@
     transform: translateY(0);
   }
 }
+/*
+ * 공개된 패. 그 좌석 «안에» 카드로 눌러앉는다.
+ *
+ * 텍스트 한 줄이었을 땐 대사줄과 생김새가 같아서 흘러가는 말처럼 읽혔다 — 이건 판이
+ * 끝날 때까지 남는 증거이고, 손패·제안·상 위 카드가 전부 그림이므로 여기도 그림이어야
+ * 같은 물건으로 읽힌다.
+ */
 .seat__revealed {
-  margin-top: 0.1rem;
-  font-size: 0.78rem;
-  color: oklch(78% 0.1 40);
-  text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
   animation: seat-say-in var(--duration-normal) var(--ease-out-expo);
+}
+.reveal-card {
+  position: relative;
+  width: clamp(2rem, 3vw, 3.1rem);
+  aspect-ratio: 3 / 4;
+  display: grid;
+  align-items: end;
+  overflow: hidden;
+  border: 1px solid oklch(60% 0.11 40);
+  border-radius: 0.14rem;
+  background: var(--tone-panel);
+  box-shadow: 0 3px 8px oklch(5% 0.02 250 / 0.6);
+  /*
+   * 오른쪽 «위»로 자란다. .seat이 overflow:hidden이라 밖으로 나가면 잘린다 —
+   * 카드가 좌석 왼쪽 아래에 붙어 있으므로, 가운데를 축으로 잡으면 커질 때 왼쪽이
+   * 좌석 밖으로 나가 잘렸다(실측). 왼쪽 아래를 축으로 하면 남는 공간 쪽으로만 커진다.
+   */
+  transform-origin: bottom left;
+  transition:
+    transform var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-out-expo);
+}
+.reveal-card:hover,
+.reveal-card:focus-visible {
+  transform: scale(1.9);
+  box-shadow:
+    0 10px 20px oklch(4% 0.02 250 / 0.7),
+    0 0 22px oklch(74% 0.13 60 / 0.45);
+  z-index: 3;
+}
+.reveal-card:hover .reveal-card__art,
+.reveal-card:focus-visible .reveal-card__art {
+  filter: brightness(1) saturate(1.05);
+}
+.reveal-card__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.8) saturate(0.9);
+  transition: filter var(--duration-fast) var(--ease-out-expo);
+}
+.reveal-card__name {
+  position: relative;
+  z-index: 1;
+  padding: 0.14rem 0.16rem;
+  font-size: 0.5rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: oklch(96% 0.01 84);
+  background: linear-gradient(0deg, oklch(8% 0.02 250 / 0.92), transparent);
 }
 .seat__badge {
   position: absolute;

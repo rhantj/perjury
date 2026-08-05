@@ -6,7 +6,15 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
-import { challengeLine, passLine, refuteLine, suggestLine } from '../content/fallback-lines'
+import {
+  caughtLine,
+  challengeLine,
+  clearedLine,
+  passLine,
+  refuteLine,
+  suggestLine,
+  wrongCallLine,
+} from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
 import type { CardId, CardKind, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
@@ -222,18 +230,39 @@ function Seat({
    * 같은 인물이면 같은 말투여야 한다. 이의제기 순간은 그 좌석의 반증/넘김 발언보다
    * 우선한다 — spoken의 challengeLine ?? … 순서와 같은 우선순위다.
    */
+  /*
+   * 이의제기 «판정»에 대한 반응. 지목(challengeLine)보다 뒤 박자이므로 이게 이긴다.
+   *
+   * 세 자리로 갈린다 — 들킨 쪽·누명을 벗은 쪽·헛짚은 쪽. 예전엔 판정이 난 뒤에도 각자
+   * 직전 발언이 그대로 남아서, 위증이 들통난 사람이 방금 한 거짓말을 계속 말하고 있고
+   * 헛짚은 사람은 여전히 「거짓을 고했소」라고 우겼다.
+   *
+   * 적중한 도전자만 지목 그대로 둔다 — 그 말이 옳았음이 방금 증명됐으므로 바꿀 이유가 없다.
+   */
+  const result = live?.challenge ?? null
+  const reaction =
+    result && result.targetId === player.id
+      ? result.success
+        ? caughtLine(player.characterId)
+        : clearedLine(player.characterId)
+      : result && result.challengerId === player.id && !result.success
+        ? wrongCallLine(player.characterId, participantLabel(view, result.targetId))
+        : null
+
   const say =
-    live?.challenge?.challengerId === player.id
-      ? `“${challengeLine(player.characterId, participantLabel(view, live.challenge.targetId))}”`
-      : isSuggester
-        ? `“${suggestLine(player.characterId)}”`
-        : declaration
-          ? revealed
-            ? declaration.claim.kind === 'refute'
-              ? `“${refuteLine(player.characterId, label(declaration.claim.cardId))}”`
-              : `“${passLine(player.characterId)}”`
-            : '…'
-          : null
+    reaction
+      ? `“${reaction}”`
+      : live?.challenge?.challengerId === player.id
+        ? `“${challengeLine(player.characterId, participantLabel(view, live.challenge.targetId))}”`
+        : isSuggester
+          ? `“${suggestLine(player.characterId)}”`
+          : declaration
+            ? revealed
+              ? declaration.claim.kind === 'refute'
+                ? `“${refuteLine(player.characterId, label(declaration.claim.cardId))}”`
+                : `“${passLine(player.characterId)}”`
+              : '…'
+            : null
 
   /*
    * LLM이 쓴 대사. 있으면 say 대신 이것만 렌더한다(아래 JSX) — 둘을 같이 띄우면 한 좌석에
@@ -243,9 +272,12 @@ function Seat({
    * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
    */
   const challengeLLMLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
-  const spoken =
-    challengeLLMLine ??
-    (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null)
+  const spoken = reaction
+    ? // 판정 반응이 있으면 LLM 대사를 덮는다 — 그쪽은 판정 «이전»에 쓰인 말이라,
+      // 들통난 사람이 방금 한 거짓말을, 헛짚은 사람이 빗나간 지목을 계속 말하게 된다.
+      null
+    : (challengeLLMLine ??
+      (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null))
 
   const art = suspectArtFor(player.characterId)
   /*
@@ -381,10 +413,29 @@ function Seat({
         </span>
       )}
 
+      {/*
+        공개된 패는 «그 사람 자리에» 카드로 남는다.
+        예전엔 「공개 넥타이 · 서재」처럼 한 줄 텍스트였는데, 이 판에서 카드는 전부 그림으로
+        다뤄지므로(손패·제안·상 위) 여기만 글자면 같은 것이 다른 물건으로 읽힌다. 그리고
+        이건 판이 끝날 때까지 남는 «증거»라, 대사처럼 흘러가는 줄과 같은 모양이면 안 된다.
+      */}
       {player.revealed.length > 0 && (
-        <span className="seat__revealed">
-          공개 {player.revealed.map((c) => label(c)).join(' · ')}
-        </span>
+        <ul className="seat__revealed">
+          {/*
+            중복을 걷어낸다. 엔진이 이의제기 성공 시 증명 카드를 «이미 공개된 것이어도»
+            reveals에 다시 넣어서(engine/challenge.ts) revealed에 같은 id가 두 번 쌓일 수
+            있다. 그대로 그리면 같은 카드가 두 장 보이고 key까지 충돌한다.
+            근본 해결은 엔진 쪽이다 — 여기서는 화면이 깨지지 않게만 막는다.
+          */}
+          {[...new Set(player.revealed)].map((cardId) => (
+            <li key={cardId} className="reveal-card" title={label(cardId)}>
+              {revealArtFor(scenario, cardId) && (
+                <img className="reveal-card__art" src={revealArtFor(scenario, cardId)} alt="" />
+              )}
+              <span className="reveal-card__name">{label(cardId)}</span>
+            </li>
+          ))}
+        </ul>
       )}
 
       {caught && <span className="seat__badge">위증</span>}
