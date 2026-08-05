@@ -48,6 +48,8 @@ export interface RoundView {
   readonly challenge: ChallengeRecord | null
   /** 사진사에게 발각된 위증자. 전체 공개이므로 걸러내지 않고 그대로 실린다. */
   readonly exposed: readonly PlayerId[]
+  /** 신문기자가 공개한 반증의 진위. 발각과 달리 「참이었다」도 실린다. */
+  readonly published: readonly { readonly playerId: PlayerId; readonly truthful: boolean }[]
   /**
    * 밀담. **낀 두 사람에게만 채워진다** — 나머지에게는 null이다.
    *
@@ -142,6 +144,7 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     })),
     challenge: record.challenge,
     exposed: record.exposed,
+    published: record.published,
     // 언제나 사람이 걸었으므로, 볼 수 있는 사람은 «사람»과 «지목당한 상대» 둘뿐이다.
     parley:
       record.parley && (viewer.isHuman || record.parley.targetId === viewerId)

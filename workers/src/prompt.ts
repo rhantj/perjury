@@ -148,7 +148,12 @@ function observationBlock(view: GameView): string {
     const exposed = round.exposed.map(
       (id) => `  · ${who(id)}의 반증이 거짓임이 사진으로 드러났다 — 이것은 확정된 사실이다`,
     )
-    return [head, ...declarations, ...challenge, ...exposed, ...parley].join('\n')
+    // 신문에 실려 전원이 읽었다. 「참이었다」도 실린다 — 결백의 확정도 판을 움직인다.
+    const published = round.published.map(
+      (p) =>
+        `  · ${who(p.playerId)}의 이 선언이 ${p.truthful ? '참' : '거짓'}이었음이 신문에 실렸다 — 이것은 확정된 사실이다`,
+    )
+    return [head, ...declarations, ...challenge, ...exposed, ...published, ...parley].join('\n')
   })
 
   /*

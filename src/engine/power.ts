@@ -108,9 +108,11 @@ export function usableIn(kind: PowerUse['kind'], at: PowerTiming): boolean {
     // 겨누는 것이 «다음» 라운드다. 마지막 라운드에는 그 다음이 오지 않는다.
     case 'photograph':
       return at.round < at.totalRounds
+    // 신문은 지나간 일을 쓴다. 첫 라운드에는 지난 반증이 없다.
+    case 'publish':
+      return at.round > 1
     case 'inspect-hand':
     case 'check-weapon':
-    case 'publish':
     case 'shield':
     case 'refuse-demand':
     case 'frame':
@@ -144,6 +146,38 @@ function resolve(state: GameState, use: PowerUse): Finding | null {
   }
 }
 
+/**
+ * 지목한 사람의 «가장 최근» 지난 선언을 찾아 그 진위를 라운드 기록에 새긴다.
+ *
+ * 이번 라운드는 보지 않는다. 아직 이의제기가 남아 있는 선언의 진위를 미리 밝히면
+ * 그 라운드의 이의제기가 통째로 무의미해진다 — 신문은 지나간 일을 쓴다.
+ *
+ * 공개할 것이 없으면 **던진다.** 조용히 넘어가면 능력만 소진되고 아무 일도 안 일어나는데,
+ * 지목한 상대가 매 라운드 제안자였는지는 화면도 미리 막아줄 수 없는 선택이라 알려야 한다.
+ */
+function publishInto(state: GameState, targetId: PlayerId): GameState['rounds'] {
+  // 뒤에서부터 찾는다 — 「가장 최근」이므로. 이번 라운드는 아직 이의제기가 남아 제외한다.
+  let index = -1
+  for (let i = state.rounds.length - 1; i >= 0; i -= 1) {
+    const record = state.rounds[i]
+    if (!record || record.round >= state.round) continue
+    // 침묵도 선언이고 진위가 있다(카드를 쥐고도 침묵하면 위증). 순사와 같은 기준으로 본다.
+    if (record.declarations.some((d) => d.playerId === targetId)) {
+      index = i
+      break
+    }
+  }
+
+  const found = state.rounds[index]
+  const declaration = found?.declarations.find((d) => d.playerId === targetId)
+  if (!found || !declaration) throw new Error(`공개할 지난 반증이 없다: ${targetId}`)
+
+  const truthful = !declaration.isPerjury
+  return state.rounds.map((entry, i) =>
+    i === index ? { ...entry, published: [...entry.published, { playerId: targetId, truthful }] } : entry,
+  )
+}
+
 export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): GameState {
   requirePlayer(state, playerId)
   /*
@@ -158,6 +192,12 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
   if (target !== null) {
     if (target === playerId) throw new Error('자기 자신은 지목할 수 없다')
     requirePlayer(state, target)
+  }
+
+  // 결과가 전체 공개인 능력. 알게 된 사람이 하나가 아니라 기록 자체가 바뀐다.
+  if (use.kind === 'publish') {
+    const rounds = publishInto(state, use.targetId)
+    return { ...state, powersUsed: [...state.powersUsed, playerId], rounds }
   }
 
   const finding = resolve(state, use)
@@ -181,8 +221,6 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
 export interface PowerIntent {
   readonly targetId?: PlayerId
   readonly cardId?: CardId
-  /** 신문기자가 어느 라운드의 반증을 공개할지. */
-  readonly round?: number
 }
 
 /**
@@ -193,7 +231,7 @@ export interface PowerIntent {
  * 안 되기 때문이다. 부르는 쪽은 null을 조용히 무시한다.
  */
 export function buildPowerUse(effect: PowerUse['kind'], intent: PowerIntent): PowerUse | null {
-  const { targetId, cardId, round } = intent
+  const { targetId, cardId } = intent
 
   switch (effect) {
     case 'inspect-hand':
@@ -205,7 +243,7 @@ export function buildPowerUse(effect: PowerUse['kind'], intent: PowerIntent): Po
     case 'photograph':
       return targetId ? { kind: 'photograph', targetId } : null
     case 'publish':
-      return targetId && round !== undefined ? { kind: 'publish', round, targetId } : null
+      return targetId ? { kind: 'publish', targetId } : null
     case 'frame':
       return targetId ? { kind: 'frame', targetId } : null
     case 'shield':

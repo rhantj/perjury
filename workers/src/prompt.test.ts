@@ -27,6 +27,7 @@ function withRound(patch: Partial<RoundView>): GameView {
     declarations: [{ playerId: speaker.id, claim: { kind: 'pass' }, line: null }],
     challenge: null,
     exposed: [],
+    published: [],
     parley: null,
     ...patch,
   }
@@ -118,6 +119,29 @@ describe('observationBlock — 사진사 발각', () => {
 
   it('발각이 없으면 그 줄이 아예 나오지 않는다', () => {
     expect(userText(buildMessages('refute', withRound({})))).not.toContain('사진')
+  })
+})
+
+describe('observationBlock — 신문기자 공개', () => {
+  it('참이었으면 참으로 실린다', () => {
+    const view = withRound({ published: [{ playerId: view0Speaker(), truthful: true }] })
+
+    expect(userText(buildMessages('refute', view))).toContain('참이었음이 신문에 실렸다')
+  })
+
+  it('거짓이었으면 거짓으로 실린다', () => {
+    const view = withRound({ published: [{ playerId: view0Speaker(), truthful: false }] })
+
+    expect(userText(buildMessages('refute', view))).toContain('거짓이었음이 신문에 실렸다')
+  })
+
+  /** 공개한 사람이 드러나면 신문기자가 노출된다. 실리는 것은 진위뿐이다. */
+  it('누가 실었는지는 나오지 않는다', () => {
+    const view = withRound({ published: [{ playerId: view0Speaker(), truthful: false }] })
+    const text = userText(buildMessages('refute', view))
+
+    expect(text).not.toContain('신문기자')
+    expect(text).not.toContain('기자')
   })
 })
 

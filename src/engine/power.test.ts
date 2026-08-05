@@ -342,3 +342,74 @@ describe('photograph — 사진사', () => {
     }
   })
 })
+
+/** 한 라운드를 끝까지 돌린다. 신문기자는 지나간 라운드만 공개할 수 있다. */
+function playRound(state: GameState, claims?: Map<PlayerId, Claim>): GameState {
+  const started = afterSuggest(state)
+  return nextRound(skipChallenge(declareAll(started, claims ?? allPass(started))))
+}
+
+describe('publish — 신문기자', () => {
+  /** 반증 선언 자체는 이미 공개다. 감춰져 있던 것은 그것이 참이었나뿐이다. */
+  it('지난 반증의 진위를 라운드 기록에 남긴다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const played = playRound(base)
+    const second = afterSuggest(played)
+
+    const after = usePower(second, idOf(second, 1), {
+      kind: 'publish',
+      targetId: idOf(second, 2),
+    })
+
+    expect(after.rounds[0]?.published).toEqual([{ playerId: idOf(after, 2), truthful: false }])
+  })
+
+  it('참이었으면 참으로 남는다', () => {
+    const base = withHands(game(), [[], [], ['w2'], [], [], []])
+    const second = afterSuggest(playRound(base))
+
+    const after = usePower(second, idOf(second, 1), {
+      kind: 'publish',
+      targetId: idOf(second, 2),
+    })
+
+    expect(after.rounds[0]?.published).toEqual([{ playerId: idOf(after, 2), truthful: true }])
+  })
+
+  it('공개된 것은 모든 시야에 실린다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const second = afterSuggest(playRound(base))
+    const after = usePower(second, idOf(second, 1), {
+      kind: 'publish',
+      targetId: idOf(second, 2),
+    })
+
+    for (const player of after.players) {
+      expect(viewFor(after, player.id).rounds[0]?.published).toHaveLength(1)
+    }
+  })
+
+  /** 아직 아무도 말하지 않은 첫 라운드에는 공개할 지난 반증이 없다. */
+  it('첫 라운드에는 쓸 수 없다', () => {
+    const first = afterSuggest(game())
+
+    expect(usableIn('publish', first)).toBe(false)
+    expect(() =>
+      usePower(first, idOf(first, 1), { kind: 'publish', targetId: idOf(first, 2) }),
+    ).toThrow()
+  })
+
+  /**
+   * 지목한 사람이 지난 라운드에 아무 말도 하지 않았으면 공개할 것이 없다.
+   * 이때 능력을 소진시키면 안 된다 — 화면이 미리 막지 못하는 선택이기 때문이다.
+   */
+  it('공개할 것이 없으면 능력이 소진되지 않는다', () => {
+    const second = afterSuggest(playRound(game()))
+    const record = second.rounds[0]
+    if (!record) throw new Error('라운드가 없다')
+
+    expect(() =>
+      usePower(second, idOf(second, 1), { kind: 'publish', targetId: record.suggesterId }),
+    ).toThrow()
+  })
+})

@@ -113,6 +113,34 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
     }
   }
 
+  /*
+   * 사진사·신문기자가 밝힌 것. 이의제기와 달리 잡은 사람이 없으므로 지문으로 둔다.
+   *
+   * 좌석 배지만으로는 부족하다 — 신문기자가 새기는 곳은 «지난» 라운드라 좌석(현재 라운드만
+   * 그린다)에는 뜰 자리가 없고, 발각도 라운드가 넘어가면 사라져 나중에 되짚을 수 없다.
+   */
+  for (const id of round.exposed) {
+    out.push({
+      tone: 'caught',
+      who: null,
+      face: null,
+      quote: null,
+      mine: false,
+      text: `${nameOf(view, id)}의 위증이 사진에 찍혔다.`,
+    })
+  }
+
+  for (const p of round.published) {
+    out.push({
+      tone: p.truthful ? 'reveal' : 'caught',
+      who: null,
+      face: null,
+      quote: null,
+      mine: false,
+      text: `${nameOf(view, p.playerId)}의 이 선언이 ${p.truthful ? '참' : '거짓'}이었음이 신문에 실렸다.`,
+    })
+  }
+
   if (round.parley) {
     const { targetId, askLine, replyLine } = round.parley
     out.push({

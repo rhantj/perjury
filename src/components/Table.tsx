@@ -179,6 +179,11 @@ function Seat({
    * 잡은 사람이 없기 때문이다. 발각은 전체 공개라 좌석마다 거를 것이 없다.
    */
   const shot = live?.exposed.includes(player.id) ?? false
+  /*
+   * 신문기자가 공개한 진위는 여기 그리지 않는다. 그가 새기는 곳은 «지난» 라운드이고
+   * 이 좌석은 진행 중인 라운드(live)만 그리므로, 배지가 뜰 수 있는 순간이 없다.
+   * 그 정보는 기록(Log)에 남는다.
+   */
 
   /*
    * LLM 대사가 없을 때(사람·규칙 기반 판단자·폴백 — declaration.line 등이 늘 null인

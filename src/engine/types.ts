@@ -110,8 +110,13 @@ export type PowerUse =
   | { readonly kind: 'verify-claim'; readonly targetId: PlayerId }
   /** 사진사 — 지목한 사람이 «다음» 라운드에 위증하면 이의제기 없이 드러난다. */
   | { readonly kind: 'photograph'; readonly targetId: PlayerId }
-  /** 신문기자 — 지난 반증 1건의 진위를 전체에 공개한다. */
-  | { readonly kind: 'publish'; readonly round: number; readonly targetId: PlayerId }
+  /**
+   * 신문기자 — 지목한 사람의 «가장 최근» 지난 반증, 그 진위를 전체에 공개한다.
+   *
+   * 어느 라운드인지는 고르지 않는다. 고르게 하면 AI가 두 가지를 골라야 해서
+   * 능력 개요(사람 하나 / 카드 하나 / 없음)로 표현할 수 없고 워커 계약이 넓어진다.
+   */
+  | { readonly kind: 'publish'; readonly targetId: PlayerId }
   /** 밀정 — 자기 위증 1회는 이의제기를 당해도 실패 처리된다. */
   | { readonly kind: 'shield' }
   /** 변호사 — 반증 요구를 1회 거부한다. */
@@ -165,6 +170,11 @@ export interface RoundRecord {
    * Grant가 아니라 라운드 기록에 남긴다 — 여기 있는 것은 모든 시야에 그대로 실린다.
    */
   readonly exposed: readonly PlayerId[]
+  /**
+   * 신문기자가 이 라운드의 반증에 대해 공개한 진위. 발각(exposed)과 달리 참도 실린다 —
+   * 「거짓이 아니었다」도 판을 움직이는 정보이기 때문이다.
+   */
+  readonly published: readonly { readonly playerId: PlayerId; readonly truthful: boolean }[]
   /** 이 라운드에 오간 밀담. 라운드당 최대 하나다. 없으면 null이다. */
   readonly parley: ParleyRecord | null
 }

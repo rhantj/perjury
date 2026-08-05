@@ -291,6 +291,7 @@ function roundView(value: unknown, index: number) {
       'declarations',
       'challenge',
       'exposed',
+      'published',
       'parley',
     ],
     where,
@@ -316,6 +317,15 @@ function roundView(value: unknown, index: number) {
      * 「새 워커 + 옛 프론트」 구간이 반드시 생기므로, 없으면 빈 배열로 읽는다.
      */
     exposed: obj['exposed'] === undefined ? [] : ids(obj, 'exposed', LIMITS.players, where),
+    published:
+      obj['published'] === undefined
+        ? []
+        : list(obj, 'published', LIMITS.players, where).map((entry, i) => {
+            const at = `${where}.published[${i}]`
+            const item = record(entry, at)
+            onlyKeys(item, ['playerId', 'truthful'], at)
+            return { playerId: text(item, 'playerId', at), truthful: flag(item, 'truthful', at) }
+          }),
     // 없는 것과 null을 같게 읽는다 — 밀담이 없는 라운드가 기본이다.
     parley:
       obj['parley'] === null || obj['parley'] === undefined
