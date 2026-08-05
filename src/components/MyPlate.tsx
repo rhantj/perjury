@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cardLabel } from '../content/labels'
 import { placeArtFor } from '../content/place-art'
@@ -18,6 +19,11 @@ interface Props {
   view: GameView
   scenario: Scenario
   role: Role
+  /**
+   * 능력 발동 슬롯. MyPlate가 store를 알지 않게 GameScreen이 만들어 넣는다 —
+   * 능력은 «나만 보는 패»에 붙어야 읽히지만, 이 컴포넌트는 그대로 표현 전용으로 둔다.
+   */
+  powerSlot?: ReactNode
 }
 
 const KIND_LABEL: Record<CardKind, string> = {
@@ -39,7 +45,7 @@ function artFor(scenario: Scenario, id: CardId): string | undefined {
  * 범인 진영에게는 봉인된 정답도 여기 붙는다. 브리핑에서 한 번 보여주고 마는 것이 아니라
  * 판이 도는 내내 손 닿는 곳에 있어야 «감추는 쪽»의 플레이가 가능하다.
  */
-export default function MyPlate({ view, scenario, role }: Props) {
+export default function MyPlate({ view, scenario, role, powerSlot }: Props) {
   const me = view.players.find((p) => p.isMe)
   const culprit = me?.faction === 'culprit'
   const hand = me?.hand ?? []
@@ -121,6 +127,8 @@ export default function MyPlate({ view, scenario, role }: Props) {
           <span className="plate__once">壹回</span>
         </span>
       </div>
+
+      {powerSlot}
 
       <section className="plate__cards">
         <h2 className="plate__label">손패</h2>
