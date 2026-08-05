@@ -769,13 +769,17 @@
   }
 }
 .seat__turn-badge {
+  /* 높이는 옆의 번호칸에 맞춘다 — stretch라 숫자를 박지 않아도 같은 줄 높이를 따라간다. */
+  align-self: stretch;
+  display: grid;
+  place-items: center;
   font-family: var(--font-display);
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
   color: var(--tone-key);
   border: 1px solid var(--tone-key);
-  border-radius: 0.1rem;
-  padding: 0.1rem 0.36rem;
+  border-radius: 0.15rem;
+  padding: 0 0.45rem;
   background: oklch(14% 0.02 250 / 0.7);
   animation: seat-badge-in 360ms var(--ease-out-expo);
 }
