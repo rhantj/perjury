@@ -1,4 +1,4 @@
-import type { Faction, Phase } from '../../src/engine/types'
+import type { Faction, Grant, Phase } from '../../src/engine/types'
 import type { GameView } from '../../src/engine/view'
 
 /**
@@ -25,6 +25,8 @@ export const LIMITS = {
   declarations: 6,
   reveals: 6,
   votes: 6,
+  /** 능력은 한 판에 한 번뿐이므로 한 사람 앞으로 오는 것은 사실상 1건이다. 넉넉히 잡는다. */
+  findings: 6,
   /** 이름·카드 id 등 문자열 전반. */
   stringLength: 200,
   /**
@@ -46,6 +48,7 @@ export type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley
 const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse', 'parley']
 const PHASES: readonly Phase[] = ['suggest', 'refute', 'challenge', 'whisper', 'accuse', 'over']
 const FACTIONS: readonly Faction[] = ['citizen', 'culprit']
+const FINDING_KINDS = ['hand', 'weapon', 'claim'] as const
 
 export interface DecideRequest {
   readonly v: 1
@@ -211,6 +214,41 @@ function parleyRecord(value: unknown, where: string) {
   }
 }
 
+/**
+ * 능력으로 확인한 것 한 건. viewFor가 이미 주인만 골라 실었으므로 모양만 본다.
+ *
+ * 프롬프트에 «사실»로 들어가는 값이라 종류를 좁게 받는다 — 모르는 kind를 통과시키면
+ * prompt.ts의 switch가 undefined를 한 줄 뱉는다.
+ */
+function finding(value: unknown, where: string): Grant['finding'] {
+  const obj = record(value, where)
+  const kind = oneOf(obj, 'kind', FINDING_KINDS, where)
+
+  switch (kind) {
+    case 'hand':
+      onlyKeys(obj, ['kind', 'targetId', 'cardId'], where)
+      return { kind, targetId: text(obj, 'targetId', where), cardId: text(obj, 'cardId', where) }
+    case 'weapon':
+      onlyKeys(obj, ['kind', 'cardId', 'isSolution'], where)
+      return { kind, cardId: text(obj, 'cardId', where), isSolution: flag(obj, 'isSolution', where) }
+    case 'claim':
+      onlyKeys(obj, ['kind', 'targetId', 'truthful'], where)
+      return { kind, targetId: text(obj, 'targetId', where), truthful: flag(obj, 'truthful', where) }
+  }
+}
+
+function grant(value: unknown, index: number): Grant {
+  const where = `findings[${index}]`
+  const obj = record(value, where)
+  onlyKeys(obj, ['round', 'ownerId', 'finding'], where)
+
+  return {
+    round: count(obj, 'round', where),
+    ownerId: text(obj, 'ownerId', where),
+    finding: finding(obj['finding'], `${where}.finding`),
+  }
+}
+
 function roundView(value: unknown, index: number) {
   const where = `rounds[${index}]`
   const obj = record(value, where)
@@ -248,7 +286,18 @@ function gameView(value: unknown): GameView {
   const obj = record(value, where)
   onlyKeys(
     obj,
-    ['viewerId', 'round', 'totalRounds', 'phase', 'turnIndex', 'players', 'rounds', 'solution', 'outcome'],
+    [
+      'viewerId',
+      'round',
+      'totalRounds',
+      'phase',
+      'turnIndex',
+      'players',
+      'rounds',
+      'findings',
+      'solution',
+      'outcome',
+    ],
     where,
   )
 
@@ -266,6 +315,15 @@ function gameView(value: unknown): GameView {
     turnIndex: count(obj, 'turnIndex', where),
     players: players.map(player),
     rounds: list(obj, 'rounds', LIMITS.rounds, where).map(roundView),
+    /*
+     * 없으면 빈 배열로 본다. 워커와 프론트는 따로 배포되므로, 필수로 받으면 워커가 먼저
+     * 올라간 순간 캐시된 옛 번들이 전부 400을 맞고 폴백으로 떨어진다.
+     * **워커를 먼저 배포하고 프론트를 나중에** 올리면 이 관용 하나로 창이 닫힌다.
+     */
+    findings:
+      obj['findings'] === undefined
+        ? []
+        : list(obj, 'findings', LIMITS.findings, where).map(grant),
     solution: obj['solution'] === null ? null : suggestion(obj['solution'], `${where}.solution`),
     outcome: null,
   }

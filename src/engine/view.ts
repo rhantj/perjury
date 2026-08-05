@@ -1,3 +1,4 @@
+import { findingsFor } from './power'
 import type {
   Accuser,
   CardId,
@@ -5,6 +6,7 @@ import type {
   Claim,
   Faction,
   GameState,
+  Grant,
   ParleyRecord,
   Phase,
   PlayerId,
@@ -72,6 +74,13 @@ export interface GameView {
   readonly turnIndex: number
   readonly players: readonly PlayerView[]
   readonly rounds: readonly RoundView[]
+  /**
+   * 능력으로 «확인한» 것. 자기 앞으로 온 것만 들어온다.
+   *
+   * rounds와 섞지 않는 이유는 출처가 달라서다. rounds는 모두가 들은 말이라 거짓일 수 있지만
+   * 이쪽은 엔진이 상태에서 뽑아낸 사실이다. 프롬프트에서도 이 둘의 무게가 달라야 한다.
+   */
+  readonly findings: readonly Grant[]
   /** 범인 진영만 안다. 시민이면 null. */
   readonly solution: Solution | null
   readonly outcome: OutcomeView | null
@@ -149,6 +158,7 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     turnIndex: state.turnIndex,
     players,
     rounds,
+    findings: findingsFor(state, viewerId),
     solution: viewer.faction === 'culprit' || over ? state.solution : null,
     outcome,
   }

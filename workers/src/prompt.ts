@@ -146,6 +146,22 @@ function observationBlock(view: GameView): string {
     return [head, ...declarations, ...challenge, ...parley].join('\n')
   })
 
+  /*
+   * 기록과 나눠 싣는다. 기록은 «남이 한 말»이라 거짓일 수 있지만 이쪽은 엔진이 상태에서
+   * 뽑아낸 사실이다. 한 덩어리로 주면 에이전트가 둘을 같은 무게로 다룬다.
+   */
+  const confirmed = view.findings.map((grant) => {
+    const f = grant.finding
+    switch (f.kind) {
+      case 'hand':
+        return `- ${grant.round}R: ${who(f.targetId)}는 «${label(f.cardId)}»를 갖고 있다`
+      case 'weapon':
+        return `- ${grant.round}R: «${label(f.cardId)}»는 정답이 ${f.isSolution ? '맞다' : '아니다'}`
+      case 'claim':
+        return `- ${grant.round}R: ${who(f.targetId)}의 반증은 ${f.truthful ? '참이었다' : '거짓이었다'}`
+    }
+  })
+
   return [
     `[지금] ${view.round}라운드 / 전체 ${view.totalRounds}라운드`,
     '',
@@ -154,6 +170,9 @@ function observationBlock(view: GameView): string {
     '',
     '[기록]',
     history.length > 0 ? history.join('\n') : '- 아직 없음',
+    ...(confirmed.length > 0
+      ? ['', '[내가 능력으로 확인한 것 — 추측이 아니라 사실이다]', confirmed.join('\n')]
+      : []),
   ].join('\n')
 }
 

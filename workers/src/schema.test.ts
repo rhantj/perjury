@@ -378,3 +378,82 @@ describe('parseDecideRequest — 밀담', () => {
     expect(parsed.ok).toBe(false)
   })
 })
+
+describe('parseDecideRequest — 능력으로 확인한 것', () => {
+  it('findings를 통과시킨다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'hand', targetId: 'p3', cardId: 'w2' } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.findings).toHaveLength(1)
+  })
+
+  /** 워커와 프론트가 따로 배포되므로, 옛 번들이 보내는 요청도 받아야 한다. */
+  it('findings가 없으면 빈 배열로 본다', () => {
+    const result = parseDecideRequest(validBody())
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.view.findings).toEqual([])
+  })
+
+  it('모르는 finding 종류는 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'solution', targetId: 'p3', cardId: 'w2' } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('바깥에 모르는 필드가 섞이면 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'hand', targetId: 'p3', cardId: 'w2' }, seed: 'x' },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  /** 안쪽도 같은 벽이어야 한다 — 화이트리스트가 한 겹만 있으면 두 번째 벽이 아니다. */
+  it('finding 안쪽에 모르는 필드가 섞이면 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        view(body)['findings'] = [
+          {
+            round: 1,
+            ownerId: 'p1',
+            finding: { kind: 'hand', targetId: 'p3', cardId: 'w2', isPerjury: true },
+          },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('종류에 맞지 않는 필드 조합은 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        // weapon에는 targetId가 없다.
+        view(body)['findings'] = [
+          { round: 1, ownerId: 'p1', finding: { kind: 'weapon', targetId: 'p3', isSolution: true } },
+        ]
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+})

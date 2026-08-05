@@ -72,6 +72,7 @@ export function createGame({
     rounds: [],
     powersUsed: [],
     grants: [],
+    pending: [],
     outcome: null,
   }
 }

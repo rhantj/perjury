@@ -1,5 +1,5 @@
-import { createRng } from './rng'
-import type { Finding, GameState, Grant, PlayerId, PowerUse } from './types'
+import { createRng, pickOne } from './rng'
+import type { CardId, Finding, GameState, Grant, PlayerId, PowerUse } from './types'
 
 /**
  * 직업 능력의 발동. 다른 전이 함수와 같이 **순수 함수**다.
@@ -22,40 +22,76 @@ function requirePlayer(state: GameState, playerId: PlayerId) {
  * 손패에서 한 장을 고른다. 상황에서 시드를 파생시켜 순수성과 재현성을 함께 지킨다.
  * 이미 공개된 카드는 알려줘야 소용이 없으므로 뺀다.
  */
-function pickFromHand(state: GameState, targetId: PlayerId): string {
+function pickFromHand(state: GameState, targetId: PlayerId): CardId {
   const target = requirePlayer(state, targetId)
   const hidden = target.hand.filter((cardId) => !target.revealed.includes(cardId))
+  // 이미 공개된 카드를 알려주면 능력이 헛돈다. 다 공개됐으면 어쩔 수 없이 손패 전체에서 고른다.
   const pool = hidden.length > 0 ? hidden : target.hand
-  const rng = createRng(`${state.seed}:power:hand:${targetId}`)
-  const picked = pool[Math.floor(rng() * pool.length)]
-  if (!picked) throw new Error(`손패가 비었다: ${targetId}`)
-  return picked
+  if (pool.length === 0) throw new Error(`손패가 비었다: ${targetId}`)
+  return pickOne(pool, createRng(`${state.seed}:power:hand:${targetId}`))
 }
 
-function resolve(state: GameState, use: PowerUse): Finding {
+/** 남을 지목하는 능력이면 그 대상. 대상이 없는 능력이면 null. */
+function targetOf(use: PowerUse): PlayerId | null {
+  switch (use.kind) {
+    case 'inspect-hand':
+    case 'verify-claim':
+    case 'photograph':
+    case 'publish':
+    case 'frame':
+      return use.targetId
+    case 'check-weapon':
+    case 'shield':
+    case 'refuse-demand':
+    case 'eavesdrop':
+    case 'detect-lie':
+      return null
+  }
+}
+
+/**
+ * 지금 답이 나오는 능력만 사실을 만든다.
+ *
+ * null을 돌려주면 pending에 머문다 — 선언·이의제기·밀담이 지나야 답이 정해지는 것들이다.
+ * 어느 쪽인지는 능력마다 고정이라 여기 한 곳에서 갈린다.
+ */
+function resolve(state: GameState, use: PowerUse): Finding | null {
   switch (use.kind) {
     case 'inspect-hand':
       return { kind: 'hand', targetId: use.targetId, cardId: pickFromHand(state, use.targetId) }
     case 'check-weapon':
       return { kind: 'weapon', cardId: use.cardId, isSolution: state.solution.weapon === use.cardId }
+    case 'verify-claim':
+    case 'photograph':
+    case 'publish':
+    case 'shield':
+    case 'refuse-demand':
+    case 'frame':
+    case 'eavesdrop':
+    case 'detect-lie':
+      return null
   }
 }
 
 export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): GameState {
   requirePlayer(state, playerId)
   if (state.powersUsed.includes(playerId)) throw new Error('능력은 한 판에 한 번뿐이다')
-  if (use.kind === 'inspect-hand') {
-    if (use.targetId === playerId) throw new Error('자기 손패는 이미 안다')
-    requirePlayer(state, use.targetId)
+
+  const target = targetOf(use)
+  if (target !== null) {
+    if (target === playerId) throw new Error('자기 자신은 지목할 수 없다')
+    requirePlayer(state, target)
   }
 
-  const grant: Grant = { round: state.round, ownerId: playerId, finding: resolve(state, use) }
+  const finding = resolve(state, use)
+  const used = { ...state, powersUsed: [...state.powersUsed, playerId] }
 
-  return {
-    ...state,
-    powersUsed: [...state.powersUsed, playerId],
-    grants: [...state.grants, grant],
+  if (!finding) {
+    return { ...used, pending: [...state.pending, { round: state.round, ownerId: playerId, use }] }
   }
+
+  const grant: Grant = { round: state.round, ownerId: playerId, finding }
+  return { ...used, grants: [...state.grants, grant] }
 }
 
 /** 한 사람이 능력으로 알게 된 것들. viewFor와 프롬프트가 함께 쓴다. */

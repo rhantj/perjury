@@ -4,6 +4,7 @@ import { parley } from './parley'
 import { accuse, nextRound } from './progress'
 import { declareAll, suggest } from './round'
 import { createGame } from './setup'
+import { usePower } from './power'
 import { viewFor } from './view'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
 
@@ -295,5 +296,29 @@ describe('viewFor — 밀담은 낀 두 사람에게만 보인다', () => {
     const { state, bystanderId } = afterParley()
 
     expect(viewFor(state, bystanderId).rounds[0]?.parley).toBeNull()
+  })
+})
+
+describe('viewFor — 능력으로 확인한 것', () => {
+  it('내 앞으로 온 것만 시야에 실린다', () => {
+    const base = staged()
+    const after = usePower(base, 'p0', { kind: 'inspect-hand', targetId: 'p2' })
+
+    expect(viewFor(after, 'p0').findings).toHaveLength(1)
+    expect(viewFor(after, 'p1').findings).toHaveLength(0)
+  })
+
+  it('능력을 쓰기 전에는 비어 있다', () => {
+    expect(viewFor(staged(), 'p0').findings).toEqual([])
+  })
+
+  /** 확인한 것은 «사실»이다. 남의 손패가 그대로 나가는 셈이라 대상이 맞는지 못을 박는다. */
+  it('확인한 카드는 대상이 실제로 쥔 것이다', () => {
+    const base = staged()
+    const after = usePower(base, 'p0', { kind: 'inspect-hand', targetId: 'p2' })
+    const found = viewFor(after, 'p0').findings[0]?.finding
+
+    if (found?.kind !== 'hand') throw new Error('finding 종류가 다르다')
+    expect(HANDS[2]).toContain(found.cardId)
   })
 })

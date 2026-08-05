@@ -106,11 +106,28 @@ export type PowerUse =
   | { readonly kind: 'inspect-hand'; readonly targetId: PlayerId }
   /** 약제사 — 수단 카드 1장을 지정해 정답 여부를 확인한다. */
   | { readonly kind: 'check-weapon'; readonly cardId: CardId }
+  /** 순사 — 한 명의 이번 라운드 반증이 참인지 통보받는다. 선언이 나와야 풀린다. */
+  | { readonly kind: 'verify-claim'; readonly targetId: PlayerId }
+  /** 사진사 — 지목한 사람이 «다음» 라운드에 위증하면 이의제기 없이 드러난다. */
+  | { readonly kind: 'photograph'; readonly targetId: PlayerId }
+  /** 신문기자 — 지난 반증 1건의 진위를 전체에 공개한다. */
+  | { readonly kind: 'publish'; readonly round: number; readonly targetId: PlayerId }
+  /** 밀정 — 자기 위증 1회는 이의제기를 당해도 실패 처리된다. */
+  | { readonly kind: 'shield' }
+  /** 변호사 — 반증 요구를 1회 거부한다. */
+  | { readonly kind: 'refuse-demand' }
+  /** 협잡꾼 — 타인의 반증 1회를 조작한다. */
+  | { readonly kind: 'frame'; readonly targetId: PlayerId }
+  /** 전화교환수 — 밀담 1건을 엿듣는다(사람이 쥐면 회선이 하나 는다). */
+  | { readonly kind: 'eavesdrop' }
+  /** 정보상 — 밀담 상대 발언의 참·거짓을 판정한다. */
+  | { readonly kind: 'detect-lie' }
 
 /** 능력으로 알게 된 사실. 이것만 시야에 실린다 — 능력 자체는 시야에 나가지 않는다. */
 export type Finding =
   | { readonly kind: 'hand'; readonly targetId: PlayerId; readonly cardId: CardId }
   | { readonly kind: 'weapon'; readonly cardId: CardId; readonly isSolution: boolean }
+  | { readonly kind: 'claim'; readonly targetId: PlayerId; readonly truthful: boolean }
 
 /**
  * 「누가 무엇을 알게 됐는가」 한 건.
@@ -124,6 +141,13 @@ export interface Grant {
   /** 이것을 볼 수 있는 단 한 사람. */
   readonly ownerId: PlayerId
   readonly finding: Finding
+}
+
+/** 아직 답이 정해지지 않은 지목. 쓴 라운드를 함께 들고 있어야 «다음 라운드»를 판별할 수 있다. */
+export interface PendingPower {
+  readonly round: number
+  readonly ownerId: PlayerId
+  readonly use: PowerUse
 }
 
 export interface RoundRecord {
@@ -184,6 +208,14 @@ export interface GameState {
   readonly powersUsed: readonly PlayerId[]
   /** 능력으로 밝혀진 것들. 각자 자기 앞으로 온 것만 본다 — viewFor가 거른다. */
   readonly grants: readonly Grant[]
+  /**
+   * 답이 아직 안 나온 능력 지목.
+   *
+   * 능력의 절반은 «쓰는 시점»과 «답이 정해지는 시점»이 다르다 — 순사는 선언이 나와야,
+   * 밀정은 이의제기가 들어와야, 사진사는 다음 라운드가 와야 답이 생긴다.
+   * 그 사이를 여기서 들고 있다가 해소되면 grants나 라운드 기록으로 옮긴다.
+   */
+  readonly pending: readonly PendingPower[]
   /** 최종 고발 결과. 판이 끝나기 전에는 null이다. */
   readonly outcome: Outcome | null
 }
