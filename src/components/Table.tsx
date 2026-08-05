@@ -8,7 +8,7 @@ import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
 import { challengeLine, passLine, refuteLine, suggestLine } from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
-import type { CardId, PlayerId } from '../engine/types'
+import type { CardId, CardKind, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
 
 /** 반증 카드의 종류에 맞는 그림을 고른다 — 범인·수단·장소 중 어느 것이든 나올 수 있다. */
@@ -29,7 +29,20 @@ const REVEAL_STEP_MS = 700
 interface Props {
   view: GameView
   scenario: Scenario
+  /**
+   * 아직 확정하지 않은 내 제안. 추리표에서 하나 누를 때마다 그 카드가 상 위에 올라간다.
+   *
+   * GameScreen의 picked를 그대로 받는다 — 여기서 상태를 따로 들면 두 벌이 어긋난다.
+   */
+  draft?: Partial<Record<CardKind, CardId>>
 }
+
+/** 상에 올라가는 순서. 확정 제안의 카드 순서(범인·수단·장소)와 같아야 «같은 자리»로 읽힌다. */
+const DRAFT_SLOTS = [
+  { kind: 'suspect', name: '범인' },
+  { kind: 'weapon', name: '수단' },
+  { kind: 'place', name: '장소' },
+] as const
 
 /** 좌석이 놓이는 자리. 다섯을 위·좌우로 두르고 내 자리는 아래 가운데다. */
 const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
@@ -38,7 +51,7 @@ const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
  * 원탁. 격자로 늘어놓으면 «명단»이고, 둘러앉혀야 «자리»가 된다 —
  * 내가 저 다섯을 마주 보고 있다는 배치 자체가 이 게임의 구도다.
  */
-export default function Table({ view, scenario }: Props) {
+export default function Table({ view, scenario, draft }: Props) {
   const record = view.rounds[view.rounds.length - 1]
   const live = record?.round === view.round ? record : null
   const turnId = view.players[view.turnIndex]?.id
@@ -47,6 +60,8 @@ export default function Table({ view, scenario }: Props) {
 
   const me = view.players.find((p) => p.isMe)
   const others = view.players.filter((p) => !p.isMe)
+
+  const draftCount = DRAFT_SLOTS.filter(({ kind }) => draft?.[kind]).length
 
   /*
    * 반증은 동시 선언이라 엔진에는 한 번에 전부 도착한다(설계 §1.4.1) — 그걸 그대로
@@ -126,6 +141,29 @@ export default function Table({ view, scenario }: Props) {
                 art={placeArtFor(scenario, live.suggestion.place)}
                 name={label(live.suggestion.place)}
               />
+            </ul>
+          </div>
+        ) : draftCount > 0 ? (
+          /*
+           * 확정 전 «올리는 중». live가 있으면 그쪽이 이긴다 — 남이 낸 제안이 상에 놓여
+           * 있는데 내 미확정 패가 그 자리를 덮으면 지금 판이 뭘 묻고 있는지가 사라진다.
+           * 제안 페이즈에는 이번 라운드 기록이 아직 없어서 live가 null이고, 그래서
+           * 이 분기가 바로 «내가 고르는 동안»과 겹친다.
+           */
+          <div className="centre__claim centre__claim--draft">
+            <span className="centre__by">올리는 중 · {draftCount}/3</span>
+            <ul className="centre__cards">
+              {DRAFT_SLOTS.map(({ kind, name }) => {
+                const id = draft?.[kind]
+                // 카드 id를 키에 넣어 고른 것을 «바꾸면» 새 카드로 갈리며 놓이는 연출이 다시 돈다.
+                return id ? (
+                  <CentreCard key={`${kind}:${id}`} art={revealArtFor(scenario, id)} name={label(id)} />
+                ) : (
+                  <li key={kind} className="centre-card centre-card--empty">
+                    <span className="centre-card__slot">{name}</span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ) : (

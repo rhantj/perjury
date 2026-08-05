@@ -378,7 +378,8 @@ export default function GameScreen() {
           />
 
           <div className="stage">
-            <Table view={view} scenario={scenario} />
+            {/* picked를 그대로 넘겨 «고르는 즉시» 그 카드가 상에 올라가게 한다. */}
+            <Table view={view} scenario={scenario} draft={picked} />
 
             {/*
               라운드마다 새로 마운트한다 — 지난 라운드에 고른 상대·쓴 말이 남지 않게 한다.

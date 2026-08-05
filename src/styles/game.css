@@ -787,6 +787,41 @@
 }
 
 /*
+ * 확정 전 «올리는 중». 제안을 짜는 동안 추리표에서 하나 누를 때마다 그 카드가 상에 올라간다.
+ *
+ * 확정 제안은 세 장이 220ms 간격으로 «하나씩 딱딱» 놓이지만 여기서는 그 지연을 지운다 —
+ * 지금 누른 그 한 장만 놓이는 것이라, 220ms를 기다렸다 뜨면 클릭에 대한 반응이 늦게 느껴진다.
+ */
+.centre__claim--draft .centre-card {
+  animation-delay: 0ms;
+}
+/* 아직 안 고른 자리. 빈칸을 남겨 둬야 «세 장 중 뭐가 비었는지»가 보인다. */
+.centre-card--empty {
+  place-items: center;
+  border-style: dashed;
+  border-color: oklch(38% 0.012 80);
+  background: oklch(18% 0.012 250 / 0.4);
+  box-shadow: none;
+  /*
+   * 놓이는 연출은 «카드가 놓일 때»의 것이다. 빈칸은 놓인 게 아니므로 애니메이션을 뺀다.
+   * 기울기(--tilt)도 주지 않는다 — centre-card-drop이 fill-mode backwards라 놓인 카드도
+   * 끝나면 기울기가 남지 않는데, 빈칸만 기울면 나란히 놓인 세 자리가 어긋나 보인다.
+   */
+  animation: none;
+}
+/* 빈칸은 «만질 것»이 아니다 — 뜨거나 그림자가 생기면 누를 수 있는 것처럼 보인다. */
+.centre-card--empty:hover {
+  transform: none;
+  box-shadow: none;
+}
+.centre-card__slot {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  color: oklch(52% 0.012 80);
+}
+
+/*
  * 좌석 카드. 네모 칸에 이름만 적으면 «명단」으로 읽힌다 — 용의자 초상(SuspectCard와
  * 같은 소스)을 배경으로 깔고 아래에 정보를 얹어야 «사람」으로 읽힌다.
  * 참가N/나로 익명화한 건 손패 소지를 헷갈리지 않게 하려는 것이지 얼굴을 감추자는
