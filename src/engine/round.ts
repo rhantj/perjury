@@ -32,6 +32,8 @@ export function isPerjury(
   claim: Claim,
 ): boolean {
   if (claim.kind === 'refute') return !hand.includes(claim.cardId)
+  // 거부는 의무를 면제받은 것이라 어길 의무가 없다. 침묵과 갈리는 지점이 여기다.
+  if (claim.kind === 'refuse') return false
   return mustRefute(hand, suggestion)
 }
 
@@ -113,17 +115,31 @@ export function declareAll(
   const record = currentRound(state)
   const responders = state.players.filter((p) => p.id !== record.suggesterId)
   const allowed = suggestedCards(record.suggestion)
+  const refusing = new Set(
+    state.pending.filter((p) => p.use.kind === 'refuse-demand').map((p) => p.ownerId),
+  )
 
   if (claims.size !== responders.length) {
     throw new Error(`선언은 ${responders.length}명 전원이 해야 한다 (받은 수: ${claims.size})`)
   }
 
   const declarations: Declaration[] = responders.map((player) => {
-    const claim = claims.get(player.id)
-    if (!claim) throw new Error(`${player.name}의 선언이 없다`)
-    if (claim.kind === 'refute' && !allowed.includes(claim.cardId)) {
-      throw new Error(`제안에 없는 카드로는 반증할 수 없다: ${claim.cardId}`)
+    const given = claims.get(player.id)
+    if (!given) throw new Error(`${player.name}의 선언이 없다`)
+    if (given.kind === 'refute' && !allowed.includes(given.cardId)) {
+      throw new Error(`제안에 없는 카드로는 반증할 수 없다: ${given.cardId}`)
     }
+    /*
+     * 「거부」는 «내는» 선언이 아니라 능력이 만드는 선언이다.
+     *
+     * 능력을 쓴 좌석은 무엇을 냈든 거부가 되고, 쓰지 않은 좌석이 거부를 내면 던진다.
+     * 엔진은 직업을 모르지만 pending은 안다 — 능력을 통과했다는 사실만으로 자격을 판정하므로
+     * 바깥 층(화면·AI·워커) 중 하나가 뚫려도 룰이 무너지지 않는다(작업 규칙 2).
+     */
+    if (given.kind === 'refuse' && !refusing.has(player.id)) {
+      throw new Error(`거부는 능력 없이 낼 수 없다: ${player.name}`)
+    }
+    const claim: Claim = refusing.has(player.id) ? { kind: 'refuse' } : given
     return {
       playerId: player.id,
       claim,
@@ -136,6 +152,8 @@ export function declareAll(
     {
       ...state,
       phase: 'challenge',
+      // 거부는 여기서 쓰였다. 「1회」이므로 거둔다 — 남겨두면 매 라운드 거부하게 된다.
+      pending: state.pending.filter((p) => p.use.kind !== 'refuse-demand'),
       rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
     },
     declarations,

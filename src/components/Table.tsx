@@ -8,7 +8,7 @@ import { tableArtFor } from '../content/table-art'
 import { weaponArtFor } from '../content/weapon-art'
 import { challengeLine, passLine, refuteLine, suggestLine } from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
-import type { CardId, PlayerId } from '../engine/types'
+import type { CardId, Claim, PlayerId } from '../engine/types'
 import type { GameView, PlayerView, RoundView } from '../engine/view'
 
 /** 반증 카드의 종류에 맞는 그림을 고른다 — 범인·수단·장소 중 어느 것이든 나올 수 있다. */
@@ -20,6 +20,25 @@ function revealArtFor(scenario: Scenario, cardId: CardId): string | undefined {
       return weaponArtFor(scenario, cardId)
     case 'place':
       return placeArtFor(scenario, cardId)
+  }
+}
+
+/**
+ * LLM 대사가 없을 때 좌석이 하는 말. 거부는 침묵과 갈라야 한다 —
+ * 「없습니다」로 뭉치면 변호사가 무엇을 했는지 화면에서 사라진다.
+ */
+function declarationLine(
+  claim: Claim,
+  characterId: CardId,
+  label: (id: CardId) => string,
+): string {
+  switch (claim.kind) {
+    case 'refute':
+      return `“${refuteLine(characterId, label(claim.cardId))}”`
+    case 'pass':
+      return `“${passLine(characterId)}”`
+    case 'refuse':
+      return '“답변을 거부하오.”'
   }
 }
 
@@ -201,9 +220,7 @@ function Seat({
         ? `“${suggestLine(player.characterId)}”`
         : declaration
           ? revealed
-            ? declaration.claim.kind === 'refute'
-              ? `“${refuteLine(player.characterId, label(declaration.claim.cardId))}”`
-              : `“${passLine(player.characterId)}”`
+            ? declarationLine(declaration.claim, player.characterId, label)
             : '…'
           : null
 

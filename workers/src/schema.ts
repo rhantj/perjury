@@ -167,13 +167,13 @@ function suggestion(value: unknown, where: string) {
 
 function claim(value: unknown, where: string) {
   const obj = record(value, where)
-  const kind = oneOf(obj, 'kind', ['refute', 'pass'], where)
-  if (kind === 'pass') {
-    onlyKeys(obj, ['kind'], where)
-    return { kind: 'pass' } as const
+  const kind = oneOf(obj, 'kind', ['refute', 'pass', 'refuse'], where)
+  if (kind === 'refute') {
+    onlyKeys(obj, ['kind', 'cardId'], where)
+    return { kind: 'refute', cardId: text(obj, 'cardId', where) } as const
   }
-  onlyKeys(obj, ['kind', 'cardId'], where)
-  return { kind: 'refute', cardId: text(obj, 'cardId', where) } as const
+  onlyKeys(obj, ['kind'], where)
+  return kind === 'pass' ? ({ kind: 'pass' } as const) : ({ kind: 'refuse' } as const)
 }
 
 function player(value: unknown, index: number) {

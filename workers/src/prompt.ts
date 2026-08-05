@@ -1,4 +1,5 @@
 import { CARDS, cardName } from '../../src/engine/cards'
+import type { Claim } from '../../src/engine/types'
 import type { GameView, PlayerView } from '../../src/engine/view'
 import type { PowerBrief } from '../../src/ai/power-brief'
 import type { DecideKind } from './schema'
@@ -105,8 +106,16 @@ function selfBlock(view: GameView): string {
   return lines.join('\n')
 }
 
-function claimText(claim: { kind: 'refute'; cardId: string } | { kind: 'pass' }): string {
-  return claim.kind === 'pass' ? '넘김' : `${label(claim.cardId)}로 반증`
+function claimText(claim: Claim): string {
+  switch (claim.kind) {
+    case 'refute':
+      return `${label(claim.cardId)}로 반증`
+    case 'pass':
+      return '넘김'
+    // 침묵과 다르다 — 답할 의무를 면제받은 것이라 위증 판정 대상이 아니다.
+    case 'refuse':
+      return '답변 거부(권리 행사 — 위증이 아니다)'
+  }
 }
 
 /** 큰따옴표로 감싼 한 줄. 없으면 빈 문자열이라 붙여도 흔적이 남지 않는다. */

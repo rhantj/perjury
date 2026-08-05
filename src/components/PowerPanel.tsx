@@ -42,6 +42,11 @@ export default function PowerPanel({
   const [picking, setPicking] = useState(false)
 
   if (role.effect === null) return null
+  /*
+   * 반증 요구 거부는 반증 줄의 버튼으로 쓴다 — 쓰는 순간이 곧 선언하는 순간이라
+   * 패널에서 미리 켜두면 두 번 조작하게 된다. 쓴 뒤의 표시는 여기 남긴다.
+   */
+  if (role.effect === 'refuse-demand' && !used) return null
 
   if (used) {
     return (
@@ -142,6 +147,8 @@ const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
   photograph: '촬영해 두었다 — 다음 라운드에 거짓을 말하면 드러난다',
   // 결과는 기록에 남아 전원이 읽는다. 여기서 다시 알려줄 것이 없다.
   publish: '신문에 실었다 — 기록에서 읽을 수 있다',
+  // 이쪽은 패널이 아니라 반증 줄의 「답변 거부」 버튼으로 쓴다.
+  'refuse-demand': '이번 반증 요구에 답하지 않는다',
 }
 
 /**

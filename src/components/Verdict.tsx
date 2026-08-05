@@ -39,10 +39,13 @@ function countLies(view: GameView): Liar[] {
       const hand = view.players.find((p) => p.id === declaration.playerId)?.hand
       if (!hand) continue
 
+      // 거부는 의무를 면제받은 것이라 거짓말 횟수에 넣지 않는다(engine/round.ts의 isPerjury와 같다).
       const lied =
         declaration.claim.kind === 'refute'
           ? !hand.includes(declaration.claim.cardId)
-          : asked.some((card) => hand.includes(card))
+          : declaration.claim.kind === 'refuse'
+            ? false
+            : asked.some((card) => hand.includes(card))
 
       if (lied) tally.set(declaration.playerId, (tally.get(declaration.playerId) ?? 0) + 1)
     }

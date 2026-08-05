@@ -68,25 +68,26 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
   ]
 
   for (const d of round.declarations) {
-    out.push(
-      d.claim.kind === 'refute'
-        ? {
-            tone: 'refute',
-            who: nameOf(view, d.playerId),
-            face: participantInitial(view, d.playerId),
-            quote: d.line,
-            mine: d.playerId === view.viewerId,
-            text: `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`,
-          }
-        : {
-            tone: 'pass',
-            who: nameOf(view, d.playerId),
-            face: participantInitial(view, d.playerId),
-            quote: d.line,
-            mine: d.playerId === view.viewerId,
-            text: '없습니다.',
-          },
-    )
+    const said = (tone: string, text: string): Line => ({
+      tone,
+      who: nameOf(view, d.playerId),
+      face: participantInitial(view, d.playerId),
+      quote: d.line,
+      mine: d.playerId === view.viewerId,
+      text,
+    })
+    switch (d.claim.kind) {
+      case 'refute':
+        out.push(said('refute', `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`))
+        break
+      case 'pass':
+        out.push(said('pass', '없습니다.'))
+        break
+      // 침묵과 갈라 적는다 — 「없습니다」로 뭉치면 위증이 아니라는 사실이 지워진다.
+      case 'refuse':
+        out.push(said('refuse', '답변을 거부합니다.'))
+        break
+    }
   }
 
   if (round.challenge) {

@@ -45,6 +45,13 @@ export interface Suggestion {
 export type Claim =
   | { readonly kind: 'refute'; readonly cardId: CardId }
   | { readonly kind: 'pass' }
+  /**
+   * 변호사의 거부. 침묵과 달리 **반증 의무 자체를 면제**받으므로 위증이 되지 않는다.
+   *
+   * 이것은 «고를 수 있는 선언»이 아니다. 고르게 두면 변호사가 아닌 좌석도 거부할 수 있다.
+   * 능력을 쓴 좌석의 선언을 엔진이 이걸로 바꾼다(round.ts의 declareAll).
+   */
+  | { readonly kind: 'refuse' }
 
 export interface Declaration {
   readonly playerId: PlayerId

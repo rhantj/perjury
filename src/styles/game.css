@@ -1923,6 +1923,12 @@
   color: var(--color-muted);
 }
 
+/* 변호사에게만 뜬다. 침묵과 나란히 놓이므로 색으로 갈라둔다 — 이쪽은 권리 행사다. */
+.btn--refuse {
+  border-color: var(--tone-key);
+  color: var(--tone-key);
+}
+
 /* 최종 고발. 이 화면에서 유일한 붉은색이라 되돌릴 수 없는 행동임이 색으로 읽힌다. */
 .btn--danger {
   border-color: oklch(45% 0.1 25);

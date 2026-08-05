@@ -283,6 +283,22 @@ export default function GameScreen() {
     store.declare(claim)
   }
 
+  /**
+   * 변호사의 답변 거부. 능력을 켠 뒤 선언한다 — 무엇을 내든 엔진이 거부로 바꾼다.
+   *
+   * 「거부」를 반증 버튼 옆에 그냥 두지 않는 이유는, 그러면 변호사가 아닌 좌석에도
+   * 눌러지는 버튼이 생기기 때문이다. 이 버튼은 능력을 통과하므로 직업이 곧 자격이다.
+   */
+  const handleRefuse = () => {
+    store.usePower({})
+    /*
+     * 능력이 실제로 걸렸을 때만 선언한다. 걸리지 않았는데 그냥 선언하면 침묵이 되고,
+     * 카드를 쥐고 있었다면 «위증이 되지 않는다»고 적힌 버튼이 위증을 만든다.
+     */
+    if (!store.powerUsed()) return
+    store.declare({ kind: 'pass' })
+  }
+
   return (
     /*
      * 덮개 두 겹은 .screen «밖»에 둔다. 안에 넣으면 게임판이 쌓임 맥락을 만들어
@@ -397,7 +413,12 @@ export default function GameScreen() {
               제안 확정
             </button>
           ) : view.phase === 'refute' ? (
-            <RefuteBar view={view} scenario={scenario} onRefute={handleRefute} />
+            <RefuteBar
+              view={view}
+              scenario={scenario}
+              onRefute={handleRefute}
+              onRefuse={role.effect === 'refuse-demand' && !store.powerUsed() ? handleRefuse : null}
+            />
           ) : view.phase === 'challenge' ? (
             <ChallengeBar
               view={view}
@@ -568,10 +589,13 @@ function RefuteBar({
   view,
   scenario,
   onRefute,
+  onRefuse,
 }: {
   view: GameView
   scenario: Scenario
   onRefute: (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => void
+  /** 변호사만 받는다. 그 외 좌석에는 null이라 버튼 자체가 없다. */
+  onRefuse: (() => void) | null
 }) {
   const record = view.rounds[view.rounds.length - 1]
   if (!record) return null
@@ -595,6 +619,12 @@ function RefuteBar({
       <button type="button" className="btn btn--ghost" onClick={() => onRefute({ kind: 'pass' })}>
         없습니다
       </button>
+      {onRefuse && (
+        <button type="button" className="btn btn--refuse" onClick={onRefuse}>
+          답변 거부
+          <small>위증이 되지 않는다</small>
+        </button>
+      )}
     </div>
   )
 }

@@ -77,7 +77,7 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '반증 요구를 1회 거부한다.',
     flavor: '합법적 침묵. 거부하는 것 자체가 의심을 산다.',
-    effect: null,
+    effect: 'refuse-demand',
   },
   {
     id: 'broker',
