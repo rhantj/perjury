@@ -35,6 +35,15 @@ export interface Role {
    * 판이 시작되지 않는다 — 능력만 없고 이야기 소재로는 그대로 쓴다.
    */
   effect: PowerUse['kind'] | null
+  /**
+   * **사람 좌석에만 배정된다.** 없으면 누구에게나 간다.
+   *
+   * 능력이 「밀담 상대의 말」을 다루는 직업이 여기 걸린다. 밀담은 언제나 사람이 걸므로
+   * 그런 능력이 AI에게 가면 판정 대상이 «사람이 타이핑한 자유 텍스트»가 되는데,
+   * 엔진은 텍스트를 읽지 않고 AI 시야에는 사람의 손패가 없어서 어느 쪽도 판정할 수 없다.
+   * 손패를 넣어주면 그 좌석이 판을 꿰뚫어 보게 되므로 그것도 답이 아니다.
+   */
+  humanOnly?: true
 }
 
 export const ROLES: readonly Role[] = [
@@ -87,6 +96,7 @@ export const ROLES: readonly Role[] = [
     power: '밀담 상대 발언의 참·거짓만 판정한다.',
     flavor: '명동 뒷골목의 거짓말 탐지기. 단 한 번뿐이다.',
     effect: null,
+    humanOnly: true,
   },
   {
     id: 'operator',
@@ -142,6 +152,9 @@ export const ROLES: readonly Role[] = [
 /**
  * 6명에게 6개를 배정한다. 10종 중 4종은 그 판에 등장하지 않는다.
  *
+ * 사람 전용 직업(humanOnly)은 AI 좌석을 만나면 건너뛴다. 사람이 그 진영이 아니면
+ * 그 판에는 아예 등장하지 않는다 — 풀에 남은 채 아무도 뽑지 않는 것이 정상 상태다.
+ *
  * 시드를 `:roles`로 파생시키는 이유는 격리다. createGame의 rng를 같이 쓰면
  * 여기서 난수를 뽑는 순간 기존 시드의 카드 배분이 전부 달라진다 —
  * scenarios.ts의 `:scenario`와 같은 사안이다.
@@ -151,7 +164,7 @@ export const ROLES: readonly Role[] = [
  */
 export function assignRoles(
   seed: string,
-  players: readonly { id: PlayerId; faction: Faction }[],
+  players: readonly { id: PlayerId; faction: Faction; isHuman?: boolean }[],
 ): Record<PlayerId, Role> {
   const rng = createRng(`${seed}:roles`)
   const forCulprit = shuffle(
@@ -163,14 +176,23 @@ export function assignRoles(
     rng,
   )
 
-  let culpritTaken = 0
-  let citizenTaken = 0
   const assigned: Record<PlayerId, Role> = {}
+  const used = new Set<string>()
 
-  for (const player of players) {
-    const picked =
-      player.faction === 'culprit' ? forCulprit[culpritTaken++] : forCitizen[citizenTaken++]
+  /*
+   * **사람이 먼저 뽑는다.** 좌석 순서대로 돌면서 AI가 사람 전용 직업을 건너뛰게 하면,
+   * 건너뛴 그 직업은 사람 차례가 오기 전에 지나가 버려 아무에게도 가지 않는다.
+   * 사람을 앞에 세우면 사람 전용 직업이 다른 직업과 똑같은 확률로 사람에게 온다.
+   */
+  const order = [...players.filter((p) => p.isHuman), ...players.filter((p) => !p.isHuman)]
+
+  for (const player of order) {
+    const pool = player.faction === 'culprit' ? forCulprit : forCitizen
+    const picked = pool.find(
+      (role) => !used.has(role.id) && (player.isHuman || !role.humanOnly),
+    )
     if (!picked) throw new Error(`직업 풀이 모자란다: ${player.id}`)
+    used.add(picked.id)
     assigned[player.id] = picked
   }
 
