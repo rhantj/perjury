@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createGame } from './setup'
-import { findingsFor, usePower } from './power'
+import { buildPowerUse, findingsFor, usePower } from './power'
 import type { GameState } from './types'
 
 /** 고정 시드. 손패 배분은 시드에서 결정론적으로 나온다. */
@@ -44,6 +44,13 @@ describe('usePower — 능력은 한 판에 한 번', () => {
     const me = idOf(state, 0)
 
     expect(() => usePower(state, me, { kind: 'inspect-hand', targetId: me })).toThrow()
+  })
+
+  it('끝난 판에서는 쓸 수 없다', () => {
+    const over: GameState = { ...game(), phase: 'over' }
+
+    expect(() => usePower(over, idOf(over, 0), { kind: 'inspect-hand', targetId: idOf(over, 1) }))
+      .toThrow()
   })
 
   it('원본 상태를 건드리지 않는다', () => {
@@ -104,5 +111,33 @@ describe('findingsFor — 알게 된 것은 그 사람만 본다', () => {
 
     expect(findingsFor(after, other)).toHaveLength(1)
     expect(findingsFor(after, me)).toHaveLength(0)
+  })
+})
+
+describe('buildPowerUse — 좌석의 능력에 대상을 붙인다', () => {
+  it('종류에 맞는 대상이 오면 실행 가능한 형태가 된다', () => {
+    expect(buildPowerUse('inspect-hand', { targetId: 'p2' })).toEqual({
+      kind: 'inspect-hand',
+      targetId: 'p2',
+    })
+    expect(buildPowerUse('check-weapon', { cardId: 'w1' })).toEqual({
+      kind: 'check-weapon',
+      cardId: 'w1',
+    })
+  })
+
+  /** 대상이 빠진 채 발동하면 엔진이 던진다. 여기서 null로 걸러 화면이 조용히 무시하게 한다. */
+  it('필요한 대상이 없으면 null이다', () => {
+    expect(buildPowerUse('inspect-hand', {})).toBeNull()
+    expect(buildPowerUse('check-weapon', {})).toBeNull()
+  })
+
+  it('종류가 다른 대상은 받지 않는다', () => {
+    expect(buildPowerUse('inspect-hand', { cardId: 'w1' })).toBeNull()
+    expect(buildPowerUse('check-weapon', { targetId: 'p2' })).toBeNull()
+  })
+
+  it('대상이 필요 없는 능력은 그대로 만들어진다', () => {
+    expect(buildPowerUse('shield', {})).toEqual({ kind: 'shield' })
   })
 })

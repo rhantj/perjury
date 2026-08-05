@@ -75,6 +75,11 @@ function resolve(state: GameState, use: PowerUse): Finding | null {
 
 export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): GameState {
   requirePlayer(state, playerId)
+  /*
+   * 페이즈는 따지지 않는다 — 능력은 판단 전이가 아니라 곁가지 행동이라 아무 때나 쓴다.
+   * **끝난 판만 예외다.** 여기서 막지 않으면 결과 화면에서 능력을 태워 없앨 수 있다.
+   */
+  if (state.phase === 'over') throw new Error('끝난 판에서는 능력을 쓸 수 없다')
   if (state.powersUsed.includes(playerId)) throw new Error('능력은 한 판에 한 번뿐이다')
 
   const target = targetOf(use)
@@ -92,6 +97,54 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
 
   const grant: Grant = { round: state.round, ownerId: playerId, finding }
   return { ...used, grants: [...state.grants, grant] }
+}
+
+/**
+ * 능력을 쓰겠다는 «의사». 종류가 없는 것이 핵심이다.
+ *
+ * 사람도 AI도 「쓴다 + 대상」까지만 말하고, 종류는 좌석에 배정된 직업에서 나온다.
+ * 종류까지 고르게 두면 AI가 남의 능력을 쓸 수 있고, 화면 버그가 곧 룰 위반이 된다
+ * (작업 규칙 2 — AI가 룰을 어길 수 없어야 한다).
+ */
+export interface PowerIntent {
+  readonly targetId?: PlayerId
+  readonly cardId?: CardId
+  /** 신문기자가 어느 라운드의 반증을 공개할지. */
+  readonly round?: number
+}
+
+/**
+ * 좌석의 능력 종류에 의사를 붙여 실행 가능한 형태로 만든다.
+ *
+ * 필요한 대상이 없으면 **던지지 않고 null**이다. 발동은 사람이 버튼을 잘못 누르거나
+ * LLM이 대상을 빠뜨려서 불완전하게 들어오는 일이 흔한데, 그때마다 판이 오류로 멈추면
+ * 안 되기 때문이다. 부르는 쪽은 null을 조용히 무시한다.
+ */
+export function buildPowerUse(effect: PowerUse['kind'], intent: PowerIntent): PowerUse | null {
+  const { targetId, cardId, round } = intent
+
+  switch (effect) {
+    case 'inspect-hand':
+      return targetId ? { kind: 'inspect-hand', targetId } : null
+    case 'check-weapon':
+      return cardId ? { kind: 'check-weapon', cardId } : null
+    case 'verify-claim':
+      return targetId ? { kind: 'verify-claim', targetId } : null
+    case 'photograph':
+      return targetId ? { kind: 'photograph', targetId } : null
+    case 'publish':
+      return targetId && round !== undefined ? { kind: 'publish', round, targetId } : null
+    case 'frame':
+      return targetId ? { kind: 'frame', targetId } : null
+    case 'shield':
+      return { kind: 'shield' }
+    case 'refuse-demand':
+      return { kind: 'refuse-demand' }
+    case 'eavesdrop':
+      return { kind: 'eavesdrop' }
+    case 'detect-lie':
+      return { kind: 'detect-lie' }
+  }
 }
 
 /** 한 사람이 능력으로 알게 된 것들. viewFor와 프롬프트가 함께 쓴다. */

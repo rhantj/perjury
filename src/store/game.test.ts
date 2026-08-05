@@ -246,6 +246,94 @@ describe('useGame', () => {
   })
 })
 
+/**
+ * 시드마다 사람이 받는 직업이 다르다. 아래 시드는 p0에게 각각 검시관·약제사·밀정을 준다
+ * (밀정은 아직 effect가 null이라 «능력 없는 좌석»을 대표한다).
+ */
+describe('능력 발동', () => {
+  beforeEach(() => {
+    useGame.getState().reset()
+  })
+
+  it('검시관은 상대의 손패 1장을 확인한다', async () => {
+    await game().start('power-s3', 0)
+    const target = game().view().players.find((p) => !p.isMe)
+    if (!target) throw new Error('상대가 없다')
+
+    game().usePower({ targetId: target.id })
+
+    const found = game().view().findings[0]?.finding
+    if (found?.kind !== 'hand') throw new Error('finding 종류가 다르다')
+    expect(found.targetId).toBe(target.id)
+    expect(game().powerUsed()).toBe(true)
+  })
+
+  it('약제사는 수단 카드의 정답 여부를 확인한다', async () => {
+    await game().start('power-s23', 0)
+
+    game().usePower({ cardId: 'w1' })
+
+    const found = game().view().findings[0]?.finding
+    if (found?.kind !== 'weapon') throw new Error('finding 종류가 다르다')
+    expect(found.cardId).toBe('w1')
+  })
+
+  it('능력이 없는 직업이면 아무 일도 하지 않는다', async () => {
+    await game().start('power-s0', 0)
+    expect(game().role().effect).toBeNull()
+    const before = game().state
+
+    game().usePower({ targetId: 'p1' })
+
+    expect(game().state).toBe(before)
+    expect(game().powerUsed()).toBe(false)
+  })
+
+  it('한 판에 두 번은 못 쓴다 — 두 번째는 오류만 남고 상태는 그대로다', async () => {
+    await game().start('power-s3', 0)
+    game().usePower({ targetId: 'p1' })
+    const after = game().state
+
+    game().usePower({ targetId: 'p2' })
+
+    expect(game().state).toBe(after)
+    expect(game().error).not.toBeNull()
+  })
+
+  /** 대상이 빠진 발동은 화면 실수다. 판을 오류로 멈추지 않고 조용히 무시한다. */
+  it('대상이 없으면 조용히 무시한다', async () => {
+    await game().start('power-s3', 0)
+    const before = game().state
+
+    game().usePower({})
+
+    expect(game().state).toBe(before)
+    expect(game().error).toBeNull()
+  })
+
+  /** 다른 조작과 같은 잠금이다. AI가 도는 중에 상태를 갈아끼우면 판단이 옛 상태 위에서 끝난다. */
+  it('AI가 판단하는 동안에는 발동되지 않는다', async () => {
+    const started = game().start('power-s3', 0, probeDeciders(5).source)
+    expect(game().aiThinking).toBe(true)
+
+    game().usePower({ targetId: 'p1' })
+    expect(game().powerUsed()).toBe(false)
+
+    await started
+  })
+
+  it('능력은 페이즈를 넘기지 않는다 — 판단 전이가 아니다', async () => {
+    await game().start('power-s3', 0)
+    const phase = game().view().phase
+    const round = game().view().round
+
+    game().usePower({ targetId: 'p1' })
+
+    expect(game().view().phase).toBe(phase)
+    expect(game().view().round).toBe(round)
+  })
+})
+
 describe('밀담', () => {
   /** 밀담에만 답하는 판단자. 나머지는 규칙 기반 그대로다. */
   function talkingDeciders(reply: string | null): DeciderForRound {
