@@ -251,10 +251,19 @@ function Seat({
         .join(' ')
         .trim()}
     >
+      {/*
+        사유 라벨을 붙이는 이유 — 옆의 대사(seat__line)는 LLM이 쓴 자유 텍스트라 엔진이
+        기록한 claim.cardId와 다른 카드를 부를 수 있다(대사는 룰에 관여하지 않는다,
+        engine/round.ts:99). 실제로 «백나경 그 패, 내 손에 있다»처럼 제안에도 없는
+        이름을 대는 사례가 나왔다. 좌석 이름과 용의자 카드 이름이 같아서(setup.ts:57)
+        생기는 혼동이다. 이 카드가 엔진이 실제로 받은 유일한 사실이므로, 무엇인지
+        말해 줘야 대사와 어긋날 때 플레이어가 어느 쪽을 믿을지 안다.
+      */}
       {revealCard && (
         <span className="seat__reveal-card" tabIndex={0}>
           {revealCard.art && <img src={revealCard.art} alt="" />}
           <em>{revealCard.name}</em>
+          <small>반증에 낸 카드</small>
         </span>
       )}
       {/* 참가N/나로 익명화했더라도 얼굴은 있어야 «사람」으로 읽힌다 — 손패 노출과는 무관하다. */}
