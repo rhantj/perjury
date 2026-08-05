@@ -270,7 +270,16 @@ function Seat({
       {art && <img className="seat__art" src={art} alt="" />}
       <span className="seat__scrim" aria-hidden="true" />
 
-      <span className="seat__face">{participantInitial(view, player.id)}</span>
+      {/*
+        번호와 상태 배지를 한 줄로 묶는다. 예전에는 셋이 각자 좌석 좌상단에 절대배치돼
+        서로의 존재를 몰랐고, 그래서 「차례」·「제안」이 번호를 통째로 덮었다.
+        묶어 두면 몇 개가 켜지든 나란히 흐르므로 겹칠 수가 없다.
+      */}
+      <span className="seat__tags">
+        <span className="seat__face">{participantInitial(view, player.id)}</span>
+        {isTurn && <span className="seat__turn-badge">차례</span>}
+        {isSuggester && <span className="seat__suggest-badge">제안</span>}
+      </span>
 
       <span className="seat__id">
         <span className="seat__name">{participantLabel(view, player.id)}</span>
@@ -326,8 +335,6 @@ function Seat({
           <small>{challengeReveal.reason}</small>
         </span>
       )}
-      {isTurn && <span className="seat__turn-badge">차례</span>}
-      {isSuggester && <span className="seat__suggest-badge">제안</span>}
       {caught && <span className="seat__badge">위증</span>}
     </li>
   )
