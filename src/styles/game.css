@@ -769,9 +769,6 @@
   }
 }
 .seat__turn-badge {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.6rem;
   font-family: var(--font-display);
   font-size: 0.6rem;
   letter-spacing: 0.14em;
@@ -795,10 +792,19 @@
   box-shadow: 0 0 0 1px oklch(56% 0.16 27 / 0.3), 0 0 22px oklch(56% 0.16 27 / 0.28);
 }
 
-.seat__face {
+/*
+ * 번호칸과 상태 배지(차례·제안)를 담는 줄. 좌석 좌상단에 이 묶음만 절대배치하고
+ * 안쪽은 흐름에 맡긴다 — 배지가 몇 개 켜지든 나란히 놓여 서로를 덮지 않는다.
+ */
+.seat__tags {
   position: absolute;
   top: 0.55rem;
   left: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.seat__face {
   display: grid;
   place-items: center;
   width: 1.75rem;
@@ -1104,18 +1110,7 @@
     box-shadow: 0 0 0 1px var(--tone-key) inset, 0 0 22px oklch(74% 0.13 60 / 0.32);
   }
 }
-/*
- * 번호칸(.seat__face) 오른쪽에 나란히 둔다 — 원래 둘 다 top-left 같은 좌표에 절대배치라
- * «제안»이 번호를 통째로 덮었다. left는 번호칸의 오른쪽 끝(0.65 + 1.75rem)에서 시작하고,
- * top/height를 번호칸과 같게 잡아 세로 중앙이 계산 없이 맞는다.
- */
 .seat__suggest-badge {
-  position: absolute;
-  top: 0.55rem;
-  left: 2.65rem;
-  display: grid;
-  place-items: center;
-  height: 1.75rem;
   font-family: var(--font-display);
   font-size: 0.6rem;
   letter-spacing: 0.14em;
