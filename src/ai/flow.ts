@@ -1,5 +1,9 @@
 import { assignRoles } from '../content/roles'
-import { challenge, skipChallenge } from '../engine/challenge'
+import {
+  canChallenge as ruleAllowsChallenge,
+  challenge,
+  skipChallenge,
+} from '../engine/challenge'
 import { skipParley } from '../engine/parley'
 import { buildPowerUse, usePower } from '../engine/power'
 import type { PowerIntent } from '../engine/power'
@@ -99,6 +103,12 @@ function linesOf(spokens: SpokenClaims): Map<PlayerId, string> {
  */
 function canChallenge(state: GameState, challengerId: PlayerId, targetId: PlayerId): boolean {
   if (challengerId === targetId) return false
+  /*
+   * 횟수·자격은 엔진에 물어본다(decisions/008). 같은 판단을 여기 옮겨 적으면
+   * 한쪽만 고쳐져 «화면은 되는데 엔진이 거절하는» 상태가 된다 — 그리고 그 거절은
+   * 위 주석대로 라운드를 멈춘다.
+   */
+  if (!ruleAllowsChallenge(state, challengerId)) return false
   const declaration = lastRound(state).declarations.find((d) => d.playerId === targetId)
   return declaration?.claim.kind === 'refute'
 }
