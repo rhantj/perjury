@@ -54,7 +54,7 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '한 명의 이번 라운드 반증이 참인지 통보받는다.',
     flavor: '조선인 순사. 동족을 잡는 자리라 아무도 그를 믿지 않는다.',
-    effect: null,
+    effect: 'verify-claim',
   },
   {
     id: 'reporter',

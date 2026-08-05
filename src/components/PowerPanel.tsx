@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { cardLabel, participantLabel } from '../content/labels'
 import { cardsOfKind } from '../engine/cards'
+import { usableIn } from '../engine/power'
 import type { Scenario } from '../content/scenarios'
 import type { Role } from '../content/roles'
 import type { PowerIntent } from '../engine/power'
@@ -63,16 +64,20 @@ export default function PowerPanel({
   }
 
   if (!picking) {
+    // 지금 눌러도 엔진이 거부하는 능력이 있다(순사는 선언 뒤에 지목해봐야 답이 없다).
+    // 눌렀다가 오류를 보게 두는 대신 미리 잠근다 — 판정은 엔진 것을 그대로 쓴다.
+    const inTime = usableIn(role.effect, view.phase)
     return (
       <div className="power">
         <button
           type="button"
           className="power__fire"
-          disabled={!enabled}
+          disabled={!enabled || !inTime}
           onClick={() => setPicking(true)}
         >
           능력 발동
         </button>
+        {!inTime && <span className="power__late">이번 라운드는 때를 놓쳤다</span>}
       </div>
     )
   }
@@ -123,6 +128,7 @@ export default function PowerPanel({
 const ASK: Partial<Record<NonNullable<Role['effect']>, string>> = {
   'inspect-hand': '누구의 손패를 볼 것인가',
   'check-weapon': '어느 수단을 확인할 것인가',
+  'verify-claim': '누구의 반증을 확인할 것인가',
 }
 
 /**

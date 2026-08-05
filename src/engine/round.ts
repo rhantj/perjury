@@ -1,4 +1,5 @@
 import { cardKind } from './cards'
+import { resolveAfterDeclare } from './power'
 import type {
   CardId,
   Claim,
@@ -129,9 +130,12 @@ export function declareAll(
     }
   })
 
-  return {
-    ...state,
-    phase: 'challenge',
-    rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
-  }
+  return resolveAfterDeclare(
+    {
+      ...state,
+      phase: 'challenge',
+      rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
+    },
+    declarations,
+  )
 }

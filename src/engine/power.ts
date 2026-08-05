@@ -1,5 +1,15 @@
 import { createRng, pickOne } from './rng'
-import type { CardId, Finding, GameState, Grant, PlayerId, PowerUse } from './types'
+import type {
+  CardId,
+  Declaration,
+  Finding,
+  GameState,
+  Grant,
+  PendingPower,
+  Phase,
+  PlayerId,
+  PowerUse,
+} from './types'
 
 /**
  * 직업 능력의 발동. 다른 전이 함수와 같이 **순수 함수**다.
@@ -50,6 +60,30 @@ function targetOf(use: PowerUse): PlayerId | null {
 }
 
 /**
+ * 지금 써도 되는 능력인가.
+ *
+ * 답이 «선언»에서 나오는 능력은 선언 전에 지목해야 한다. 늦게 지목하면 답을 낼 기회가
+ * 이미 지나가, 소진만 되고 답은 영영 오지 않는다. 화면에서 막을 수도 있지만 이건 룰이므로
+ * 엔진이 막는다 — 화면 버그가 능력을 조용히 태워 없애면 안 된다(작업 규칙 2).
+ */
+export function usableIn(kind: PowerUse['kind'], phase: Phase): boolean {
+  switch (kind) {
+    case 'verify-claim':
+      return phase === 'suggest' || phase === 'refute'
+    case 'inspect-hand':
+    case 'check-weapon':
+    case 'photograph':
+    case 'publish':
+    case 'shield':
+    case 'refuse-demand':
+    case 'frame':
+    case 'eavesdrop':
+    case 'detect-lie':
+      return true
+  }
+}
+
+/**
  * 지금 답이 나오는 능력만 사실을 만든다.
  *
  * null을 돌려주면 pending에 머문다 — 선언·이의제기·밀담이 지나야 답이 정해지는 것들이다.
@@ -80,6 +114,7 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
    * **끝난 판만 예외다.** 여기서 막지 않으면 결과 화면에서 능력을 태워 없앨 수 있다.
    */
   if (state.phase === 'over') throw new Error('끝난 판에서는 능력을 쓸 수 없다')
+  if (!usableIn(use.kind, state.phase)) throw new Error(`지금은 쓸 수 없는 능력이다: ${state.phase}`)
   if (state.powersUsed.includes(playerId)) throw new Error('능력은 한 판에 한 번뿐이다')
 
   const target = targetOf(use)
@@ -144,6 +179,43 @@ export function buildPowerUse(effect: PowerUse['kind'], intent: PowerIntent): Po
       return { kind: 'eavesdrop' }
     case 'detect-lie':
       return { kind: 'detect-lie' }
+  }
+}
+
+/**
+ * 선언이 확정된 뒤에야 답이 나오는 지목을 푼다. `declareAll`이 마지막에 부른다.
+ *
+ * 순사가 여기 걸린다 — 지목은 선언 «전»에 하고 답은 선언 «후»에 나온다.
+ * 이번 라운드 것만 본다. 답을 낼 기회는 이 한 번뿐이라, 지목한 상대가 선언하지 않았으면
+ * (제안자를 지목한 경우다) 답 없이 소진된다.
+ */
+export function resolveAfterDeclare(
+  state: GameState,
+  declarations: readonly Declaration[],
+): GameState {
+  const ripe = (p: PendingPower) => p.use.kind === 'verify-claim' && p.round === state.round
+  if (!state.pending.some(ripe)) return state
+
+  const grants = state.pending.reduce<Grant[]>((acc, p) => {
+    // p.use를 꺼내 둬야 유니온이 좁혀진다 — 중첩 속성은 좁힘이 유지되지 않는다.
+    const use = p.use
+    if (!ripe(p) || use.kind !== 'verify-claim') return acc
+    const declaration = declarations.find((d) => d.playerId === use.targetId)
+    if (!declaration) return acc
+    return [
+      ...acc,
+      {
+        round: p.round,
+        ownerId: p.ownerId,
+        finding: { kind: 'claim', targetId: declaration.playerId, truthful: !declaration.isPerjury },
+      },
+    ]
+  }, [])
+
+  return {
+    ...state,
+    grants: [...state.grants, ...grants],
+    pending: state.pending.filter((p) => !ripe(p)),
   }
 }
 
