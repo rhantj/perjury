@@ -7,10 +7,13 @@ import type { CardId } from '../engine/types'
  *
  * declaration.line·suggestionLine·challenge.line은 LLM이 쓴다. 사람은 LLM을 안 불러
  * 늘 null이고(engine/types.ts 주석), 프록시가 죽어 규칙 기반 폴백으로 떨어졌을 때도
- * null이다(ai/rule-decider.ts — 사전생성 대사 풀은 D8 작업이라 여태 침묵 처리였다).
+ * null이다(ai/rule-decider.ts는 silent를 돌려준다).
  * 두 경우 다 같은 자리가 비므로 여기 한 곳에서 채운다. 용의자 이름 6개는 시나리오와
  * 무관하게 고정이므로(content/scenarios.ts) 성격도 이름에 붙여 둔다 — 시나리오가
  * 바뀌어도 같은 사람은 같은 말투로 남는다.
+ *
+ * **밀담 대사(PARLEY_LINE)만 예외로 판단자가 직접 쓴다.** 화면이 채울 수 있는 다른 자리와
+ * 달리, 밀담은 답이 돌아오지 않으면 대화 자체가 성립하지 않기 때문이다.
  */
 const REFUTE_LINE: Record<string, (card: string) => string> = {
   s1: (card) => `${josa(card, 'eul')} 내가 갖고 있소.`,

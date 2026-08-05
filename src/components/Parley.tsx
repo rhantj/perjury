@@ -46,17 +46,7 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
     )
   }
 
-  /*
-   * 폴백 라운드에도 닫지 않는다.
-   *
-   * 예전에는 여기서 «연결이 끊겨 밀담이 열리지 않는다»로 막았다. 규칙 기반 판단자가
-   * 밀담에 null을 돌려주던 시절의 이야기다 — 열어두면 상대를 고르고 200자를 쓰고
-   * 기다린 뒤에야 «이뤄지지 않았다»를 보게 됐다.
-   *
-   * 이제 판단자가 사전생성 대사로 답하므로(ai/rule-decider.ts) 그 전제가 사라졌다.
-   * 답이 오지 않는 경우는 아래 'failed' 단계가 그대로 받는다.
-   */
-
+  /** 답이 오지 않으면 'failed'로 간다 — 폴백 라운드라고 미리 닫지는 않는다. */
   const send = async () => {
     if (!targetId) return
     const said = ask.trim()

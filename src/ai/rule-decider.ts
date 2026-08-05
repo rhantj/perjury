@@ -17,6 +17,11 @@ function saltOf(seed: string, kind: string, view: GameView): string {
   return `${seed}:${kind}:${view.round}:${view.viewerId}`
 }
 
+/** 이 시야의 주인이 연기하는 용의자. 대사 말투가 여기 붙는다. */
+function characterOf(view: GameView): string {
+  return view.players.find((p) => p.isMe)?.characterId ?? ''
+}
+
 /**
  * 판단 대사는 만들지 않는다(silent). 반증·제안·이의제기의 빈 자리는 화면이
  * content/fallback-lines.ts에서 캐릭터별로 채우므로, 여기서 또 만들면 두 곳이 갈린다.
@@ -24,10 +29,6 @@ function saltOf(seed: string, kind: string, view: GameView): string {
  * **밀담만 예외다.** 밀담 답변은 화면이 채울 수 없다 — 판단자가 돌려주지 않으면
  * 「상대가 입을 열지 않는다」로 끝나 밀담 자체가 성립하지 않기 때문이다.
  */
-export function characterOf(view: GameView): string {
-  return view.players.find((p) => p.isMe)?.characterId ?? ''
-}
-
 export function createRuleDecider(seed: string): Decider {
   return {
     chooseSuggestion: async (view) => silent(suggestionFrom(view, saltOf(seed, 'sg', view))),
