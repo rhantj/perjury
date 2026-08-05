@@ -1,3 +1,4 @@
+import type { PowerBrief } from '../../src/ai/power-brief'
 import type { Faction, Grant, Phase } from '../../src/engine/types'
 import type { GameView } from '../../src/engine/view'
 
@@ -49,6 +50,7 @@ const KINDS: readonly DecideKind[] = ['suggest', 'refute', 'challenge', 'accuse'
 const PHASES: readonly Phase[] = ['suggest', 'refute', 'challenge', 'whisper', 'accuse', 'over']
 const FACTIONS: readonly Faction[] = ['citizen', 'culprit']
 const FINDING_KINDS = ['hand', 'weapon', 'claim'] as const
+const POWER_NEEDS = ['player', 'weapon', 'none'] as const
 
 export interface DecideRequest {
   readonly v: 1
@@ -58,6 +60,13 @@ export interface DecideRequest {
   /** 밀담에서 플레이어가 한 말. 다른 kind에서는 반드시 null이다. */
   readonly ask: string | null
   readonly view: GameView
+  /**
+   * 이 좌석이 아직 쓸 수 있는 직업 능력. 없으면 null이다.
+   *
+   * **워커는 직업 이름도 능력 종류도 모른다.** 프롬프트에 붙일 문구와 «무엇을 고르게
+   * 할 것인가»만 받는다 — 종류를 알면 룰이 프론트와 워커 두 군데로 갈린다(설계 §5.3).
+   */
+  readonly power: PowerBrief | null
 }
 
 export type Validated<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string }
@@ -197,6 +206,22 @@ function challengeRecord(value: unknown, where: string) {
   }
 }
 
+/**
+ * 좌석이 쓸 수 있는 능력 개요.
+ *
+ * text는 프롬프트에 그대로 들어가므로 **좌석 대사와 같은 상한**을 건다 —
+ * 프론트가 보내는 값이라 위조 가능하고, 여기가 인젝션 표면을 좁히는 자리다.
+ */
+function powerBrief(value: unknown, where: string): PowerBrief {
+  const obj = record(value, where)
+  onlyKeys(obj, ['text', 'needs'], where)
+  const text_ = obj['text']
+  if (typeof text_ !== 'string') bad(where, 'text가 문자열이 아니다')
+  if (text_.length === 0) bad(where, 'text가 비었다')
+  if (text_.length > LIMITS.lineLength) bad(where, `text가 ${LIMITS.lineLength}자를 넘는다`)
+  return { text: text_, needs: oneOf(obj, 'needs', POWER_NEEDS, where) }
+}
+
 /** 밀담 기록. viewFor가 이미 낀 두 사람에게만 실었으므로, 여기서는 모양과 길이만 본다. */
 function parleyRecord(value: unknown, where: string) {
   const obj = record(value, where)
@@ -295,6 +320,7 @@ function gameView(value: unknown): GameView {
       'players',
       'rounds',
       'findings',
+      'powerSpent',
       'solution',
       'outcome',
     ],
@@ -324,6 +350,8 @@ function gameView(value: unknown): GameView {
       obj['findings'] === undefined
         ? []
         : list(obj, 'findings', LIMITS.findings, where).map(grant),
+    // findings와 같은 이유로 관용한다 — 워커를 먼저 배포하는 순서를 지키기 위한 창이다.
+    powerSpent: obj['powerSpent'] === undefined ? false : flag(obj, 'powerSpent', where),
     solution: obj['solution'] === null ? null : suggestion(obj['solution'], `${where}.solution`),
     outcome: null,
   }
@@ -344,7 +372,7 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
 
   try {
     const obj = record(raw, 'body')
-    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view'], 'body')
+    onlyKeys(obj, ['v', 'kind', 'sessionId', 'ask', 'view', 'power'], 'body')
     if (obj['v'] !== 1) bad('body', '모르는 계약 버전이다')
 
     const kind = oneOf(obj, 'kind', KINDS, 'body')
@@ -371,6 +399,10 @@ export function parseDecideRequest(body: string): Validated<DecideRequest> {
         v: 1,
         kind,
         sessionId: text(obj, 'sessionId', 'body'),
+        power:
+          obj['power'] === undefined || obj['power'] === null
+            ? null
+            : powerBrief(obj['power'], 'body.power'),
         ask,
         view: gameView(obj['view']),
       },

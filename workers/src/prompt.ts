@@ -1,5 +1,6 @@
 import { CARDS, cardName } from '../../src/engine/cards'
 import type { GameView, PlayerView } from '../../src/engine/view'
+import type { PowerBrief } from '../../src/ai/power-brief'
 import type { DecideKind } from './schema'
 
 /**
@@ -210,15 +211,50 @@ function taskBlock(kind: DecideKind, view: GameView, ask: string | null): string
   }
 }
 
+/**
+ * 능력 안내. **쓸 수 있을 때만** 붙는다.
+ *
+ * 능력이 없거나 이미 썼으면 프론트가 power를 아예 안 보내고, 그러면 이 문단도 안 나간다.
+ * 매번 붙이면 「쓸 수 없다」는 설명이 프롬프트를 차지하고, 모델이 없는 능력을 쓰겠다고 하는
+ * 응답이 늘어난다.
+ *
+ * **고를 것만 말하고 종류는 말하지 않는다.** 워커는 어느 직업인지 모른다 — 종류를 알려주면
+ * 그 대응표가 프론트와 워커 두 군데에 살게 된다(설계 §5.3).
+ */
+function powerBlock(power: PowerBrief): string {
+  const how =
+    power.needs === 'player'
+      ? '쓰려면 usePowerOn에 대상의 id를 넣어라.'
+      : power.needs === 'weapon'
+        ? '쓰려면 usePowerOn에 수단 카드의 id를 넣어라.'
+        : '쓰려면 usePowerOn을 "yes"로 하라.'
+
+  return [
+    '[네 능력] 이 판에 **단 한 번** 쓸 수 있다. 아직 안 썼다.',
+    `- ${power.text}`,
+    `${how} 지금 쓰지 않겠다면 "none"으로 하라.`,
+    '아껴서 판을 놓치는 것도, 아무 때나 태워 버리는 것도 손해다.',
+  ].join('\n')
+}
+
 export function buildMessages(
   kind: DecideKind,
   view: GameView,
   ask: string | null = null,
+  power: PowerBrief | null = null,
 ): ChatMessage[] {
+  /*
+   * 능력 안내는 관측 로그와 할 일 «사이»에 둔다. 좌석마다 다르고 소진되면 사라지는 변동
+   * 정보라 고정 프리픽스(룰·신분) 뒤여야 하고, 할 일보다는 앞이어야 지시가 마지막에 남는다.
+   */
+  const task = power
+    ? `${powerBlock(power)}\n\n${taskBlock(kind, view, ask)}`
+    : taskBlock(kind, view, ask)
+
   return [
     { role: 'system', content: rulesBlock() },
     { role: 'system', content: selfBlock(view) },
-    { role: 'user', content: `${observationBlock(view)}\n\n${taskBlock(kind, view, ask)}` },
+    { role: 'user', content: `${observationBlock(view)}\n\n${task}` },
   ]
 }
 
@@ -228,13 +264,41 @@ export function buildMessages(
  * **cardId enum을 이번 제안 3장으로 좁히지 않는다.** 좁히면 룰이 스키마와 엔진 두 군데 살게 되고,
  * 엔진이 바뀔 때 조용히 어긋난다. 룰 위반은 엔진이 예외로 잡는다(설계 §5.3).
  */
-export function schemaFor(kind: DecideKind, view: GameView): Record<string, unknown> {
-  const object = (required: string[], properties: Record<string, unknown>) => ({
-    type: 'object',
-    additionalProperties: false,
-    required,
-    properties: { ...properties, line: { type: 'string' } },
-  })
+export function schemaFor(
+  kind: DecideKind,
+  view: GameView,
+  power: PowerBrief | null = null,
+): Record<string, unknown> {
+  /*
+   * 능력을 쓸 수 있을 때만 usePowerOn이 열린다. 후보는 «고를 것»에 따라 갈리고,
+   * 언제나 "none"(안 쓴다)이 들어 있다 — 필수 필드로 두되 빠져나갈 문을 남기는 것이,
+   * 선택 필드로 두어 모델이 조용히 생략하게 하는 것보다 응답이 안정적이다.
+   */
+  const powerEnum = (): string[] | null => {
+    if (!power) return null
+    switch (power.needs) {
+      case 'player':
+        return [...view.players.filter((p) => !p.isMe).map((p) => p.id), 'none']
+      case 'weapon':
+        return [...CARDS.filter((c) => c.kind === 'weapon').map((c) => c.id), 'none']
+      case 'none':
+        return ['yes', 'none']
+    }
+  }
+
+  const object = (required: string[], properties: Record<string, unknown>) => {
+    const choices = powerEnum()
+    return {
+      type: 'object',
+      additionalProperties: false,
+      required: choices ? [...required, 'usePowerOn'] : required,
+      properties: {
+        ...properties,
+        line: { type: 'string' },
+        ...(choices ? { usePowerOn: { type: 'string', enum: choices } } : {}),
+      },
+    }
+  }
 
   switch (kind) {
     case 'suggest':

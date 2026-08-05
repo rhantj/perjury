@@ -126,7 +126,7 @@ export default function GameScreen() {
    */
   const open = (next: string) => {
     setSeed(next)
-    store.start(next, 0, () => llmDeciderForRound())
+    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf))
     setStage('briefing')
   }
 

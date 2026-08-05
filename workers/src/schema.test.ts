@@ -457,3 +457,70 @@ describe('parseDecideRequest — 능력으로 확인한 것', () => {
     expect(result.ok).toBe(false)
   })
 })
+
+describe('parseDecideRequest — 능력 개요', () => {
+  const brief = { text: '한 명의 손패 1장을 확인한다.', needs: 'player' }
+
+  it('power를 통과시킨다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = brief
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.power?.needs).toBe('player')
+  })
+
+  it('power가 없으면 null이다', () => {
+    const result = parseDecideRequest(validBody())
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.power).toBeNull()
+  })
+
+  it('모르는 needs는 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = { text: '무언가', needs: 'solution' }
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  /** text는 프롬프트에 그대로 들어간다 — 여기가 인젝션 표면을 좁히는 자리다. */
+  it('긴 text는 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = { text: '가'.repeat(200), needs: 'none' }
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('power에 모르는 필드가 섞이면 거부한다', () => {
+    const result = parseDecideRequest(
+      validBody((body) => {
+        body['power'] = { ...brief, effect: 'inspect-hand' }
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('powerSpent를 통과시키고 없으면 false로 본다', () => {
+    const spent = parseDecideRequest(
+      validBody((body) => {
+        view(body)['powerSpent'] = true
+      }),
+    )
+    const absent = parseDecideRequest(validBody())
+
+    expect(spent.ok && spent.value.view.powerSpent).toBe(true)
+    expect(absent.ok && absent.value.view.powerSpent).toBe(false)
+  })
+})

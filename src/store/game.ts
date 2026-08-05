@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { createRoundFallback, perRound } from '../ai/decider'
 import type { DeciderForRound, FallbackReason } from '../ai/decider'
 import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../ai/flow'
+import { powerLookup } from '../ai/power-brief'
+import type { PowerLookup } from '../ai/power-brief'
 import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
 import { assignRoles } from '../content/roles'
 import type { Role } from '../content/roles'
@@ -48,7 +50,7 @@ interface GameStore {
   start: (
     seed: string,
     humanIndex?: number,
-    makeDeciders?: (seed: string) => DeciderForRound,
+    makeDeciders?: (seed: string, powerOf: PowerLookup) => DeciderForRound,
   ) => Promise<void>
   /** 판을 버리고 표지로 돌아간다. 브리핑에서 되돌아 나오는 경로가 이것뿐이다. */
   reset: () => void
@@ -158,7 +160,13 @@ export const useGame = create<GameStore>((set, get) => {
     start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
       gameId += 1
       const myGameId = gameId
-      const chosen = makeDeciders(seed)
+      const initial = createGame({ seed, humanIndex })
+      /*
+       * 배정표는 판을 만들어야 나온다. 판단자가 이걸 스스로 구하려면 시드가 필요한데,
+       * LLM 구현체에 시드를 주면 판을 재계산해 정답을 뽑을 수 있다(rule-decider 주석).
+       * 그래서 «좌석 → 내 능력»으로 좁힌 조회 함수만 넘긴다.
+       */
+      const chosen = makeDeciders(seed, powerLookup(assignRoles(seed, initial.players)))
 
       /**
        * 어떤 팩토리를 꽂아도 규칙 기반 폴백이 붙는다.
@@ -172,7 +180,6 @@ export const useGame = create<GameStore>((set, get) => {
         )
       })
 
-      const initial = createGame({ seed, humanIndex })
       set({ state: initial, error: null, aiThinking: true, fallbackRound: false, fallbackReason: null })
 
       try {

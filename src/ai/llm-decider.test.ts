@@ -230,3 +230,56 @@ describe('createLlmDecider — 밀담', () => {
     )
   })
 })
+
+describe('createLlmDecider — 능력', () => {
+  const BRIEF = { text: '한 명의 손패 1장을 확인한다.', needs: 'player' } as const
+  const bodyOf = () => JSON.parse(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')
+
+  it('쓸 수 있으면 능력 개요를 함께 보낸다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
+    const decider = createLlmDecider(() => BRIEF)
+
+    await decider.chooseClaim(viewOf())
+
+    expect(bodyOf().power).toEqual(BRIEF)
+  })
+
+  /** 능력을 걷는 곳은 제안·반증뿐이다. 다른 kind에 실으면 답해도 버려지고 캐시만 흔들린다. */
+  it('이의제기·고발·밀담에는 능력을 보내지 않는다', async () => {
+    fetchMock.mockResolvedValue(ok(null))
+    const decider = createLlmDecider(() => BRIEF)
+
+    await decider.chooseChallengeTarget(viewOf())
+
+    expect(bodyOf().power).toBeUndefined()
+  })
+
+  it('이미 썼으면 보내지 않는다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
+    const decider = createLlmDecider(() => BRIEF)
+
+    await decider.chooseClaim({ ...viewOf(), powerSpent: true })
+
+    expect(bodyOf().power).toBeUndefined()
+  })
+
+  it('고른 대상을 능력 의사로 옮긴다', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, decision: { kind: 'pass' }, line: '없소', usePowerOn: 'p3' }),
+    } as unknown as Response)
+    const decider = createLlmDecider(() => BRIEF)
+
+    expect((await decider.chooseClaim(viewOf())).power).toEqual({ targetId: 'p3' })
+  })
+
+  it('"none"이면 안 쓴다', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, decision: { kind: 'pass' }, line: '없소', usePowerOn: 'none' }),
+    } as unknown as Response)
+    const decider = createLlmDecider(() => BRIEF)
+
+    expect((await decider.chooseClaim(viewOf())).power).toBeNull()
+  })
+})
