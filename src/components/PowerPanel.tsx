@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { cardLabel, participantLabel } from '../content/labels'
 import { cardsOfKind } from '../engine/cards'
-import { usableIn } from '../engine/power'
+import { needsOf, usableIn } from '../engine/power'
 import type { Scenario } from '../content/scenarios'
 import type { Role } from '../content/roles'
 import type { PowerIntent } from '../engine/power'
@@ -56,8 +56,8 @@ export default function PowerPanel({
             ))}
           </ul>
         ) : (
-          /* 지목만 하고 답은 나중에 나오는 능력(순사·사진사 등)이 여기 머문다. */
-          <p className="power__waiting">결과를 기다린다</p>
+          /* 알려줄 것이 없는 능력이 여기 머문다 — 답이 나중에 오거나(순사), 원래 없거나(밀정). */
+          <p className="power__waiting">{SPENT[role.effect] ?? '결과를 기다린다'}</p>
         )}
       </div>
     )
@@ -67,13 +67,15 @@ export default function PowerPanel({
     // 지금 눌러도 엔진이 거부하는 능력이 있다(순사는 선언 뒤에 지목해봐야 답이 없다).
     // 눌렀다가 오류를 보게 두는 대신 미리 잠근다 — 판정은 엔진 것을 그대로 쓴다.
     const inTime = usableIn(role.effect, view.phase)
+    // 고를 것이 없는 능력은 고르는 단계를 건너뛴다. 빈 목록을 보여줄 이유가 없다.
+    const noTarget = needsOf(role.effect) === 'none'
     return (
       <div className="power">
         <button
           type="button"
           className="power__fire"
           disabled={!enabled || !inTime}
-          onClick={() => setPicking(true)}
+          onClick={() => (noTarget ? onUse({}) : setPicking(true))}
         >
           능력 발동
         </button>
@@ -129,6 +131,11 @@ const ASK: Partial<Record<NonNullable<Role['effect']>, string>> = {
   'inspect-hand': '누구의 손패를 볼 것인가',
   'check-weapon': '어느 수단을 확인할 것인가',
   'verify-claim': '누구의 반증을 확인할 것인가',
+}
+
+/** 알려줄 사실이 «원래» 없는 능력. 기다린다고 쓰면 오지 않을 답을 기다리게 된다. */
+const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
+  shield: '뒤를 봐주는 자가 붙었다',
 }
 
 /**

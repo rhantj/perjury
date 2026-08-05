@@ -59,6 +59,31 @@ function targetOf(use: PowerUse): PlayerId | null {
   }
 }
 
+/** 능력을 쓰려면 무엇을 골라야 하는가. */
+export type PowerNeeds = 'player' | 'weapon' | 'none'
+
+/**
+ * 종류마다 무엇을 고르는지. 화면(대상 목록)과 프롬프트(선택지 목록)가 같은 답을 써야 하므로
+ * 여기 한 곳에 둔다. 종류가 늘면 컴파일러가 이 switch를 짚는다.
+ */
+export function needsOf(kind: PowerUse['kind']): PowerNeeds {
+  switch (kind) {
+    case 'inspect-hand':
+    case 'verify-claim':
+    case 'photograph':
+    case 'publish':
+    case 'frame':
+      return 'player'
+    case 'check-weapon':
+      return 'weapon'
+    case 'shield':
+    case 'refuse-demand':
+    case 'eavesdrop':
+    case 'detect-lie':
+      return 'none'
+  }
+}
+
 /**
  * 지금 써도 되는 능력인가.
  *

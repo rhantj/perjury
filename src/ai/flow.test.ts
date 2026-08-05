@@ -418,14 +418,24 @@ describe('AI 능력 발동', () => {
     expect(mine[0]?.finding.kind).toBe('hand')
   })
 
-  it('능력이 없는 좌석은 쓰겠다고 해도 발동하지 않는다', async () => {
+  /**
+   * 전원이 «같은 대상에게 쓰겠다»는 한 가지 의사만 냈는데도 좌석마다 다른 일이 일어난다.
+   * 종류가 의사가 아니라 배정표에서 나오기 때문이다 — 여기가 무너지면 AI가 남의 능력을 쓴다.
+   */
+  it('같은 의사를 내도 좌석마다 자기 직업의 능력이 나간다', async () => {
     const game = gameWhereSeatIsCoroner()
+    const roles = assignRoles(game.seed, game.players)
     const started = suggest(game, 'p0', SUGGESTION)
 
     const after = await stepAi(started, wanting('p2', game.seed))
 
-    // p1만 검시관이다. 나머지 좌석은 같은 의사를 냈지만 effect가 null이라 발동하지 않는다.
-    expect(after.powersUsed).toEqual(['p1'])
+    expect(after.grants.find((g) => g.ownerId === 'p1')?.finding.kind).toBe('hand')
+
+    // 알게 된 사실의 «종류»는 그 좌석 직업이 내는 것과 일치해야 한다.
+    const producedBy: Record<string, string> = { 'inspect-hand': 'hand', 'check-weapon': 'weapon' }
+    for (const grant of after.grants) {
+      expect(grant.finding.kind).toBe(producedBy[roles[grant.ownerId]?.effect ?? ''])
+    }
   })
 
   /** 엔진이 거절해도 판은 계속 돌아야 한다 — AI의 잘못된 요구가 라운드를 멈추면 안 된다. */

@@ -126,7 +126,7 @@ export const ROLES: readonly Role[] = [
     side: 'culprit',
     power: '자기 위증 1회는 이의제기를 당해도 실패 처리된다.',
     flavor: '뒤를 봐주는 자가 있다. 한 번은 빠져나간다.',
-    effect: null,
+    effect: 'shield',
   },
 ]
 

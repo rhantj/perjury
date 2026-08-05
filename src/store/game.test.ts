@@ -247,8 +247,7 @@ describe('useGame', () => {
 })
 
 /**
- * 시드마다 사람이 받는 직업이 다르다. 아래 시드는 p0에게 각각 검시관·약제사·밀정을 준다
- * (밀정은 아직 effect가 null이라 «능력 없는 좌석»을 대표한다).
+ * 시드마다 사람이 받는 직업이 다르다. 아래 시드는 p0에게 각각 검시관·약제사를 준다.
  */
 describe('능력 발동', () => {
   beforeEach(() => {
@@ -278,12 +277,18 @@ describe('능력 발동', () => {
     expect(found.cardId).toBe('w1')
   })
 
-  it('능력이 없는 직업이면 아무 일도 하지 않는다', async () => {
-    await game().start('power-s0', 0)
-    expect(game().role().effect).toBeNull()
+  /**
+   * 대상이 빠진 발동은 화면 실수다. 판을 오류로 멈추지 않고 조용히 무시해야 한다.
+   *
+   * 「effect가 null인 직업」으로 이걸 확인하지 않는다 — 그 직업들을 하나씩 구현하는 중이라
+   * 시드가 어떤 직업을 뽑느냐에 테스트가 매달리게 된다.
+   */
+  it('대상이 빠진 발동은 아무 일도 하지 않는다', async () => {
+    await game().start('power-s3', 0)
+    expect(game().role().effect).toBe('inspect-hand')
     const before = game().state
 
-    game().usePower({ targetId: 'p1' })
+    game().usePower({})
 
     expect(game().state).toBe(before)
     expect(game().powerUsed()).toBe(false)

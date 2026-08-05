@@ -1,3 +1,5 @@
+import { needsOf } from '../engine/power'
+import type { PowerNeeds } from '../engine/power'
 import type { Role } from '../content/roles'
 import type { PlayerId } from '../engine/types'
 
@@ -13,33 +15,11 @@ export interface PowerBrief {
   /** 사람이 읽는 능력 문구. 프롬프트에 그대로 들어간다. */
   readonly text: string
   /** 무엇을 골라야 하는가. 'none'은 대상 없이 발동하는 능력이다. */
-  readonly needs: 'player' | 'weapon' | 'none'
+  readonly needs: PowerNeeds
 }
 
 /** 좌석 → 능력 개요. 쓸 능력이 없으면 null이다. */
 export type PowerLookup = (viewerId: PlayerId) => PowerBrief | null
-
-/**
- * 능력 종류마다 무엇을 고르는지. 종류가 늘면 컴파일러가 여기를 짚는다.
- * 아직 발동이 구현되지 않은 직업은 `effect`가 null이라 여기 닿지 않는다.
- */
-function needsOf(effect: NonNullable<Role['effect']>): PowerBrief['needs'] {
-  switch (effect) {
-    case 'inspect-hand':
-    case 'verify-claim':
-    case 'photograph':
-    case 'publish':
-    case 'frame':
-      return 'player'
-    case 'check-weapon':
-      return 'weapon'
-    case 'shield':
-    case 'refuse-demand':
-    case 'eavesdrop':
-    case 'detect-lie':
-      return 'none'
-  }
-}
 
 /** 배정표에서 조회 함수를 만든다. 배정표는 판을 만든 쪽(store)이 이미 갖고 있다. */
 export function powerLookup(roles: Readonly<Record<PlayerId, Role>>): PowerLookup {

@@ -22,9 +22,14 @@ describe('powerLookup — 좌석의 능력 개요', () => {
     expect(lookup('p0')?.needs).toBe('weapon')
   })
 
-  /** 아직 발동이 구현되지 않은 직업이다. 프롬프트에 능력 이야기가 아예 안 나가야 한다. */
+  /**
+   * 발동이 구현되지 않은 직업. 프롬프트에 능력 이야기가 아예 안 나가야 한다.
+   *
+   * 실제 직업을 골라 쓰지 않는다 — 구현이 끝나면 그 직업의 effect가 채워져
+   * 테스트가 «구현했다는 이유로» 깨지기 때문이다.
+   */
   it('effect가 없는 직업은 null이다', () => {
-    const lookup = powerLookup({ p0: roleNamed('spy') })
+    const lookup = powerLookup({ p0: { ...roleNamed('spy'), effect: null } })
 
     expect(lookup('p0')).toBeNull()
   })
