@@ -171,6 +171,21 @@ export default function GameScreen() {
     const challenger = participantLabel(view, challenge.challengerId)
     const target = participantLabel(view, challenge.targetId)
 
+    /*
+     * 예고 한 박자를 AI가 건 이의제기에도 붙인다. 내가 걸 때는 버튼 핸들러가 «누구를
+     * 위증으로 지목했는지»를 먼저 띄우고 결과가 뒤따르는 2단인데, AI가 걸면 그 앞이
+     * 통째로 없어서 결과만 툭 떨어졌다 — 같은 사건인데 남의 차례일 때만 밋밋했다.
+     * 내가 건 경우에는 핸들러가 이미 넣었으므로 여기서 또 넣으면 두 번 뜬다.
+     */
+    if (view.players.find((p) => p.isMe)?.id !== challenge.challengerId) {
+      enqueueFlash({
+        kind: 'challengeCall',
+        text: `${challenger} → ${target} 위증 의심!`,
+        detail: '이의를 제기했다',
+        ms: 1200,
+      })
+    }
+
     if (challenge.success) {
       enqueueFlash({
         kind: 'caught',
@@ -525,7 +540,7 @@ function FallbackMark({ reason }: { reason: FallbackReason | null }) {
 function Waiting() {
   return (
     <p className="actions__waiting" role="status">
-      다른 자리에서 답을 고르는 중
+      다른 사람 추측중
       {[0, 1, 2].map((i) => (
         <i key={i} style={{ '--i': i } as CSSProperties} aria-hidden="true" />
       ))}
