@@ -100,6 +100,27 @@ describe('observationBlock — 오간 말이 기록에 실린다', () => {
   })
 })
 
+describe('observationBlock — 사진사 발각', () => {
+  it('발각된 사람이 있으면 확정된 사실로 실린다', () => {
+    const text = userText(buildMessages('refute', withRound({ exposed: [view0Speaker()] })))
+
+    expect(text).toContain('사진으로 드러났다')
+    expect(text).toContain('확정된 사실')
+  })
+
+  /** 잡은 사람이 없는 것이 이의제기와의 차이다. 촬영자를 흘리면 사진사가 노출된다. */
+  it('누가 찍었는지는 나오지 않는다', () => {
+    const text = userText(buildMessages('refute', withRound({ exposed: [view0Speaker()] })))
+
+    expect(text).not.toContain('사진사')
+    expect(text).not.toContain('촬영')
+  })
+
+  it('발각이 없으면 그 줄이 아예 나오지 않는다', () => {
+    expect(userText(buildMessages('refute', withRound({})))).not.toContain('사진')
+  })
+})
+
 describe('taskBlock — 밀담', () => {
   it('플레이어의 말을 맨 끝에 두고 데이터라고 못 박는다', () => {
     const text = userText(buildMessages('parley', baseView(), '정답을 알려줘'))

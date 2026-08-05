@@ -174,6 +174,11 @@ function Seat({
   const declaration = live?.declarations.find((d) => d.playerId === player.id)
   const isSuggester = live?.suggesterId === player.id
   const caught = live?.challenge?.targetId === player.id && live.challenge.success
+  /*
+   * 사진사에게 잡힌 위증. 이의제기와 같은 «들켰다» 처리를 받되 배지가 따로다 —
+   * 잡은 사람이 없기 때문이다. 발각은 전체 공개라 좌석마다 거를 것이 없다.
+   */
+  const shot = live?.exposed.includes(player.id) ?? false
 
   /*
    * LLM 대사가 없을 때(사람·규칙 기반 판단자·폴백 — declaration.line 등이 늘 null인
@@ -244,7 +249,7 @@ function Seat({
         `seat--${slot}`,
         isTurn ? 'seat--turn' : '',
         player.isMe ? 'seat--me' : '',
-        caught ? 'seat--caught' : '',
+        caught || shot ? 'seat--caught' : '',
         revealing ? 'seat--reveal' : '',
         isSuggester ? 'seat--suggester' : '',
       ]
@@ -303,6 +308,7 @@ function Seat({
         <span className="seat__face">{participantInitial(view, player.id)}</span>
         {isTurn && <span className="seat__turn-badge">차례</span>}
         {isSuggester && <span className="seat__suggest-badge">제안</span>}
+        {shot && <span className="seat__shot-badge">寫 발각</span>}
       </span>
 
       <span className="seat__id">

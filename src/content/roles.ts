@@ -108,8 +108,7 @@ export const ROLES: readonly Role[] = [
     side: 'citizen',
     power: '한 명을 촬영한다 — 그가 다음 라운드에 위증하면 즉시 발각된다.',
     flavor: '증거는 남는다. 쓰는 순간부터 억지력이 된다.',
-    // 엔진은 준비됐지만 발각을 보여줄 자리(프롬프트·화면)가 아직 없다. 그것과 함께 켠다.
-    effect: null,
+    effect: 'photograph',
   },
   {
     id: 'trickster',

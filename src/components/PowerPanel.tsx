@@ -131,11 +131,14 @@ const ASK: Partial<Record<NonNullable<Role['effect']>, string>> = {
   'inspect-hand': '누구의 손패를 볼 것인가',
   'check-weapon': '어느 수단을 확인할 것인가',
   'verify-claim': '누구의 반증을 확인할 것인가',
+  photograph: '누구를 촬영할 것인가',
 }
 
 /** 알려줄 사실이 «원래» 없는 능력. 기다린다고 쓰면 오지 않을 답을 기다리게 된다. */
 const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
   shield: '뒤를 봐주는 자가 붙었다',
+  // 결과는 좌석 배지로 전체에 뜬다. 여기서 다시 알려줄 것이 없다.
+  photograph: '촬영해 두었다 — 다음 라운드에 거짓을 말하면 드러난다',
 }
 
 /**

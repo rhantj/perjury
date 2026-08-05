@@ -144,7 +144,11 @@ function observationBlock(view: GameView): string {
           `  · [밀담] ${who(round.parley.targetId)} → ${who(human?.id ?? '')}: "${round.parley.replyLine}"`,
         ]
       : []
-    return [head, ...declarations, ...challenge, ...parley].join('\n')
+    // 사진사에게 잡힌 위증. 이의제기와 달리 「누가 잡았는지」가 없다 — 증거만 나온 것이다.
+    const exposed = round.exposed.map(
+      (id) => `  · ${who(id)}의 반증이 거짓임이 사진으로 드러났다 — 이것은 확정된 사실이다`,
+    )
+    return [head, ...declarations, ...challenge, ...exposed, ...parley].join('\n')
   })
 
   /*
