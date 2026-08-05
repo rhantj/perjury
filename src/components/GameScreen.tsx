@@ -258,6 +258,8 @@ export default function GameScreen() {
    * 멈춘 것처럼 보이고, 판단이 끝나 버튼이 갈리는 순간 클릭이 엉뚱한 곳에 떨어졌다.
    */
   const myMove = store.awaitingHuman()
+  // 이번 라운드에 이미 건 밀담 수. 회선이 둘인 좌석에서 패널을 다시 열 때 쓴다.
+  const liveParleys = view.rounds[view.rounds.length - 1]?.parleys.length ?? 0
 
   const picking = (view.phase === 'suggest' || view.phase === 'accuse') && myMove
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
@@ -375,10 +377,11 @@ export default function GameScreen() {
             <Table view={view} scenario={scenario} />
 
             {/*
-              라운드마다 새로 마운트한다 — 지난 라운드에 고른 상대·쓴 말이 남지 않게 한다.
+              라운드마다, 그리고 밀담 한 건이 끝날 때마다 새로 마운트한다 —
+              지난 밀담에 고른 상대·쓴 말이 남으면 두 번째 회선이 첫 번째를 되풀이한다.
             */}
             <Parley
-              key={view.round}
+              key={`${view.round}:${liveParleys}`}
               view={view}
               open={view.phase === 'whisper' && myMove}
               onAsk={store.askParley}

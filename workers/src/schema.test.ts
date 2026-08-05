@@ -244,7 +244,6 @@ interface TestRound {
   suggestionLine: string | null
   declarations: { playerId: string; claim: { kind: string; cardId?: string }; line: string | null }[]
   challenge: null
-  parley: null
 }
 
 interface TestView {

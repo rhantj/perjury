@@ -31,7 +31,16 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
   const [ask, setAsk] = useState('')
   const [reply, setReply] = useState('')
 
-  const others = view.players.filter((p) => !p.isMe)
+  /*
+   * 이번 라운드에 이미 이야기한 상대는 뺀다. 엔진이 거부하는 선택인데(engine/parley.ts)
+   * 목록에 남겨두면 고를 수 있고, 답까지 받은 뒤 마지막에 던져 나갈 문이 사라진다.
+   * 회선이 하나뿐일 때는 두 번째 선택 자체가 없어서 드러나지 않던 자리다.
+   */
+  const live = view.rounds[view.rounds.length - 1]
+  const spoken = live?.round === view.round ? live.parleys : []
+  const others = view.players.filter(
+    (p) => !p.isMe && !spoken.some((done) => done.targetId === p.id),
+  )
   const targetName = targetId ? participantLabel(view, targetId) : ''
 
   /** 내 차례가 아니다. 자리만 잡아 둔다 — 나갈 문도 필요 없다. */
@@ -149,6 +158,24 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
       {step === 'failed' && (
         <>
           <p className="parley__note">밀담이 이뤄지지 않았다. 상대가 입을 열지 않는다.</p>
+          {/*
+            회선이 남았으면 다른 상대를 고를 길을 준다. 넘어가기만 두면 한 번의 통신 실패가
+            아직 써보지도 않은 회선까지 함께 버린다(전화교환수는 라운드당 둘이다).
+          */}
+          {others.length > 0 && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setTargetId(null)
+                setAsk('')
+                setReply('')
+                setStep('pick')
+              }}
+            >
+              다른 사람에게
+            </button>
+          )}
           <button type="button" className="btn btn--ghost" onClick={onSkip}>
             넘어간다
           </button>

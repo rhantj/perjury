@@ -160,13 +160,20 @@ export const useGame = create<GameStore>((set, get) => {
     start: async (seed, humanIndex = 0, makeDeciders = ruleDeciderForRound) => {
       gameId += 1
       const myGameId = gameId
-      const initial = createGame({ seed, humanIndex })
+      const draft = createGame({ seed, humanIndex })
+      const roles = assignRoles(seed, draft.players)
       /*
-       * 배정표는 판을 만들어야 나온다. 판단자가 이걸 스스로 구하려면 시드가 필요한데,
-       * LLM 구현체에 시드를 주면 판을 재계산해 정답을 뽑을 수 있다(rule-decider 주석).
+       * 회선 수는 엔진이 정하지 못한다 — 엔진은 직업을 모른다(content → engine 한 방향).
+       * 배정표를 아는 여기서 정해 넘긴다. 같은 시드는 같은 판이라 두 번 만들어도 결과가 같다.
+       */
+      const operator = roles[draft.players[humanIndex]?.id ?? '']?.effect === 'eavesdrop'
+      const initial = operator ? createGame({ seed, humanIndex, parleyAllowance: 2 }) : draft
+      /*
+       * 판단자가 배정표를 스스로 구하려면 시드가 필요한데, LLM 구현체에 시드를 주면
+       * 판을 재계산해 정답을 뽑을 수 있다(rule-decider 주석).
        * 그래서 «좌석 → 내 능력»으로 좁힌 조회 함수만 넘긴다.
        */
-      const chosen = makeDeciders(seed, powerLookup(assignRoles(seed, initial.players)))
+      const chosen = makeDeciders(seed, powerLookup(roles))
 
       /**
        * 어떤 팩토리를 꽂아도 규칙 기반 폴백이 붙는다.

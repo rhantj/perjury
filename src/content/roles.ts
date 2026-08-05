@@ -93,9 +93,13 @@ export const ROLES: readonly Role[] = [
     ko: '전화교환수',
     hanja: '電話交換手',
     side: 'citizen',
-    power: '이번 라운드 밀담 1건을 엿듣는다.',
+    /*
+     * 사람이 쥐면 엿들을 것이 없다 — 사람은 이미 모든 밀담에 끼어 있다.
+     * 그래서 사람에게는 회선이 하나 늘고, AI에게는 남의 밀담이 보인다(결정 007).
+     */
+    power: '밀담 회선이 하나 는다 — 남의 자리에서는 남의 밀담을 엿듣는다.',
     flavor: '경성우편국. 모든 말이 이 사람을 지나간다.',
-    effect: null,
+    effect: 'eavesdrop',
   },
   {
     id: 'apothecary',

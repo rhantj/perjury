@@ -395,3 +395,24 @@ describe('밀담', () => {
     expect(new Set(replies).size).toBeGreaterThan(1)
   })
 })
+
+describe('전화교환수의 회선', () => {
+  beforeEach(() => {
+    useGame.getState().reset()
+  })
+
+  /** 엔진은 직업을 모른다. 회선 수를 정하는 것은 배정표를 아는 store다. */
+  it('사람이 전화교환수면 라운드당 밀담이 두 건이다', async () => {
+    await game().start('op-14', 0)
+
+    expect(game().role().effect).toBe('eavesdrop')
+    expect(game().state?.parleyAllowance).toBe(2)
+  })
+
+  it('다른 직업이면 한 건이다', async () => {
+    await game().start('power-s3', 0)
+
+    expect(game().role().effect).toBe('inspect-hand')
+    expect(game().state?.parleyAllowance).toBe(1)
+  })
+})

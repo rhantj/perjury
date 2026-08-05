@@ -47,6 +47,19 @@ export default function PowerPanel({
    * 패널에서 미리 켜두면 두 번 조작하게 된다. 쓴 뒤의 표시는 여기 남긴다.
    */
   if (role.effect === 'refuse-demand' && !used) return null
+  /*
+   * 전화교환수는 사람 자리에서 «발동하는» 능력이 아니다 — 사람은 이미 모든 밀담에 끼어 있어
+   * 엿들을 것이 없고, 대신 회선이 하나 늘어난 채로 판이 시작된다(결정 007).
+   * 이 패널은 사람 자리에만 그려지므로 버튼 대신 상태만 적는다.
+   */
+  if (role.effect === 'eavesdrop') {
+    return (
+      <div className="power power--spent">
+        <span className="power__mark">已 회선 개통</span>
+        <p className="power__waiting">라운드마다 두 사람과 따로 이야기할 수 있다</p>
+      </div>
+    )
+  }
 
   if (used) {
     return (
