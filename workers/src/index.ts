@@ -44,8 +44,14 @@ const DEFAULT_MAX_TOKENS = 700
 const DEFAULT_BASE_URL = 'https://api.anthropic.com/v1'
 /** 기본 모델은 프로젝트 규칙에 고정돼 있다. 바꾸려면 LLM_MODEL로 덮는다. */
 const DEFAULT_MODEL = 'claude-opus-5'
-/** 프론트(30초)보다 짧게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1). */
-const UPSTREAM_TIMEOUT_MS = 25_000
+/**
+ * 프론트(20초)보다 짧게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1).
+ *
+ * 15초는 «기다려 주는 시간»이 아니라 «끊는 시간»이다. 실측(2026-08-05, 배포본 23건)에서
+ * 정상 응답은 4~7초였고, 넘긴 것은 25초를 다 쓰고 죽은 낙오 한 건뿐이었다 —
+ * 그 사이에 끝나는 응답이 없다. 상한을 여기 두면 폴백이 10초 빨리 온다(결정 008).
+ */
+const UPSTREAM_TIMEOUT_MS = 15_000
 
 /**
  * CORS 허용 오리진의 기본값. 배포본에는 이것만 남는다 —

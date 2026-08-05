@@ -40,8 +40,13 @@ export class LlmUnavailableError extends Error {
   }
 }
 
-/** 프록시(25초)보다 길게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1). */
-const REQUEST_TIMEOUT_MS = 30_000
+/**
+ * 프록시(15초)보다 길게 잡아야 어떤 실패인지 code로 알 수 있다(설계 §7.1).
+ *
+ * 프록시보다 5초 길게 둔다. 이쪽이 먼저 끊으면 상류가 왜 실패했는지가 통째로 사라져
+ * 「예산 소진」과 「낙오」를 구분하지 못하고, 예산이 마른 판에서도 매 호출을 다시 던진다.
+ */
+const REQUEST_TIMEOUT_MS = 20_000
 
 type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley'
 
