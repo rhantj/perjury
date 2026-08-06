@@ -515,13 +515,19 @@ describe('탈락자는 능력을 쓰지 않는다', () => {
     expect(() => usePower(fallen, me, { kind: 'inspect-hand', targetId: idOf(state, 1) })).toThrow()
   })
 
-  /** 탈락자도 반증은 계속하므로 지목 «대상»으로는 유효하다. 손패도 여전히 비밀이다. */
-  it('탈락자를 지목하는 것은 막지 않는다', () => {
-    const state = game()
+  /*
+   * 탈락자도 «선언»은 계속하므로, 선언에 걸리는 능력의 대상으로는 유효하다.
+   *
+   * 손패를 직접 캐는 검시관(inspect-hand)까지 열어둘지는 아직 안 정했다 — 그건
+   * 결정 011이 탈락자에게 밀담을 막은 근거(「틀려도 정보원이 하나 생긴다」)와 같은 문이다.
+   * 그래서 여기서는 논란 없는 쪽만 못 박는다.
+   */
+  it('탈락자를 선언 관련 능력의 대상으로 삼는 것은 막지 않는다', () => {
+    const state = afterSuggest(game())
     const fallen: GameState = { ...state, eliminated: [idOf(state, 1)] }
 
     expect(
-      usePower(fallen, idOf(state, 0), { kind: 'inspect-hand', targetId: idOf(state, 1) }).grants,
+      usePower(fallen, idOf(state, 2), { kind: 'verify-claim', targetId: idOf(state, 1) }).pending,
     ).toHaveLength(1)
   })
 })
