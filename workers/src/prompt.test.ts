@@ -186,3 +186,49 @@ describe('schemaFor — 밀담', () => {
     expect(schema['required']).toEqual(['line', 'truthful'])
   })
 })
+
+describe('조기 고발 — 시민에게만 문을 연다 (3-C-2b)', () => {
+  /** 범인 시야는 solution이 채워져 있다. 시민은 null이다(engine/view.ts). */
+  function asCulprit(view: GameView): GameView {
+    return { ...view, solution: { suspect: 's1', weapon: 'w1', place: 'p1' } }
+  }
+
+  it('시민의 제안 스키마에 accuseNow가 들어 있다', () => {
+    const schema = schemaFor('suggest', baseView())
+    const required = schema['required']
+
+    expect(Array.isArray(required) && required.includes('accuseNow')).toBe(true)
+  })
+
+  /*
+   * 범인이 외치면 엔진이 자백으로 읽어 시민 승으로 닫는다(결정 011 §2).
+   * 스키마에 칸이 없으면 모델이 고를 수조차 없다 — 프론트 차단(ai/flow.ts)과 이중이다.
+   */
+  it('범인의 제안 스키마에는 accuseNow가 없다', () => {
+    const schema = schemaFor('suggest', asCulprit(baseView()))
+    const required = schema['required']
+
+    expect(Array.isArray(required) && required.includes('accuseNow')).toBe(false)
+  })
+
+  /** 최종 고발은 이미 고발이다. 여기에 또 열면 같은 행동이 두 갈래로 갈린다. */
+  it('최종 고발 스키마에는 accuseNow가 없다', () => {
+    const schema = schemaFor('accuse', baseView())
+    const required = schema['required']
+
+    expect(Array.isArray(required) && required.includes('accuseNow')).toBe(false)
+  })
+
+  it('시민의 제안 지시문이 틀렸을 때의 대가를 알려준다', () => {
+    const text = userText(buildMessages('suggest', baseView()))
+
+    expect(text).toContain('accuseNow')
+    expect(text).toContain('탈락')
+  })
+
+  it('범인의 제안 지시문에는 고발 이야기가 없다', () => {
+    const text = userText(buildMessages('suggest', asCulprit(baseView())))
+
+    expect(text).not.toContain('accuseNow')
+  })
+})
