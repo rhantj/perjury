@@ -11,7 +11,7 @@ import { challenge } from '../engine/challenge'
 import { parley, skipParley } from '../engine/parley'
 import { buildPowerUse, usePower } from '../engine/power'
 import type { PowerIntent } from '../engine/power'
-import { accuse } from '../engine/progress'
+import { accuse, accuseEarly } from '../engine/progress'
 import { suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
 import { viewFor } from '../engine/view'
@@ -78,6 +78,8 @@ interface GameStore {
   challenge: (targetId: PlayerId) => Promise<void>
   passChallenge: () => Promise<void>
   accuse: (accusation: Suggestion) => Promise<void>
+  /** 라운드 중간에 혼자 외치는 고발. 맞으면 시민 승, 틀리면 외친 사람만 탈락한다. */
+  accuseEarly: (accusation: Suggestion) => Promise<void>
 
   /**
    * 밀담 응답을 받아온다. **엔진을 건드리지 않는다.**
@@ -262,6 +264,12 @@ export const useGame = create<GameStore>((set, get) => {
     challenge: (targetId) => apply((s) => challenge(s, humanId(s), targetId)),
     passChallenge: () => apply((s, deciders) => passChallenge(s, deciders)),
     accuse: (accusation) => apply((s) => accuse(s, accusation, humanId(s))),
+    /*
+     * 조기 고발. 최종 고발과 «같은 오답»이 전혀 다른 결과를 내므로 함수를 따로 둔다 —
+     * 여기서는 판이 끝나지 않고 외친 사람만 탈락한다(룰 개편 §2-5).
+     * 어느 쪽을 쓸지는 페이즈로 엔진이 가른다(engine/progress.ts의 accuseEarly).
+     */
+    accuseEarly: (accusation) => apply((s) => accuseEarly(s, humanId(s), accusation)),
 
     askParley: async (targetId, ask) => {
       const deciders = deciderForRound

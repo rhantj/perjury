@@ -2093,6 +2093,41 @@
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+/*
+ * 조기 고발.
+ *
+ * 여는 버튼은 «있는 줄은 알되 손이 먼저 가지는 않게» 둔다 — 판 내내 떠 있는 버튼이라
+ * 붉게 칠하면 매 순간 재촉하는 화면이 된다. 무게는 눌러서 «고르는 중»으로 들어간 뒤에 준다.
+ */
+.accuse-early__open {
+  font-size: 0.82rem;
+  opacity: 0.72;
+  transition:
+    opacity var(--duration-fast) var(--ease-out-expo),
+    color var(--duration-fast) var(--ease-out-expo);
+}
+.accuse-early__open:hover {
+  opacity: 1;
+  color: var(--color-seal);
+}
+
+/* 고르는 중에는 반대로 확실히 무겁게. 되돌릴 수 없는 선택이라는 것이 보여야 한다. */
+.accuse-early {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-seal);
+  border-radius: 0.3rem;
+  background: color-mix(in oklch, var(--color-seal) 12%, transparent);
+}
+.accuse-early__ask {
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
 .actions__error {
   margin: 0;
   font-size: 0.78rem;
