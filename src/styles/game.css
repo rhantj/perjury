@@ -1360,9 +1360,33 @@
     box-shadow: 0 0 0 1px var(--tone-key) inset, 0 0 22px oklch(74% 0.13 60 / 0.32);
   }
 }
+/*
+ * 반증 의무를 진 좌석. 제안자와 같은 무게로 두르되 색을 달리한다 —
+ * 배지 글자만으로는 «누가 이번에 답하는가»를 원탁에서 찾기 어렵다는 피드백.
+ * 둘은 겹치지 않는다(제안자는 추첨 후보에서 빠진다).
+ */
+.seat--drawn {
+  border-color: var(--color-cold);
+  box-shadow:
+    0 0 0 1px var(--color-cold) inset,
+    0 0 22px oklch(64% 0.11 215 / 0.3);
+  animation: seat-drawn-in 520ms var(--ease-out-expo);
+}
+@keyframes seat-drawn-in {
+  0% {
+    box-shadow: 0 0 0 0 oklch(64% 0.11 215 / 0) inset, 0 0 0 oklch(64% 0.11 215 / 0);
+  }
+  45% {
+    box-shadow: 0 0 0 3px var(--color-cold) inset, 0 0 44px oklch(64% 0.11 215 / 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 1px var(--color-cold) inset, 0 0 22px oklch(64% 0.11 215 / 0.3);
+  }
+}
+
 .seat__suggest-badge {
   font-family: var(--font-display);
-  font-size: 0.6rem;
+  font-size: 0.78rem;
   letter-spacing: 0.14em;
   color: var(--tone-key);
   border: 1px solid var(--tone-key);
@@ -1424,13 +1448,15 @@
  */
 .seat__draw-badge {
   font-family: var(--font-display);
-  font-size: 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
   letter-spacing: 0.14em;
-  color: var(--color-cold);
+  color: oklch(16% 0.02 250);
   border: 1px solid var(--color-cold);
   border-radius: 0.1rem;
-  padding: 0.1rem 0.36rem;
-  background: oklch(14% 0.02 250 / 0.7);
+  padding: 0.12rem 0.44rem;
+  /* 글자를 키우는 것만으로는 부족했다 — 칠해야 원탁에서 즉시 눈에 걸린다. */
+  background: var(--color-cold);
   animation: seat-badge-in 360ms var(--ease-out-expo);
 }
 
@@ -2918,7 +2944,7 @@
 @keyframes draw-cut-veil {
   0% { opacity: 0; }
   7% { opacity: 1; }
-  90% { opacity: 1; }
+  93% { opacity: 1; }
   100% { opacity: 0; }
 }
 
@@ -3162,6 +3188,24 @@
   57%, 100% { opacity: 1; }
 }
 
+/*
+ * 뽑힌 명패가 사라지는 방향. 그냥 흐려지는 대신 «그 사람 자리로» 날아간다 —
+ * 패를 나눠주는 모양이라 누가 뽑혔는지가 한 번 더 몸으로 읽힌다.
+ *
+ * 좌표는 원탁 배치와 같다(game.css의 .seats grid-template-areas):
+ *   p1 p2 p3      ↖ ↑ ↗
+ *   p4 tt p5  →   ←   →
+ *   .. me ..      ↓
+ * 추첨 컷은 화면 정중앙이고 원탁은 그 아래에 있으므로 «정확한 좌표»가 아니라 «방향»만 맞춘다.
+ * 실제 좌석 위치를 재려면 컷이 원탁의 DOM을 알아야 하는데, 그 결합이 방향 하나보다 비싸다.
+ */
+.draw-cut__plate[data-seat='p1'] { --exit-rot: -9deg; --exit-x: -17rem; --exit-y: -8rem; }
+.draw-cut__plate[data-seat='p2'] { --exit-rot: 0deg; --exit-x: 0rem; --exit-y: -12rem; }
+.draw-cut__plate[data-seat='p3'] { --exit-rot: 9deg; --exit-x: 17rem; --exit-y: -8rem; }
+.draw-cut__plate[data-seat='p4'] { --exit-rot: -12deg; --exit-x: -20rem; --exit-y: 3rem; }
+.draw-cut__plate[data-seat='p5'] { --exit-rot: 12deg; --exit-x: 20rem; --exit-y: 3rem; }
+.draw-cut__plate[data-seat='me'] { --exit-rot: 0deg; --exit-x: 0rem; --exit-y: 13rem; }
+
 /* 안 뽑힌 명패 — 통 입구에서 흔들리다 그대로 가라앉는다. */
 @keyframes draw-plate-idle {
   0% { transform: translate(-50%, calc(var(--plate-h) * -0.33)) rotate(var(--fan)) scale(0.92); opacity: 0; }
@@ -3181,8 +3225,27 @@
   32% { transform: translate(-50%, calc(var(--plate-h) * -0.38)) rotate(var(--fan)) rotateY(0deg) scale(0.94); opacity: 1; }
   47% { transform: translate(calc(-50% + var(--x)), var(--rise)) rotate(0deg) rotateY(0deg) scale(1.04); opacity: 1; }
   57% { transform: translate(calc(-50% + var(--x)), calc(var(--rise) - 0.4rem)) rotate(0deg) rotateY(90deg) scale(1.08); opacity: 1; }
-  64%, 90% { transform: translate(calc(-50% + var(--x)), calc(var(--rise) - 0.4rem)) rotate(0deg) rotateY(180deg) scale(1.08); opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--x)), calc(var(--rise) - 0.7rem)) rotate(0deg) rotateY(180deg) scale(1.04); opacity: 1; }
+  /*
+   * 이 구간부터 곡선을 바꾼다. 컷 전체는 ease-out-expo라 처음 100ms에 거의 다 움직이는데,
+   * 날아가는 동작에 그 곡선을 쓰면 «날아간다»가 아니라 «사라진다»로 보인다.
+   * 키프레임 안의 animation-timing-function은 그 지점에서 시작하는 구간에만 걸린다.
+   */
+  64% { transform: translate(calc(-50% + var(--x)), calc(var(--rise) - 0.4rem)) rotate(0deg) rotateY(180deg) scale(1.08); opacity: 1; }
+  80% {
+    transform: translate(calc(-50% + var(--x)), calc(var(--rise) - 0.4rem)) rotate(0deg) rotateY(180deg) scale(1.08);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.85, 0.5);
+  }
+  /* 자기 자리로 날아가 사라진다. 각도는 도착 방향을 향해 살짝 눕힌다. */
+  100% {
+    transform:
+      translate(
+        calc(-50% + var(--x) + var(--exit-x, 0rem)),
+        calc(var(--rise) - 0.4rem + var(--exit-y, 0rem))
+      )
+      rotate(var(--exit-rot, 0deg)) rotateY(180deg) scale(0.72);
+    opacity: 0;
+  }
 }
 
 /*

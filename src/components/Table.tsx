@@ -4,6 +4,7 @@ import {
   cardLabel,
   participantInitial,
   participantLabel,
+  seatSlot,
   suggestionSentence,
   suspectTitle,
 } from '../content/labels'
@@ -84,9 +85,6 @@ const DRAFT_SLOTS = [
   { kind: 'place', name: '장소' },
 ] as const
 
-/** 좌석이 놓이는 자리. 다섯을 위·좌우로 두르고 내 자리는 아래 가운데다. */
-const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5'] as const
-
 /**
  * 원탁. 격자로 늘어놓으면 «명단»이고, 둘러앉혀야 «자리»가 된다 —
  * 내가 저 다섯을 마주 보고 있다는 배치 자체가 이 게임의 구도다.
@@ -123,7 +121,7 @@ export default function Table({ view, scenario, draft }: Props) {
   /*
    * 반증은 동시 선언이라 엔진에는 한 번에 전부 도착한다(설계 §1.4.1) — 그걸 그대로
    * 뿌리면 다섯 명이 한꺼번에 입을 여는 꼴이라 극이 안 산다. 그래서 표시만 참가1부터
-   * 시계방향으로(= others 배열 순서, SLOTS와 같은 순서다) 한 명씩 스포트라이트를 받게
+   * 시계방향으로(= others 배열 순서, seatSlot과 같은 순서다) 한 명씩 스포트라이트를 받게
    * 미뤄서 보여준다 — 판정은 이미 끝나 있고 여기는 «어떻게 보여줄지»만 다룬다.
    */
   const [revealedIds, setRevealedIds] = useState<ReadonlySet<PlayerId>>(new Set())
@@ -179,7 +177,8 @@ export default function Table({ view, scenario, draft }: Props) {
       className={`seats${tableArt ? ' seats--photo' : ''}`}
       style={tableArt ? ({ '--table-art': `url(${tableArt})` } as CSSProperties) : undefined}
     >
-      {others.map((player, i) => seat(player, SLOTS[i] ?? 'p5'))}
+      {/* 칸은 labels.ts에서 얻는다 — 추첨 명패가 날아갈 방향도 같은 함수를 쓴다. */}
+      {others.map((player) => seat(player, seatSlot(view, player.id)))}
 
       {/* 상 한가운데. 이번 라운드에 올라온 제안이 여기 놓인다. */}
       <li className="seats__centre">
@@ -388,6 +387,8 @@ function Seat({
         caught || shot ? 'seat--caught' : '',
         revealing ? 'seat--reveal' : '',
         isSuggester ? 'seat--suggester' : '',
+        /* 제안자와 겹치지 않는다(제안자는 후보에서 빠진다). 그래도 순서상 뒤에 둬 색이 명확하다. */
+        isDrawn ? 'seat--drawn' : '',
       ]
         .join(' ')
         .trim()}
