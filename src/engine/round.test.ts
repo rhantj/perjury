@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { declareAll, isPerjury, mustRefute, suggest } from './round'
+import { skipChallenge } from './challenge'
+import { nextRound } from './progress'
 import { createGame, REFUTER_COUNT } from './setup'
 import { suggestAll } from './testing'
 import { usePower } from './power'
@@ -488,13 +490,20 @@ describe('frame — 협잡꾼의 조작', () => {
     expect(mine?.line).toBe('아편팅크는 내 손에 있소')
   })
 
-  it('침묵은 조작할 것이 없다', () => {
+  /*
+   * 침묵은 조작할 것이 없다. 그래서 **소모하지도 않는다**(룰 개편 §2-7).
+   *
+   * 예전에는 여기서 pending이 비는 것을 단언했다. 헛돌아도 거둬 갔기 때문인데,
+   * 그것이 §2-7이 없애려는 동작이다. 아래 「선언 능력은 헛돌면 소모하지 않는다」가
+   * 이 경로를 정면으로 묶는다.
+   */
+  it('침묵은 조작하지 못하고, 능력도 소모하지 않는다', () => {
     const base = suggestAll(withHands(FRAME_HANDS), 'p0', SUGGESTION)
     const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
     const after = declareAll(state, claims(ALL_PASS))
 
     expect(after.rounds[0]?.declarations.find((d) => d.playerId === VICTIM)?.claim.kind).toBe('pass')
-    expect(after.pending).toHaveLength(0)
+    expect(after.pending.map((p) => p.use.kind)).toEqual(['frame'])
   })
 
   it('한 번 쓰면 거둔다', () => {
@@ -545,5 +554,117 @@ describe('탈락자는 제안하지 않는다', () => {
     const fallen: GameState = { ...base, turnIndex: 1, eliminated: ['p1'] }
 
     expect(() => suggest(fallen, 'p1', SUGGESTION)).toThrow()
+  })
+})
+
+/**
+ * 선언에 걸리는 능력(변호사·협잡꾼)이 헛돌면 소모되지 않는다 (룰 개편 §2-7).
+ *
+ * 순사·사진사는 power.ts가 같은 원칙을 이미 지킨다(2-A). 이쪽은 declareAll에 있다 —
+ * 선언이 만들어지는 자리가 여기이기 때문이다.
+ */
+describe('선언 능력은 헛돌면 소모하지 않는다', () => {
+  const EMPTY = () => withHands([[], [], [], [], [], []])
+
+  /** 뽑힌 좌석을 직접 세운다. 추첨은 다섯 중 둘이라 원하는 배치가 우연히 안 나온다. */
+  function respondersAre(state: GameState, ids: readonly PlayerId[]): GameState {
+    const record = state.rounds[state.rounds.length - 1]
+    if (!record) throw new Error('진행 중인 라운드가 없다')
+    return { ...state, rounds: [...state.rounds.slice(0, -1), { ...record, responderIds: ids }] }
+  }
+
+  const passesFrom = (ids: readonly PlayerId[]) =>
+    new Map<PlayerId, Claim>(ids.map((id) => [id, { kind: 'pass' as const }]))
+
+  function pendingKinds(state: GameState): string[] {
+    return state.pending.map((p) => p.use.kind)
+  }
+
+  describe('협잡꾼 — 조작할 반증이 없으면 기다린다', () => {
+    it('대상이 안 뽑힌 라운드에는 소모하지 않는다', () => {
+      const opened = respondersAre(suggest(EMPTY(), 'p0', SUGGESTION), ['p3', 'p4'])
+      const armed = usePower(opened, 'p1', { kind: 'frame', targetId: 'p2' })
+
+      const after = declareAll(armed, passesFrom(['p3', 'p4']))
+
+      expect(pendingKinds(after)).toContain('frame')
+    })
+
+    /*
+     * 뽑힌 것만으로는 모자란다. frameClaim은 반증만 조작하고 침묵·거부는 그대로 돌려주므로
+     * (round.ts의 `claim.kind !== 'refute'`), 대상이 뽑혀도 반증을 안 내면 아무 일이 없다.
+     * 「대상이 뽑혔는가」는 필요조건일 뿐이다.
+     */
+    it('대상이 뽑혔어도 반증을 내지 않으면 소모하지 않는다', () => {
+      const opened = respondersAre(suggest(EMPTY(), 'p0', SUGGESTION), ['p2', 'p4'])
+      const armed = usePower(opened, 'p1', { kind: 'frame', targetId: 'p2' })
+
+      // 손패가 비어 있어 p2는 낼 카드가 없다 — 뽑혔지만 침묵한다.
+      const after = declareAll(armed, passesFrom(['p2', 'p4']))
+
+      expect(pendingKinds(after)).toContain('frame')
+    })
+
+    it('대상이 반증을 낸 라운드에는 소모한다', () => {
+      const hands: CardId[][] = [['s2'], ['s3'], ['w1'], ['s4'], ['s5'], ['p2']]
+      const opened = respondersAre(suggest(withHands(hands), 'p0', SUGGESTION), ['p2', 'p4'])
+      const armed = usePower(opened, 'p1', { kind: 'frame', targetId: 'p2' })
+
+      const after = declareAll(
+        armed,
+        new Map<PlayerId, Claim>([
+          ['p2', { kind: 'refute', cardId: 'w1' }],
+          ['p4', { kind: 'pass' }],
+        ]),
+      )
+
+      expect(pendingKinds(after)).not.toContain('frame')
+    })
+  })
+
+  describe('변호사 — 거부할 요구가 없으면 기다린다', () => {
+    it('자기가 안 뽑힌 라운드에는 소모하지 않는다', () => {
+      const opened = respondersAre(suggest(EMPTY(), 'p0', SUGGESTION), ['p2', 'p4'])
+      const armed = usePower(opened, 'p3', { kind: 'refuse-demand' })
+
+      const after = declareAll(armed, passesFrom(['p2', 'p4']))
+
+      expect(pendingKinds(after)).toContain('refuse-demand')
+    })
+
+    it('자기가 뽑힌 라운드에는 소모한다', () => {
+      const opened = respondersAre(suggest(EMPTY(), 'p0', SUGGESTION), ['p3', 'p4'])
+      const armed = usePower(opened, 'p3', { kind: 'refuse-demand' })
+
+      const after = declareAll(armed, passesFrom(['p3', 'p4']))
+
+      expect(pendingKinds(after)).not.toContain('refuse-demand')
+    })
+  })
+
+  /** 기다리는 것으로 끝나면 반쪽이다. 다음에 뽑혔을 때 실제로 걸려야 능력이 산 것이다. */
+  it('기다린 조작은 대상이 뽑히는 라운드에 걸린다', () => {
+    const hands: CardId[][] = [['s2'], ['s3'], ['w1'], ['s4'], ['s5'], ['p2']]
+    const opened = respondersAre(suggest(withHands(hands), 'p0', SUGGESTION), ['p3', 'p4'])
+    const armed = usePower(opened, 'p1', { kind: 'frame', targetId: 'p2' })
+    const skipped = declareAll(armed, passesFrom(['p3', 'p4']))
+
+    // 다음 라운드에서 대상이 뽑히고, 쥐고 있는 w1으로 정직하게 반증한다.
+    const next = respondersAre(
+      suggest(nextRound(skipChallenge(skipped)), 'p1', SUGGESTION),
+      ['p2', 'p5'],
+    )
+    const after = declareAll(
+      next,
+      new Map<PlayerId, Claim>([
+        ['p2', { kind: 'refute', cardId: 'w1' }],
+        ['p5', { kind: 'pass' }],
+      ]),
+    )
+
+    const last = after.rounds[after.rounds.length - 1]
+    const victim = last?.declarations.find((d) => d.playerId === 'p2')
+    expect(victim?.isPerjury).toBe(true)
+    expect(pendingKinds(after)).not.toContain('frame')
   })
 })

@@ -7,6 +7,7 @@ import type {
   Claim,
   Declaration,
   GameState,
+  PendingPower,
   PlayerId,
   RoundRecord,
   Suggestion,
@@ -56,6 +57,9 @@ function frameClaim(
 ): Claim {
   if (claim.kind !== 'refute') return claim
   const others = suggestedCards(record.suggestion).filter((id) => id !== claim.cardId)
+  // 지금은 닿지 않는다 — 제안 3장은 종류가 달라 ID가 겹치지 않고(cards.ts), 반증 카드는
+  // 그 3장 안으로 강제되므로 others는 늘 2장이다. 이 전제가 깨지면 아래 spent()가
+  // 「조작 못 했는데 소모」로 어긋나므로, 카드 체계를 바꿀 때 여기를 함께 본다.
   if (!others[0]) return claim
   // 대상을 시드에 넣는다. 지금은 한 판에 협잡꾼도 대상도 하나뿐이라 없어도 되지만,
   // 그 전제가 코드에 적혀 있지 않다. 이의제기(challenge.ts)가 이미 같은 이유로 양쪽을 넣는다.
@@ -166,6 +170,34 @@ export function suggest(
  * 선언 수 검사·카드 검사가 전부 claims만 보면 끝나야 하기 때문이다. 없는 사람은 null이 되고,
  * 선언하지 않은 사람의 대사는 기록이 선언을 따라가므로 그대로 버려진다.
  */
+/**
+ * 이 지목이 «이번 라운드에» 실제로 걸렸는가. 걸렸으면 1회를 쓴 것이므로 거둔다.
+ *
+ * 걸리지 않았으면 남겨 다음 라운드를 기다린다(룰 개편 §2-7). 안 그러면 판당 1회짜리가
+ * 아무 일도 없이 증발한다 — 추첨은 다섯 중 둘만 뽑으므로 대상이 빠질 확률이 3/5다.
+ * 순사·사진사가 power.ts에서 같은 원칙을 지킨다(2-A). 이 둘은 «선언»에 걸리는 능력이라
+ * 선언이 만들어지는 여기에 있다.
+ *
+ * 걸리는 조건이 서로 다르다는 것이 핵심이다.
+ *
+ *   refuse-demand(변호사) — 거부하는 것은 «자신»이므로 자기가 선언했으면 그것으로 걸렸다.
+ *     뽑히기만 하면 아래에서 무엇을 냈든 거부로 덮이므로, 선언의 «내용»은 볼 것이 없다.
+ *
+ *   frame(협잡꾼) — 조작하는 것은 «남의» 반증이다. 대상이 뽑히는 것만으로는 모자라다 —
+ *     frameClaim이 반증만 바꾸고 침묵·거부는 그대로 돌려주므로(위 `claim.kind !== 'refute'`),
+ *     대상이 낼 카드가 없어 침묵하면 뽑혀도 아무 일이 없다. 대상이 거부 능력까지 쥐고 있어
+ *     거부로 덮이는 경우도 같다. 그래서 «뽑혔는가»가 아니라 «반증이 남았는가»를 본다.
+ *
+ * 그래서 responderIds가 아니라 이번 라운드의 선언 결과를 받는다. 뽑힌 것과 실제로
+ * 무엇을 냈는지는 다른 값이고, 이 판정에 필요한 것은 뒤쪽이다.
+ */
+function spent(pending: PendingPower, declarations: readonly Declaration[]): boolean {
+  const said = (id: PlayerId) => declarations.find((d) => d.playerId === id)
+  if (pending.use.kind === 'refuse-demand') return said(pending.ownerId) !== undefined
+  if (pending.use.kind === 'frame') return said(pending.use.targetId)?.claim.kind === 'refute'
+  return false
+}
+
 export function declareAll(
   state: GameState,
   claims: ReadonlyMap<PlayerId, Claim>,
@@ -228,13 +260,7 @@ export function declareAll(
     {
       ...state,
       phase: 'challenge',
-      /*
-       * 선언에 걸리는 능력은 여기서 쓰였다. 「1회」이므로 거둔다 —
-       * 남겨두면 매 라운드 거부하거나 매 라운드 조작하게 된다.
-       */
-      pending: state.pending.filter(
-        (p) => p.use.kind !== 'refuse-demand' && p.use.kind !== 'frame',
-      ),
+      pending: state.pending.filter((p) => !spent(p, declarations)),
       rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
     },
     declarations,
