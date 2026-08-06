@@ -27,6 +27,11 @@ function slots(suggestion: Suggestion): CardId[] {
   return [suggestion.suspect, suggestion.weapon, suggestion.place]
 }
 
+/** 판에 존재하는 모든 카드. 종류를 가리지 않고 훑을 때 쓴다. */
+const ALL_CARDS: readonly CardId[] = cardsOfKind('suspect')
+  .concat(cardsOfKind('weapon'), cardsOfKind('place'))
+  .map((c) => c.id)
+
 /**
  * 지금까지 "누군가 갖고 있다"고 관측된 카드.
  *
@@ -166,29 +171,90 @@ export function voteFrom(view: GameView, salt: string): Suggestion {
 }
 
 /**
+ * 각 좌석이 «갖고 있지 않다»고 드러난 카드.
+ *
+ * **침묵(pass)이 증거다.** 뽑힌 좌석이 반증을 못 했다면 제안된 3장을 하나도 안 쥐고 있다는
+ * 뜻이고, 「반증했는가」는 전원 공개다(view.ts의 DeclarationView). 반증한 좌석은 셋 중
+ * «하나»를 쥐었다는 것만 알 뿐 어느 것인지 모르므로 여기서 아무것도 못 뺀다.
+ *
+ * 자기 자신은 손패로 안다 — 손에 없는 카드는 전부 「내가 없는 카드」다. 여섯 중 하나가
+ * 공짜로 채워지는 셈이라 이 한 줄이 도달 가능성을 크게 바꾼다.
+ *
+ * **소거(eliminated)와 방향이 반대다.** 저쪽은 「누가 갖고 있다」를 모아 후보에서 빼고,
+ * 이쪽은 「아무도 안 갖고 있다」를 모아 정답을 짚는다. 비공개 반증(1-B) 뒤로는 저쪽이
+ * 볼 수 있는 카드가 «자기가 제안자였던 라운드»뿐이라 혼자서는 확신에 닿지 못한다.
+ *
+ * 여기서도 선언을 액면 그대로 믿는다. 위증한 좌석이 카드를 쥐고도 침묵하면 그 카드가
+ * 정답으로 보인다 — **그게 이 게임이 의도한 함정이다**(eliminated 주석과 같은 이유).
+ */
+function deniedCards(view: GameView): Map<PlayerId, Set<CardId>> {
+  const denied = new Map<PlayerId, Set<CardId>>()
+  const add = (playerId: PlayerId, cards: readonly CardId[]) => {
+    const set = denied.get(playerId) ?? new Set<CardId>()
+    for (const card of cards) set.add(card)
+    denied.set(playerId, set)
+  }
+
+  for (const round of view.rounds) {
+    for (const declaration of round.declarations) {
+      if (declaration.claim.kind !== 'pass') continue
+      add(declaration.playerId, slots(round.suggestion))
+    }
+  }
+
+  /*
+   * 내 자리는 손패로 «덮어쓴다». 위에서 쌓은 침묵 기록을 더하는 것이 아니라 통째로 바꾼다.
+   *
+   * 나는 내 손을 확실히 아는데 기록은 나를 속일 수 있기 때문이다. 내가 카드를 쥐고도
+   * 침묵했다면(위증) 그 기록은 「나는 그 카드가 없다」로 남는데, 그대로 두면 **내가 쥔
+   * 카드를 정답으로 짚는다.** 남에 대해서는 선언을 믿는 것이 이 게임의 함정이지만,
+   * 자기 자신에 대해서까지 속는 것은 함정이 아니라 그냥 버그다.
+   */
+  const myHand = me(view).hand ?? []
+  denied.set(view.viewerId, new Set(ALL_CARDS.filter((id) => !myHand.includes(id))))
+
+  return denied
+}
+
+/**
  * 지금 조기 고발할 것인가. 확신이 없으면 null이다 (룰 개편 §2-6, 3-C-2).
  *
- * **세 칸이 모두 한 장으로 좁혀졌을 때만 외친다.** 조기 고발은 틀리면 탈락이므로
- * 「그럴듯하다」로는 부족하다. 후보가 하나뿐이면 이 시야 안에서는 그것이 답이다.
+ * **세 칸 모두에서 「전원이 없다」가 나왔을 때만 외친다.** 조기 고발은 틀리면 탈락이므로
+ * 「그럴듯하다」로는 부족하다. 여섯 명 전원이 없다면 남는 자리는 봉투뿐이다.
  *
- * 확신이 틀릴 수 있다는 것이 이 판단의 성격이다 — 소거는 선언을 액면 그대로 믿으므로
- * (eliminated 주석) 위증 하나가 진짜 정답을 후보에서 지운다. 그래서 확신에 도달하는
- * 것 자체가 범인에게 조작당한 결과일 수 있고, **그게 이 게임이 의도한 함정이다.**
+ * 확신이 틀릴 수 있다는 것이 이 판단의 성격이다 — 카드를 쥐고도 침묵한 위증 하나가
+ * 그 카드를 정답으로 보이게 만든다. 확신에 도달하는 것 자체가 범인에게 조작당한
+ * 결과일 수 있고, **그게 이 게임이 의도한 함정이다.**
  * 여기서 안전장치를 더 두면 위증이 아무 힘도 못 쓴다.
  *
  * 범인은 부르지 않는다 — 외치면 자백이 되어 시민이 이긴다(결정 011 §2).
  * 그 차단은 부르는 쪽(ai/flow.ts)에 있다. 여기는 시야만 보고 답하는 자리다.
+ *
+ * **실측: 200판에 1판꼴로만 확신에 닿는다.** 비공개 반증(1-B)이 정보를 의도적으로
+ * 굶기기 때문이다 — 24라운드 × 뽑힌 2명 = 48선언뿐이고 그중 반증은 카드가 안 보인다.
+ * 즉 이것은 폴백 게임을 끝내는 «주된 수단이 아니라 안전판»이다. 폴백 판을 닫는 것은
+ * 여전히 상한 투표이고(결정 011 §5), 그것이 그 백스톱을 남긴 이유이기도 하다.
+ * 확신 없이 외치게 기준을 낮추면 시민이 헛발질로 탈락해 폴백 판이 오히려 나빠진다.
  */
 export function accusationFrom(view: GameView): Suggestion | null {
-  const only = (kind: CardKind): CardId | null => {
-    const left = candidates(view, kind)
-    // candidates는 모순으로 다 지워지면 전체로 되돌린다. 그때는 길이가 1이 아니라 안전하다.
-    return left.length === 1 ? (left[0] ?? null) : null
+  const denied = deniedCards(view)
+
+  /**
+   * 이 종류에서 «전원이 없다»고 드러난 카드. 정확히 하나일 때만 답으로 친다.
+   *
+   * 둘 이상이면 관측이 모순된 것이다(한 종류의 정답은 하나뿐이다). 그런 판에서는
+   * 누군가 위증했다는 뜻이므로 외치지 않는다.
+   */
+  const solved = (kind: CardKind): CardId | null => {
+    const found = cardsOfKind(kind)
+      .map((c) => c.id)
+      .filter((id) => view.players.every((p) => denied.get(p.id)?.has(id)))
+    return found.length === 1 ? (found[0] ?? null) : null
   }
 
-  const suspect = only('suspect')
-  const weapon = only('weapon')
-  const place = only('place')
+  const suspect = solved('suspect')
+  const weapon = solved('weapon')
+  const place = solved('place')
   if (!suspect || !weapon || !place) return null
   return { suspect, weapon, place }
 }

@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
 import { viewFor } from '../engine/view'
-import type { GameView } from '../engine/view'
-import { CARDS } from '../engine/cards'
-import type { CardId, Suggestion } from '../engine/types'
+import type { GameView, RoundView } from '../engine/view'
+import type { Suggestion } from '../engine/types'
 import { accusationFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
 import { createRuleDecider, ruleDeciderForRound } from './rule-decider'
 
@@ -122,55 +121,80 @@ describe('speakInParley — 폴백도 판정할 수 있는 말을 한다', () =>
 
 describe('accusationFrom — 규칙 기반 조기 고발 판단', () => {
   /**
-   * 한 좌석의 공개 카드를 조작해 소거를 원하는 만큼 진행시킨다.
+   * 「전원이 없다」를 침묵 선언으로 세운다.
    *
-   * revealed를 쓰는 이유는 그것이 **전원 공개**라 시야 주인이 누구든 같은 결론에
-   * 닿기 때문이다. 손패로 세우면 그 좌석에서만 성립해 테스트가 배치에 얽힌다.
+   * 라운드 하나에 여섯 좌석 전부의 pass를 담는다. 실제 판은 추첨으로 둘만 선언하지만,
+   * 여기서 보는 것은 **침묵이 쌓였을 때 결론이 맞는가**이지 추첨이 아니다.
+   * 추첨 자체는 engine/round.test.ts의 「추첨」 블록이 본다.
    */
-  function withRevealed(view: GameView, revealed: readonly CardId[]): GameView {
-    const first = view.players[0]
-    if (!first) throw new Error('자리가 없다')
-    return { ...view, players: [{ ...first, revealed }, ...view.players.slice(1)] }
+  function allPassedOn(view: GameView, suggestion: Suggestion): GameView {
+    const round: RoundView = {
+      round: 1,
+      suggesterId: view.players[0]?.id ?? 'p0',
+      suggestion,
+      suggestionLine: null,
+      responderIds: view.players.map((p) => p.id),
+      declarations: view.players.map((p) => ({
+        playerId: p.id,
+        claim: { kind: 'pass' as const },
+        line: null,
+      })),
+      challenge: null,
+      exposed: [],
+      published: [],
+      parleys: [],
+    }
+    return { ...view, rounds: [...view.rounds, round] }
   }
 
-  /** kind별로 keep 한 장만 남기고 전부 공개된 카드로 만든다. */
-  function allButOne(keep: Suggestion): CardId[] {
-    const kept = [keep.suspect, keep.weapon, keep.place]
-    return CARDS.map((c) => c.id).filter((id) => !kept.includes(id))
+  /** 손패를 비운 시야. 손에 든 카드는 「내가 없다」에서 빠지므로 배치를 흐린다. */
+  function emptyHanded(): GameView {
+    const view = viewFor(createGame({ seed: 'accuse-rule', humanIndex: 0 }), 'p1')
+    return { ...view, players: view.players.map((p) => ({ ...p, hand: p.isMe ? [] : null })) }
   }
 
-  function freshView(): GameView {
-    return viewFor(createGame({ seed: 'accuse-rule', humanIndex: 0 }), 'p1')
-  }
+  const ANSWER: Suggestion = { suspect: 's3', weapon: 'w2', place: 'p4' }
 
   it('판이 막 시작하면 확신이 없어 고발하지 않는다', () => {
-    expect(accusationFrom(freshView())).toBeNull()
+    expect(accusationFrom(emptyHanded())).toBeNull()
   })
 
-  it('세 칸이 모두 한 장으로 좁혀지면 그 조합을 낸다', () => {
-    const answer: Suggestion = { suspect: 's3', weapon: 'w2', place: 'p4' }
-    const view = withRevealed(freshView(), allButOne(answer))
-
-    expect(accusationFrom(view)).toEqual(answer)
-  })
-
-  /** 한 칸이라도 둘 이상 남으면 외치지 않는다. 틀리면 탈락이라 「그럴듯하다」로는 부족하다. */
-  it('한 칸이라도 후보가 둘이면 고발하지 않는다', () => {
-    const answer: Suggestion = { suspect: 's3', weapon: 'w2', place: 'p4' }
-    // 흉기 한 장을 후보로 되살린다 — w2와 w3 둘이 남는다.
-    const revealed = allButOne(answer).filter((id) => id !== 'w3')
-    const view = withRevealed(freshView(), revealed)
-
-    expect(accusationFrom(view)).toBeNull()
-  })
-
-  /**
-   * 소거가 모순으로 전부 지워지면 candidates가 전체로 되돌린다. 그때 「한 장」이 되어
-   * 엉뚱한 고발이 나가면 안 된다 — 되돌린 목록은 길이가 1이 아니므로 null이어야 한다.
+  /*
+   * 전원이 세 칸 모두에 대해 침묵했다 = 아무도 그 셋을 안 갖고 있다.
+   * 남는 자리는 봉투뿐이므로 그것이 답이다.
    */
-  it('모든 카드가 지워진 모순 상태에서는 고발하지 않는다', () => {
-    const view = withRevealed(freshView(), CARDS.map((c) => c.id))
+  it('세 칸 모두 전원이 없다고 드러나면 그 조합을 낸다', () => {
+    expect(accusationFrom(allPassedOn(emptyHanded(), ANSWER))).toEqual(ANSWER)
+  })
 
-    expect(accusationFrom(view)).toBeNull()
+  /** 한 칸이라도 「전원이 없다」에 못 닿으면 외치지 않는다. 틀리면 탈락이라 부분 확신은 부족하다. */
+  it('한 칸이라도 확정되지 않으면 고발하지 않는다', () => {
+    const view = emptyHanded()
+    const first = view.players[0]
+    if (!first) throw new Error('자리가 없다')
+    const passed = allPassedOn(view, ANSWER)
+    const last = passed.rounds[passed.rounds.length - 1]
+    if (!last) throw new Error('라운드가 없다')
+    // 한 좌석이 반증했다고 바꾼다 — 셋 중 하나를 쥐었다는 뜻이라 아무것도 확정되지 않는다.
+    const declarations = last.declarations.map((d) =>
+      d.playerId === first.id ? { ...d, claim: { kind: 'refute' as const, cardId: null } } : d,
+    )
+    const bent: GameView = {
+      ...passed,
+      rounds: [...passed.rounds.slice(0, -1), { ...last, declarations }],
+    }
+
+    expect(accusationFrom(bent)).toBeNull()
+  })
+
+  /** 내 손패에 있는 카드는 내가 갖고 있으므로 정답일 수 없다 — 그 칸은 확정되지 않는다. */
+  it('내가 쥔 카드는 정답으로 짚지 않는다', () => {
+    const base = emptyHanded()
+    const mine: GameView = {
+      ...base,
+      players: base.players.map((p) => (p.isMe ? { ...p, hand: [ANSWER.weapon] } : p)),
+    }
+
+    expect(accusationFrom(allPassedOn(mine, ANSWER))).toBeNull()
   })
 })
