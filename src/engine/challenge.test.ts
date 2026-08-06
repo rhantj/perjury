@@ -326,6 +326,6 @@ describe('탈락자도 위증에는 값을 치른다', () => {
     const after = challenge(fallen, 'p2', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
-    expect(after.players[3]?.revealed).toHaveLength(1)
+    expect(revealedOf(after, 'p3')).toHaveLength(1)
   })
 })
