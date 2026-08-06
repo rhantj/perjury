@@ -175,6 +175,17 @@ export interface RoundRecord {
   readonly suggestion: Suggestion
   /** 제안하며 한 말. 없으면 null(설명은 Declaration.line). */
   readonly suggestionLine: string | null
+  /**
+   * 이번 라운드에 반증 «의무»를 진 좌석. 제안자를 뺀 다섯 중 추첨으로 뽑힌 REFUTER_COUNT명이다.
+   *
+   * 라운드 기록에 남기는 이유는 **다시 뽑으면 안 되기 때문이다.** 시드에서 파생되므로
+   * 매번 계산해도 같은 값이 나오긴 하지만, 그러면 뽑는 규칙을 바꾸는 순간 지난 라운드의
+   * 기록까지 소급해 달라진다 — 이미 끝난 판정의 근거가 흔들린다.
+   *
+   * 뽑히지 않은 좌석은 이 라운드에 선언하지 않는다. 침묵이 아니라 «자리가 없었던» 것이라
+   * 위증 판정 대상도 아니다.
+   */
+  readonly responderIds: readonly PlayerId[]
   readonly declarations: readonly Declaration[]
   readonly challenge: ChallengeRecord | null
   /**

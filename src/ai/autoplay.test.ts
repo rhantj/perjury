@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createGame } from '../engine/setup'
+import { createGame, REFUTER_COUNT } from '../engine/setup'
 import { autoPlay } from './autoplay'
 
 describe('autoPlay — LLM 없이 완주', () => {
@@ -16,7 +16,9 @@ describe('autoPlay — LLM 없이 완주', () => {
 
     expect(final.rounds).toHaveLength(8)
     for (const round of final.rounds) {
-      expect(round.declarations).toHaveLength(5)
+      // 전원이 아니라 추첨으로 뽑힌 좌석만 선언한다.
+      expect(round.responderIds).toHaveLength(REFUTER_COUNT)
+      expect(round.declarations).toHaveLength(REFUTER_COUNT)
     }
   })
 

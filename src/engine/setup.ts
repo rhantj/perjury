@@ -4,6 +4,14 @@ import type { CardId, GameState, Player, Solution } from './types'
 
 export const PLAYER_COUNT = 6
 export const HAND_SIZE = 2
+/**
+ * 한 라운드에 반증 «의무»를 지는 좌석 수. 제안자를 뺀 다섯 중에서 뽑는다.
+ *
+ * 전원 선언이던 것을 줄인 이유는 정보가 너무 빨리 열려서다 — 제안 한 번에 평균 2장이
+ * 드러나는데 손패는 통틀어 12장뿐이라, 판이 중반에 다 보였다.
+ * 2인이면 한 제안이 여는 카드가 평균 0.8장으로 떨어진다.
+ */
+export const REFUTER_COUNT = 2
 export const DEFAULT_ROUNDS = 8
 
 export interface SetupOptions {

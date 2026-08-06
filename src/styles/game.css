@@ -1418,6 +1418,22 @@
   transform: none;
 }
 
+/*
+ * 추첨으로 반증 의무를 진 좌석. 제안 배지와 같은 모양을 쓰되 색을 갈라 둔다 —
+ * 둘은 한 라운드에 동시에 켜지고(제안자 하나, 뽑힌 둘), 같은 색이면 구별되지 않는다.
+ */
+.seat__draw-badge {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  color: var(--color-cold);
+  border: 1px solid var(--color-cold);
+  border-radius: 0.1rem;
+  padding: 0.1rem 0.36rem;
+  background: oklch(14% 0.02 250 / 0.7);
+  animation: seat-badge-in 360ms var(--ease-out-expo);
+}
+
 /* 이의제기와 달리 잡은 사람이 없다. 인장색으로 「증거가 나왔다」만 말한다. */
 .seat__shot-badge {
   font-family: var(--font-display);
@@ -1437,6 +1453,7 @@
   .seat__revealed,
   .seat__badge,
   .seat__suggest-badge,
+  .seat__draw-badge,
   .seat__shot-badge {
     animation-duration: 0.01ms;
   }

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { challenge, skipChallenge } from './challenge'
 import { parley } from './parley'
 import { accuse, nextRound } from './progress'
-import { declareAll, suggest } from './round'
+import { declareAll } from './round'
+import { suggestAll as suggest } from './testing'
 import { createGame } from './setup'
 import { usePower } from './power'
 import { viewFor } from './view'
@@ -342,6 +343,8 @@ describe('viewFor — 전화교환수의 엿듣기', () => {
           suggesterId: human.id,
           suggestion: { suspect: 's1', weapon: 'w1', place: 'p1' },
           suggestionLine: null,
+          // 이 케이스는 밀담 시야만 본다 — 반증은 벌어지지 않았으므로 비워 둔다.
+          responderIds: [],
           declarations: [],
           challenge: null,
           exposed: [],

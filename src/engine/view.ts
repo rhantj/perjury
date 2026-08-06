@@ -44,6 +44,13 @@ export interface RoundView {
   readonly suggesterId: PlayerId
   readonly suggestion: Suggestion
   readonly suggestionLine: string | null
+  /**
+   * 이번 라운드에 반증 의무를 진 좌석. **전체 공개다** — 누가 뽑혔는지는 모두가 본다.
+   *
+   * 감추면 침묵의 뜻이 갈리지 않는다. 「답할 자리였는데 넘겼다」와 「애초에 뽑히지 않았다」가
+   * 같은 화면이 되면 추리표에 아무것도 적을 수 없다.
+   */
+  readonly responderIds: readonly PlayerId[]
   readonly declarations: readonly DeclarationView[]
   readonly challenge: ChallengeRecord | null
   /** 사진사에게 발각된 위증자. 전체 공개이므로 걸러내지 않고 그대로 실린다. */
@@ -146,6 +153,7 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     suggesterId: record.suggesterId,
     suggestion: record.suggestion,
     suggestionLine: record.suggestionLine,
+    responderIds: record.responderIds,
     declarations: record.declarations.map((d) => ({
       playerId: d.playerId,
       claim: d.claim,

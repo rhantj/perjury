@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useGame } from './game'
 import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
 import type { Decider, DeciderForRound, FallbackReason } from '../ai/decider'
+import { REFUTER_COUNT } from '../engine/setup'
 import type { Suggestion } from '../engine/types'
 
 const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
@@ -118,7 +119,8 @@ describe('useGame', () => {
 
     // 제안자가 사람이므로 반증 선언은 AI만 하고, 이의제기 지점에서 멈춘다
     expect(game().view().phase).toBe('challenge')
-    expect(game().view().rounds[0]?.declarations).toHaveLength(5)
+    // 전원이 아니라 추첨으로 뽑힌 좌석만 선언한다.
+    expect(game().view().rounds[0]?.declarations).toHaveLength(REFUTER_COUNT)
     expect(game().error).toBeNull()
   })
 
@@ -142,13 +144,14 @@ describe('useGame', () => {
     expect(game().view().round).toBe(2)
   })
 
-  it('사람이 제안자가 아니면 반증 선언을 사람이 한다', async () => {
-    await game().start('declare', 3)
+  /* humanIndex는 «사람이 추첨에 뽑히는» 자리로 잡았다 — 이 시드에서는 p1·p2가 뽑힌다. */
+  it('추첨에 뽑히면 반증 선언을 사람이 한다', async () => {
+    await game().start('declare', 1)
     expect(game().view().phase).toBe('refute')
 
     await game().declare({ kind: 'pass' })
 
-    expect(game().view().rounds[0]?.declarations).toHaveLength(5)
+    expect(game().view().rounds[0]?.declarations).toHaveLength(REFUTER_COUNT)
     expect(game().error).toBeNull()
   })
 
@@ -192,9 +195,9 @@ describe('useGame', () => {
     const ignored = game().suggest(SUGGESTION)
     await Promise.all([first, ignored])
 
-    // 제안 한 번이면 제안자를 뺀 사람들이 한 번씩 반증을 고른다.
+    // 제안 한 번이면 추첨에 뽑힌 좌석이 한 번씩 반증을 고른다.
     // 가드가 없으면 두 번째 apply가 같은 상태에서 또 돌아 이 수가 배가 된다.
-    expect(probe.claims() - before).toBe(5)
+    expect(probe.claims() - before).toBe(REFUTER_COUNT)
     expect(game().view().rounds).toHaveLength(1)
   })
 
@@ -219,7 +222,7 @@ describe('useGame', () => {
    * 낙오 하나로는 배너를 띄우지 않는다(결정 006). 띄우면 멀쩡한 밀담까지 막힌다.
    */
   it('실패가 한 번뿐이면 받아내되 폴백 표시는 서지 않는다', async () => {
-    await game().start('fallback', 1, () => failingDeciders('error'))
+    await game().start('fallback', 2, () => failingDeciders('error'))
 
     expect(game().fallbackRound).toBe(false)
     // 폴백이 받아냈으므로 판은 살아 있어야 한다.
@@ -228,7 +231,7 @@ describe('useGame', () => {
   })
 
   it('같은 라운드에서 실패가 이어지면 라운드를 접고 사유를 남긴다', async () => {
-    await game().start('fallback', 1, () => failingDeciders('error'))
+    await game().start('fallback', 2, () => failingDeciders('error'))
     // 사람이 선언하면 나머지 좌석의 판단이 한꺼번에 나간다 — 여기서 차단기가 내려간다.
     await game().declare({ kind: 'pass' })
 
@@ -239,7 +242,7 @@ describe('useGame', () => {
   })
 
   it('예산 소진은 사유가 budget으로 구분된다', async () => {
-    await game().start('fallback', 1, () => failingDeciders('budget'))
+    await game().start('fallback', 2, () => failingDeciders('budget'))
     await game().declare({ kind: 'pass' })
 
     expect(game().fallbackReason).toBe('budget')
