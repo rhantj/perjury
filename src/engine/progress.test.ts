@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { challenge, skipChallenge } from './challenge'
-import { accuse, accuseByCouncil, nextRound } from './progress'
+import { accuse, accuseByCouncil, accuseEarly, nextRound } from './progress'
 import { declareAll } from './round'
 import { suggestAll as suggest } from './testing'
 import { createGame } from './setup'
@@ -264,5 +264,161 @@ describe('한 판 완주', () => {
 
     expect(second.round).toBe(2)
     expect(second.players.find((p) => p.id === 'p3')?.revealed).toHaveLength(1)
+  })
+})
+
+/** 좌석 번호로 id를 얻는다. fresh()는 p0이 범인이고 p1~p5가 시민이다. */
+function seat(state: GameState, index: number): PlayerId {
+  const player = state.players[index]
+  if (!player) throw new Error(`없는 좌석: ${index}`)
+  return player.id
+}
+
+describe('accuseEarly — 조기 고발', () => {
+  const RIGHT: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
+  const WRONG: Suggestion = { suspect: 's2', weapon: 'w1', place: 'p1' }
+
+  it('시민이 3요소를 맞히면 그 자리에서 시민이 이긴다', () => {
+    const after = accuseEarly(fresh(), seat(fresh(), 1), RIGHT)
+
+    expect(after.phase).toBe('over')
+    expect(after.outcome?.winner).toBe('citizen')
+    expect(after.outcome?.correct).toBe(true)
+  })
+
+  /** 부분 정답은 없다. 두 개만 맞히는 것은 범인의 위장이 통했다는 뜻이다. */
+  it('셋 중 하나라도 틀리면 오답이다', () => {
+    const state = fresh()
+    const after = accuseEarly(state, seat(state, 1), WRONG)
+
+    expect(after.outcome).toBeNull()
+    expect(after.eliminated).toEqual([seat(state, 1)])
+  })
+
+  it('오답이어도 판은 계속된다 — 페이즈와 라운드가 그대로다', () => {
+    const state = fresh()
+    const after = accuseEarly(state, seat(state, 2), WRONG)
+
+    expect(after.phase).toBe(state.phase)
+    expect(after.round).toBe(state.round)
+  })
+
+  /*
+   * 클루 원본 그대로다. 탈락자 손패를 까면 남은 사람들이 2장을 한꺼번에 알게 되어
+   * 판이 즉시 끝난다. 탈락자는 「말 없는 카드 보관함」으로 남는다.
+   */
+  it('탈락해도 손패는 공개되지 않는다', () => {
+    const state = fresh()
+    const after = accuseEarly(state, seat(state, 2), WRONG)
+
+    expect(after.players[2]?.revealed).toEqual([])
+    expect(after.players[2]?.hand).toEqual(state.players[2]?.hand)
+  })
+
+  it('탈락자는 다시 고발할 수 없다', () => {
+    const state = fresh()
+    const fallen = accuseEarly(state, seat(state, 2), WRONG)
+
+    expect(() => accuseEarly(fallen, seat(state, 2), RIGHT)).toThrow()
+  })
+
+  /*
+   * 이 한 줄이 「범인은 정답을 아니까 그냥 외치면 이긴다」는 구멍을 닫는다.
+   * 그래서 범인은 절대 외치지 않는다.
+   */
+  it('범인이 외치면 자백으로 쳐서 시민이 이긴다', () => {
+    const state = fresh()
+    const after = accuseEarly(state, seat(state, 0), WRONG)
+
+    expect(after.phase).toBe('over')
+    expect(after.outcome?.winner).toBe('citizen')
+  })
+
+  it('시민이 전부 오답으로 쓰러지면 범인이 이긴다', () => {
+    const state = fresh()
+    const worn: GameState = {
+      ...state,
+      eliminated: [seat(state, 1), seat(state, 2), seat(state, 3), seat(state, 4)],
+    }
+    const after = accuseEarly(worn, seat(state, 5), WRONG)
+
+    expect(after.phase).toBe('over')
+    expect(after.outcome?.winner).toBe('culprit')
+  })
+
+  /*
+   * 최종 고발 페이즈에서도 받으면 같은 오답이 부르는 함수에 따라 「판 종료」와 「나만 탈락」으로
+   * 갈린다. 룰이 화면 배선에 따라 정해지면 안 된다.
+   */
+  it('최종 고발 페이즈에서는 쓸 수 없다', () => {
+    const late: GameState = { ...fresh(), phase: 'accuse' }
+
+    expect(() => accuseEarly(late, seat(late, 1), RIGHT)).toThrow()
+  })
+
+  it('끝난 판에서는 외칠 수 없다', () => {
+    const over: GameState = { ...fresh(), phase: 'over' }
+
+    expect(() => accuseEarly(over, seat(over, 1), RIGHT)).toThrow()
+  })
+
+  it('원본 상태를 바꾸지 않는다', () => {
+    const state = fresh()
+    accuseEarly(state, seat(state, 1), WRONG)
+
+    expect(state.eliminated).toEqual([])
+    expect(state.outcome).toBeNull()
+  })
+})
+
+describe('탈락자와 제안 차례', () => {
+  const WRONG: Suggestion = { suspect: 's2', weapon: 'w1', place: 'p1' }
+
+  it('탈락한 사람은 제안 차례를 건너뛴다', () => {
+    const state = fresh()
+    const fallen: GameState = { ...state, eliminated: [seat(state, 1)] }
+
+    expect(nextRound(playRound(fallen)).turnIndex).toBe(2)
+  })
+
+  /*
+   * 자기 차례에 외쳤다가 틀리면 그 자리에서 제안권을 잃는다. 넘기지 않으면
+   * turnIndex가 탈락자를 가리킨 채 제안 페이즈에 갇혀 판이 멈춘다.
+   */
+  it('자기 차례에 쓰러지면 곧바로 다음 사람에게 넘어간다', () => {
+    const state: GameState = { ...fresh(), turnIndex: 1 }
+    const after = accuseEarly(state, seat(state, 1), WRONG)
+
+    expect(after.phase).toBe('suggest')
+    expect(after.turnIndex).toBe(2)
+    expect(after.round).toBe(state.round)
+  })
+
+  it('남의 차례에 쓰러지면 차례는 그대로다', () => {
+    const state: GameState = { ...fresh(), turnIndex: 1 }
+    const after = accuseEarly(state, seat(state, 3), WRONG)
+
+    expect(after.turnIndex).toBe(1)
+  })
+})
+
+describe('탈락자와 최종 고발', () => {
+  it('탈락자는 최종 고발도 할 수 없다', () => {
+    const state = ready()
+    const fallen: GameState = { ...state, eliminated: ['p1'] }
+
+    expect(() => accuse(fallen, { suspect: 's1', weapon: 'w1', place: 'p1' }, 'p1')).toThrow()
+  })
+
+  it('탈락한 AI 시민은 합의 투표에서 빠진다', () => {
+    const state = ready('council', 0)
+    const fallen: GameState = { ...state, eliminated: ['p5'] }
+    const votes: Vote[] = ['p1', 'p2', 'p3', 'p4'].map((playerId) => ({
+      playerId,
+      accusation: { suspect: 's1', weapon: 'w1', place: 'p1' },
+      line: null,
+    }))
+
+    expect(accuseByCouncil(fallen, votes).outcome?.correct).toBe(true)
   })
 })

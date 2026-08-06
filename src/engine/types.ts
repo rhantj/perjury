@@ -253,6 +253,16 @@ export interface GameState {
   readonly rounds: readonly RoundRecord[]
   /** 능력을 이미 쓴 사람. 능력은 한 판에 한 번뿐이라 이 목록이 곧 소진 여부다. */
   readonly powersUsed: readonly PlayerId[]
+  /**
+   * 조기 고발에 실패해 탈락한 사람. **전원 공개 정보다.**
+   *
+   * 탈락자는 «말 없는 카드 보관함»으로 남는다 — 반증은 계속하되 제안·고발·밀담·능력을 잃는다.
+   * 손패는 공개하지 않는다. 까면 남은 사람들이 2장을 한꺼번에 알게 되어 판이 즉시 끝난다.
+   *
+   * 좌석에 심지 않고 목록으로 드는 이유는 powersUsed와 같다 — 「이 판에서 벌어진 일」이지
+   * 그 사람의 속성이 아니다. 범인은 여기 들어오지 않는다(고발하면 자백으로 판이 끝난다).
+   */
+  readonly eliminated: readonly PlayerId[]
   /** 능력으로 밝혀진 것들. 각자 자기 앞으로 온 것만 본다 — viewFor가 거른다. */
   readonly grants: readonly Grant[]
   /**

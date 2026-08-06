@@ -87,6 +87,7 @@ export function createGame({
     solution,
     rounds: [],
     powersUsed: [],
+    eliminated: [],
     grants: [],
     pending: [],
     parleyAllowance,
