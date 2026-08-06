@@ -587,3 +587,37 @@ describe('발각 명단', () => {
     expect(result.ok).toBe(false)
   })
 })
+
+/*
+ * 프론트가 먼저 배포되어 배포본 판단 요청이 전부 400을 맞은 적이 있다
+ * (`허용되지 않은 필드 'responderIds'`). 그때 게임은 폴백으로만 돌았다.
+ * 시야에 필드가 늘 때마다 여기가 먼저 깨져야 그 일이 되풀이되지 않는다.
+ */
+describe('parseDecideRequest — 추첨된 반증자', () => {
+  const withResponders = (ids: unknown) =>
+    validBody((b) => {
+      const rounds = view(b)['rounds'] as Record<string, unknown>[]
+      const first = rounds[0]
+      if (!first) throw new Error('라운드가 없다')
+      first['responderIds'] = ids
+    })
+
+  it('추첨된 반증자 목록을 거부하지 않는다', () => {
+    const result = parseDecideRequest(withResponders(['p1', 'p2']))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value.view.rounds[0]?.responderIds).toEqual(['p1', 'p2'])
+  })
+
+  /** 워커가 먼저 배포된 창에서는 캐시된 옛 번들이 이 필드 없이 온다. 그것도 받아야 한다. */
+  it('없으면 빈 배열로 본다', () => {
+    const result = parseDecideRequest(validBody())
+
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value.view.rounds[0]?.responderIds).toEqual([])
+  })
+
+  it('문자열이 아닌 항목은 거부한다', () => {
+    expect(parseDecideRequest(withResponders([1, 2])).ok).toBe(false)
+  })
+})
