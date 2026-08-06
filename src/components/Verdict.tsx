@@ -42,7 +42,12 @@ function countLies(view: GameView): Liar[] {
       // 거부는 의무를 면제받은 것이라 거짓말 횟수에 넣지 않는다(engine/round.ts의 isPerjury와 같다).
       const lied =
         declaration.claim.kind === 'refute'
-          ? !hand.includes(declaration.claim.cardId)
+          ? /*
+             * 판결문은 판이 끝난 뒤에만 열리고, 그때 viewFor는 카드를 전원에게 준다.
+             * 그래서 여기서 null은 «아직 안 끝났다»는 뜻이라 집계에서 뺀다 —
+             * 못 본 선언을 거짓말로 세면 없는 위증이 판결문에 찍힌다.
+             */
+            declaration.claim.cardId !== null && !hand.includes(declaration.claim.cardId)
           : declaration.claim.kind === 'refuse'
             ? false
             : asked.some((card) => hand.includes(card))

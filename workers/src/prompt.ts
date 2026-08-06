@@ -1,6 +1,5 @@
 import { CARDS, cardName } from '../../src/engine/cards'
-import type { Claim } from '../../src/engine/types'
-import type { GameView, PlayerView } from '../../src/engine/view'
+import type { ClaimView, GameView, PlayerView } from '../../src/engine/view'
 import type { PowerBrief } from '../../src/ai/power-brief'
 import type { DecideKind } from './schema'
 
@@ -124,10 +123,15 @@ function selfBlock(view: GameView, label: Label): string {
   return lines.join('\n')
 }
 
-function claimText(claim: Claim, label: Label): string {
+function claimText(claim: ClaimView, label: Label): string {
   switch (claim.kind) {
+    /*
+     * 카드가 null이면 이 시야의 주인이 제안자가 아니었다는 뜻이다. 이름을 쓰지 않는다 —
+     * **여기가 모델에게 새는 마지막 구멍이다.** 화면만 가리고 프롬프트를 그대로 두면
+     * 사람은 못 보는 카드를 AI만 보고 판단하게 된다.
+     */
     case 'refute':
-      return `${label(claim.cardId)}로 반증`
+      return claim.cardId === null ? '반증(카드 비공개)' : `${label(claim.cardId)}로 반증`
     case 'pass':
       return '넘김'
     // 침묵과 다르다 — 답할 의무를 면제받은 것이라 위증 판정 대상이 아니다.

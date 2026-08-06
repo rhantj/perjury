@@ -22,8 +22,8 @@ import {
   wrongCallLine,
 } from '../content/fallback-lines'
 import { cardKind, cardName } from '../engine/cards'
-import type { CardId, CardKind, Claim, PlayerId } from '../engine/types'
-import type { GameView, PlayerView, RoundView } from '../engine/view'
+import type { CardId, CardKind, PlayerId } from '../engine/types'
+import type { ClaimView, GameView, PlayerView, RoundView } from '../engine/view'
 
 /** 반증 카드의 종류에 맞는 그림을 고른다 — 범인·수단·장소 중 어느 것이든 나올 수 있다. */
 function revealArtFor(scenario: Scenario, cardId: CardId): string | undefined {
@@ -42,15 +42,20 @@ function revealArtFor(scenario: Scenario, cardId: CardId): string | undefined {
  * 「없습니다」로 뭉치면 변호사가 무엇을 했는지 화면에서 사라진다.
  */
 function declarationLine(
-  claim: Claim,
+  claim: ClaimView,
   characterId: CardId,
   label: (id: CardId) => string,
   /** 라운드·좌석을 섞은 씨앗. 같은 자리는 언제 그려도 같은 말이어야 한다(fallback-lines.ts). */
   salt: string,
 ): string {
   switch (claim.kind) {
+    /*
+     * 카드가 안 보이면 이름 자리에 「하나」를 넣는다. 말투 표는 카드 이름을 받는 틀이라
+     * 그대로 두면 「하나를 내가 갖고 있소」처럼 읽히고, 그게 사실 그대로다 —
+     * 셋 중 하나를 쥐었으되 무엇인지는 제안자에게만 보였다.
+     */
     case 'refute':
-      return `“${refuteLine(characterId, label(claim.cardId), salt)}”`
+      return `“${refuteLine(characterId, claim.cardId === null ? '하나' : label(claim.cardId), salt)}”`
     case 'pass':
       return `“${passLine(characterId, salt)}”`
     case 'refuse':
@@ -345,10 +350,15 @@ function Seat({
    * 카드는 스포트라이트가 지나가도 사라지지 않는다 — revealing(그 순간)이 아니라
    * revealed(공개된 뒤 쭉)에 건다. 사라지면 «나온다더니 없어졌다»는 피드백이 다시 나온다.
    */
-  const revealCard =
-    revealed && declaration?.claim.kind === 'refute'
-      ? { art: revealArtFor(scenario, declaration.claim.cardId), name: label(declaration.claim.cardId) }
-      : null
+  /*
+   * 카드 실물은 «본 사람에게만» 뜬다. 비공개 반증이면 제안자 화면에만 나타난다 —
+   * 감춰야 할 것을 그림으로 흘리지 않으려면 이름과 그림을 한 조건에 묶어야 한다.
+   */
+  const declaredCard =
+    revealed && declaration?.claim.kind === 'refute' ? declaration.claim.cardId : null
+  const revealCard = declaredCard
+    ? { art: revealArtFor(scenario, declaredCard), name: label(declaredCard) }
+    : null
 
   /*
    * 이의제기로 이번 라운드에 «새로» 열린 카드. 어떤 걸 왜 공개하는지 몰라 헷갈린다는

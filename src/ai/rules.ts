@@ -1,4 +1,4 @@
-import { cardsOfKind } from '../engine/cards'
+import { cardKind, cardsOfKind } from '../engine/cards'
 import { createRng, pickOne } from '../engine/rng'
 import type { CardId, CardKind, Claim, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
@@ -41,7 +41,13 @@ function eliminated(view: GameView): Set<CardId> {
   for (const player of view.players) for (const card of player.revealed) out.add(card)
   for (const round of view.rounds) {
     for (const declaration of round.declarations) {
-      if (declaration.claim.kind === 'refute') out.add(declaration.claim.cardId)
+      /*
+       * 비공개 반증이라 내가 제안자가 아니었던 라운드는 카드가 null이다.
+       * 안 보이는 것은 소거할 수 없다 — 추측으로 메우면 AI만 아는 정보가 생긴다.
+       */
+      if (declaration.claim.kind === 'refute' && declaration.claim.cardId !== null) {
+        out.add(declaration.claim.cardId)
+      }
     }
   }
   return out
@@ -55,13 +61,38 @@ function candidates(view: GameView, kind: CardKind): CardId[] {
   return left.length > 0 ? left : all
 }
 
+/**
+ * 세 칸 중 하나를 «내가 쥔 카드»로 바꿔 다는 확률 — 덫 제안.
+ *
+ * 비공개 반증이 되면서 필요해졌다. 반증 카드를 보는 사람이 제안자뿐이라
+ * **제안자가 미리 덫을 놓지 않으면 위증을 잡을 길이 아예 없다.**
+ * 내가 쥔 카드를 섞어 두면, 그 카드로 반증했다는 말이 곧 거짓말의 증거가 된다.
+ *
+ * 대가는 소거 속도다. 이미 답이 아닌 걸 아는 카드라 그 칸은 새로 알려주는 게 없다.
+ * 그래서 매번이 아니라 확률로 둔다 — 늘 덫이면 판이 안 좁혀지고,
+ * 덫이 없으면 거짓말이 공짜가 된다.
+ */
+const TRAP_RATE = 0.35
+
 /** 남은 후보 중 하나씩 골라 제안한다. 소거를 진행시키는 것이 목적이다. */
 export function suggestionFrom(view: GameView, salt: string): Suggestion {
   const rng = createRng(salt)
-  return {
+  const base: Suggestion = {
     suspect: pickOne(candidates(view, 'suspect'), rng),
     weapon: pickOne(candidates(view, 'weapon'), rng),
     place: pickOne(candidates(view, 'place'), rng),
+  }
+
+  /* rng를 이 순서 그대로 쓴다. 갈래마다 다른 줄기를 만들면 같은 시드가 다른 판이 된다. */
+  const hand = me(view).hand ?? []
+  if (hand.length === 0 || rng() >= TRAP_RATE) return base
+
+  const bait = pickOne(hand, rng)
+  const kind = cardKind(bait)
+  return {
+    suspect: kind === 'suspect' ? bait : base.suspect,
+    weapon: kind === 'weapon' ? bait : base.weapon,
+    place: kind === 'place' ? bait : base.place,
   }
 }
 
@@ -122,7 +153,9 @@ export function challengeTargetFrom(view: GameView): PlayerId | null {
   for (const declaration of record.declarations) {
     if (declaration.playerId === view.viewerId) continue
     if (declaration.claim.kind !== 'refute') continue
-    if (hand.includes(declaration.claim.cardId)) return declaration.playerId
+    /* 카드가 안 보이면 «내 손에 있는 걸 냈다»를 판정할 수 없다. 제안자만 이 길로 들어온다. */
+    const cardId = declaration.claim.cardId
+    if (cardId !== null && hand.includes(cardId)) return declaration.playerId
   }
   return null
 }

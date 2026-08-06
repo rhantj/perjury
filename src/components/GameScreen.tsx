@@ -777,8 +777,13 @@ function ChallengeBar({
         {blocked && <em>{blocked}</em>}
       </span>
       {targets.map((d) => {
-        const cardId = d.claim.kind === 'refute' ? d.claim.cardId : ''
-        const provable = hand.includes(cardId)
+        /*
+         * 「증명 가능」은 «그자가 낸 카드를 내가 쥐고 있다»는 뜻이라 카드가 보여야 뜬다.
+         * 비공개 반증이면 제안자 화면에서만 붙는다 — 나머지에게 이의제기는 눈감고 거는 일이 된다.
+         * 그래서 룰 개편 §3-3이 이의제기를 제안자 전용으로 돌리려는 것이고, 그건 별건이다.
+         */
+        const cardId = d.claim.kind === 'refute' ? d.claim.cardId : null
+        const provable = cardId !== null && hand.includes(cardId)
         return (
           <button
             key={d.playerId}

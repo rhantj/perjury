@@ -142,6 +142,48 @@ describe('viewFor — 위증 여부', () => {
   })
 })
 
+/*
+ * 비공개 반증(룰 개편 1-B). 「무슨 카드로 반증했나」는 제안자만, 「반증했나 못 했나」는 전원이 안다.
+ * 감추는 것과 남기는 것을 한 describe에 같이 둔다 — 한쪽만 보면 «다 감췄다»로 잘못 고치기 쉽다.
+ */
+describe('viewFor — 반증 카드는 제안자만 본다', () => {
+  const claimOf = (viewerId: PlayerId, targetId: PlayerId) =>
+    viewFor(afterDeclarations(), viewerId).rounds[0]?.declarations.find(
+      (d) => d.playerId === targetId,
+    )?.claim
+
+  it('제안자는 남이 낸 카드를 본다', () => {
+    expect(claimOf('p0', 'p1')).toEqual({ kind: 'refute', cardId: 'w1' })
+  })
+
+  it('제안자가 아니면 남이 낸 카드가 보이지 않는다', () => {
+    expect(claimOf('p1', 'p2')).toEqual({ kind: 'refute', cardId: null })
+  })
+
+  it('내가 낸 카드는 내가 본다', () => {
+    expect(claimOf('p2', 'p2')).toEqual({ kind: 'refute', cardId: 'p1' })
+  })
+
+  /*
+   * 이게 비공개 반증에서 판을 굴리는 정보다 — 「못 했다」는 그 사람이 제안된 3장을
+   * 하나도 안 가졌다는 뜻이라 추리표 칸 셋이 지워진다. 감추면 판이 멈춘다.
+   */
+  it('반증하지 못했다는 사실은 전원이 본다', () => {
+    expect(claimOf('p1', 'p4')).toEqual({ kind: 'pass' })
+  })
+
+  /*
+   * 종료 상태를 직접 세운다. 여기서 볼 것은 «판이 끝나면 보인다»는 시야 규칙이지
+   * 판이 끝나는 경로가 아니다 — 마지막 라운드까지 돌리면 검증 대상이 흐려진다.
+   */
+  it('판이 끝나면 전원이 카드를 본다', () => {
+    const over: GameState = { ...afterDeclarations(), phase: 'over' }
+    const claim = viewFor(over, 'p1').rounds[0]?.declarations.find((d) => d.playerId === 'p2')?.claim
+
+    expect(claim).toEqual({ kind: 'refute', cardId: 'p1' })
+  })
+})
+
 describe('viewFor — 판이 끝난 뒤', () => {
   function finished(accusation: Suggestion): GameState {
     let state = staged()

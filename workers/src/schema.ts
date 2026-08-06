@@ -203,7 +203,17 @@ function claim(value: unknown, where: string) {
   const kind = oneOf(obj, 'kind', ['refute', 'pass', 'refuse'], where)
   if (kind === 'refute') {
     onlyKeys(obj, ['kind', 'cardId'], where)
-    return { kind: 'refute', cardId: text(obj, 'cardId', where) } as const
+    /*
+     * 비공개 반증(룰 개편 1-B). 이 시야의 주인이 제안자가 아니면 카드가 null로 온다.
+     *
+     * **넓히는 방향이라 옛 프론트 번들도 그대로 통과한다.** 그래도 배포 순서는 지켜야 한다 —
+     * 지금 배포된 워커는 null을 거절하므로, 프론트가 먼저 올라가면 판단 요청이 전부
+     * 400을 맞고 폴백으로 떨어진다. responderIds 때 실제로 겪은 사고다.
+     */
+    return {
+      kind: 'refute',
+      cardId: obj['cardId'] === null ? null : text(obj, 'cardId', where),
+    } as const
   }
   onlyKeys(obj, ['kind'], where)
   return kind === 'pass' ? ({ kind: 'pass' } as const) : ({ kind: 'refuse' } as const)
