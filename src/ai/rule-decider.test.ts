@@ -86,14 +86,22 @@ describe('speakInParley — 폴백도 판정할 수 있는 말을 한다', () =>
       views.map((view, i) => createRuleDecider(`${SEED}-${i}`).speakInParley(view, '패를 보자')),
     )
 
-  it('truthful이 늘 null이지 않다', async () => {
+  /* speakInParley는 «말하지 않음»으로 null을 줄 수 있다. 폴백은 그 갈래를 쓰지 않는다. */
+  const spoken = async () => {
     const said = await sayAll()
+    const lines = said.filter((s): s is NonNullable<typeof s> => s !== null)
+    expect(lines).toHaveLength(views.length)
+    return lines
+  }
+
+  it('truthful이 늘 null이지 않다', async () => {
+    const said = await spoken()
 
     expect(said.every((s) => s.truthful === null)).toBe(false)
   })
 
   it('참과 거짓이 모두 나온다', async () => {
-    const kinds = new Set((await sayAll()).map((s) => s.truthful))
+    const kinds = new Set((await spoken()).map((s) => s.truthful))
 
     expect(kinds.has(true)).toBe(true)
     expect(kinds.has(false)).toBe(true)
