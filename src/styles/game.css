@@ -1538,8 +1538,18 @@
 }
 .nb__pick--on {
   background: var(--color-accent);
-  color: oklch(15% 0.02 40);
+  color: var(--color-on-accent);
   font-weight: 600;
+}
+/*
+ * 고른 칸의 hover. 이걸 안 두면 위의 `.nb__pick:hover`가 이긴다 —
+ * 의사클래스가 붙어 명시도가 한 단계 높기 때문이다. 그러면 글자색이 강조색이 되는데
+ * 배경도 강조색이라 **고른 카드 이름이 커서를 올린 동안 사라진다.**
+ * 고른 칸은 이미 배경으로 눈에 띄므로 hover 표시는 밝기로만 준다.
+ */
+.nb__pick--on:hover {
+  color: var(--color-on-accent);
+  filter: brightness(1.12);
 }
 .nb__cell-top {
   padding-top: 0.7rem;
