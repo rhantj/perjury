@@ -3,6 +3,7 @@ import { cardLabel, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import type { Scenario } from '../content/scenarios'
 import { CARDS } from '../engine/cards'
+import { HAND_SIZE } from '../engine/setup'
 import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
 
@@ -78,13 +79,30 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
     return () => window.clearTimeout(id)
   }, [warning])
 
+  /** 실제로 보유가 «확인된» 카드인가. 내 손패와 공개된 패 둘뿐이다. */
+  const isKnown = (cardId: CardId, player: GameView['players'][number]): boolean =>
+    (player.isMe && myHand.includes(cardId)) || player.revealed.includes(cardId)
+
+  /** 이 사람 몫으로 잡혀 있는가. 확인된 것과 손으로 찍은 ✓를 함께 센다. */
+  const holds = (cardId: CardId, player: GameView['players'][number]): boolean =>
+    isKnown(cardId, player) || marks[`${cardId}:${player.id}`] === 'o'
+
   /** 카드 한 장은 한 사람만 쥔다 — 이 행에 이미 «있음»으로 잡힌 다른 사람이 있는가. */
   const heldElsewhere = (cardId: CardId, exceptPlayerId: string): boolean =>
-    view.players.some((player) => {
-      if (player.id === exceptPlayerId) return false
-      const known = (player.isMe && myHand.includes(cardId)) || player.revealed.includes(cardId)
-      return known || marks[`${cardId}:${player.id}`] === 'o'
-    })
+    view.players.some((player) => player.id !== exceptPlayerId && holds(cardId, player))
+
+  /*
+   * 손패는 정확히 HAND_SIZE장이다. ✓가 그만큼 차면 그 사람의 «나머지 칸»은 더 볼 것 없이 ✕다 —
+   * 소거법의 절반이 여기서 공짜로 나온다. 눈으로 세지 않아도 되게 표가 대신 닫아준다.
+   *
+   * state에 ✕를 써넣지 않고 그릴 때 «파생»시킨다. 되돌릴 수 있어야 하기 때문이다 —
+   * ✓ 하나를 잘못 찍었다가 지우면 잠겼던 칸이 원래 표시 그대로 돌아와야 한다.
+   */
+  const sealed = new Set(
+    view.players
+      .filter((player) => CARDS.filter((card) => holds(card.id, player)).length >= HAND_SIZE)
+      .map((player) => player.id),
+  )
 
   const toggle = (cardId: CardId, playerId: string) => {
     const key = `${cardId}:${playerId}`
@@ -139,20 +157,24 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                   )}
                 </th>
                 {view.players.map((player) => {
-                  const known =
-                    (player.isMe && myHand.includes(card.id)) || player.revealed.includes(card.id)
-                  const mark = known ? 'o' : (marks[`${card.id}:${player.id}`] ?? '')
+                  const known = isKnown(card.id, player)
+                  const mine = holds(card.id, player)
+                  /* 손패가 다 찬 사람의 «나머지» 칸. 여기는 논리적으로 ✕가 확정이다. */
+                  const isSealed = sealed.has(player.id) && !mine
+                  const mark: Mark = mine ? 'o' : isSealed ? 'x' : (marks[`${card.id}:${player.id}`] ?? '')
                   const info = MARK_INFO[mark]
                   const title = known
                     ? '확정됨 — 실제로 보유가 확인된 카드다. 바꿀 수 없다'
-                    : info.title
+                    : isSealed
+                      ? `손패 ${HAND_SIZE}장이 다 찼다 — 이 사람에게 남은 카드는 없다`
+                      : info.title
 
                   return (
                     <td key={player.id} className={isNewGroup ? 'nb__cell-top' : undefined}>
                       <button
                         type="button"
-                        className={`nb__cell nb__cell--${info.className}${known ? ' nb__cell--fixed' : ''}`}
-                        disabled={known}
+                        className={`nb__cell nb__cell--${info.className}${known ? ' nb__cell--fixed' : ''}${isSealed ? ' nb__cell--sealed' : ''}`}
+                        disabled={known || isSealed}
                         onClick={() => toggle(card.id, player.id)}
                         title={title}
                         aria-label={`${label(card.id)} / ${participantLabel(view, player.id)} — ${title}`}
@@ -175,7 +197,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
       <p key={pickGuide} className="nb__hint">
         {picking
           ? pickGuide
-          : '칸을 눌러 ✓ 있음 → ✕ 없음 → ? 의심 순으로 바꾼다. 칸에 커서를 올리면 뜻이 뜬다. 확정된 칸은 잠긴다.'}
+          : `칸을 눌러 ✓ 있음 → ✕ 없음 → ? 의심 순으로 바꾼다. 칸에 커서를 올리면 뜻이 뜬다. 확정된 칸은 잠기고, 한 사람의 ✓가 ${HAND_SIZE}개가 되면 그 사람의 남은 칸은 자동으로 닫힌다.`}
       </p>
     </div>
   )
