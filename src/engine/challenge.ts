@@ -69,6 +69,7 @@ export function challengesUsedIn(
 export function canChallenge(state: GameState, playerId: PlayerId): boolean {
   const player = state.players.find((p) => p.id === playerId)
   if (!player) return false
+  if (state.eliminated.includes(playerId)) return false
   return challengesUsed(state, playerId) < CHALLENGE_LIMIT && hiddenHand(player).length > 0
 }
 
@@ -123,6 +124,14 @@ export function challenge(
    * 내 패가 열린다). 패가 다 열린 사람의 이의제기는 pickHidden이 null을 돌려줘
    * 페널티가 아예 없는 «공짜 행동»이 되고, 값이 없는 행동은 남발된다.
    */
+  /*
+   * 탈락자는 이의제기하지 않는다. 실패하면 미공개 손패가 1장 열리는데, 그것이
+   * 「탈락자 손패는 공개하지 않는다」(룰 개편 §2-5)와 정면으로 부딪히기 때문이다.
+   * 룰 개편 §2-4에서 이의제기가 제안자 전용이 되면 어차피 자연히 배제된다.
+   */
+  if (state.eliminated.includes(challengerId)) {
+    throw new Error(`탈락자는 이의제기할 수 없다: ${challengerId}`)
+  }
   if (challengesUsed(state, challengerId) >= CHALLENGE_LIMIT) {
     throw new Error(`이의제기는 판당 ${CHALLENGE_LIMIT}회까지다: ${challengerId}`)
   }

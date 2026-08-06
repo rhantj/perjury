@@ -67,6 +67,9 @@ export function parleysUsedIn(rounds: readonly { readonly parleys: readonly unkn
 
 /** 지금 밀담을 걸 수 있는가. 화면이 버튼을 막을 때와 엔진이 거절할 때가 같은 기준을 쓴다. */
 export function canParley(state: GameState): boolean {
+  // 거는 쪽은 언제나 사람이다(설계 §3). 그 사람이 탈락했으면 밀담을 잃는다(룰 개편 §2-5).
+  const human = state.players.find((p) => p.isHuman)
+  if (human && state.eliminated.includes(human.id)) return false
   return parleysUsedIn(state.rounds) < PARLEY_LIMIT
 }
 
@@ -94,6 +97,24 @@ export function parley(
   if (!human) throw new Error('사람 자리가 없다')
   if (targetId === human.id) throw new Error('자기 자신과는 밀담할 수 없다')
   if (!state.players.some((p) => p.id === targetId)) throw new Error(`없는 플레이어: ${targetId}`)
+  /*
+   * 탈락자는 밀담을 잃는다 — 거는 쪽으로도, 받는 쪽으로도(룰 개편 §2-5, 결정 011).
+   *
+   * canParley에만 두면 「밀담은 판당 N회까지다」로 되던져져, 한 번도 안 쓴 사람이
+   * 한도 초과 안내를 본다. 사유가 다르면 메시지도 달라야 한다.
+   */
+  if (state.eliminated.includes(human.id)) {
+    throw new Error('탈락자는 밀담을 걸 수 없다')
+  }
+  /*
+   * 받는 쪽을 막는 것은 비용이 아니라 **밸런스** 결정이다(결정 011).
+   * 탈락자의 손패 2장은 그대로 비밀인데, 캐낼 수 있게 두면 조기 고발이 「틀려도 정보원이 하나
+   * 생긴다」가 되어 위험이 사라진다. 호출 절약이 근거가 아니다 — 호출은 이 함수보다
+   * 먼저 나간다(store의 askParley).
+   */
+  if (state.eliminated.includes(targetId)) {
+    throw new Error(`탈락자에게는 말을 걸 수 없다: ${targetId}`)
+  }
 
   /*
    * 판당 상한 (decisions/009). 라운드당 1회와 **다른 것을 막는다** —

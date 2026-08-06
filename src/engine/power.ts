@@ -191,6 +191,8 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
    * **끝난 판만 예외다.** 여기서 막지 않으면 결과 화면에서 능력을 태워 없앨 수 있다.
    */
   if (state.phase === 'over') throw new Error('끝난 판에서는 능력을 쓸 수 없다')
+  // 탈락자는 능력을 잃는다(룰 개편 §2-5). 지목 «대상»으로는 여전히 유효하다 — 반증은 계속하므로.
+  if (state.eliminated.includes(playerId)) throw new Error(`탈락자는 능력을 쓸 수 없다: ${playerId}`)
   if (!usableIn(use.kind, state)) throw new Error(`지금은 쓸 수 없는 능력이다: ${state.phase}`)
   if (state.powersUsed.includes(playerId)) throw new Error('능력은 한 판에 한 번뿐이다')
 

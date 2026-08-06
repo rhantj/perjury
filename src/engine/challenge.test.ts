@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { challenge, skipChallenge } from './challenge'
+import { canChallenge, challenge, skipChallenge } from './challenge'
 import { declareAll } from './round'
 import { suggestAll as suggest } from './testing'
 import { usePower } from './power'
@@ -288,5 +288,25 @@ describe('challenge — 공개 카드 중복 (decisions/008)', () => {
 
     expect(revealed.filter((c) => c === 'p1')).toHaveLength(1)
     expect(new Set(revealed).size).toBe(revealed.length)
+  })
+})
+
+describe('탈락자는 이의제기하지 않는다', () => {
+  /*
+   * 이의제기는 실패하면 미공개 손패가 1장 열린다. 탈락자에게 허용하면
+   * 「탈락자 손패는 공개하지 않는다」(룰 개편 §2-5)와 정면으로 부딪힌다.
+   */
+  it('탈락한 사람은 이의제기할 수 없다', () => {
+    const state = staged()
+    const fallen: GameState = { ...state, eliminated: ['p2'] }
+
+    expect(() => challenge(fallen, 'p2', 'p3')).toThrow()
+  })
+
+  it('화면이 보는 자격에서도 빠진다', () => {
+    const state = staged()
+
+    expect(canChallenge(state, 'p2')).toBe(true)
+    expect(canChallenge({ ...state, eliminated: ['p2'] }, 'p2')).toBe(false)
   })
 })

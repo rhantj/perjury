@@ -528,3 +528,61 @@ describe('AI 능력 발동', () => {
     expect(after.powersUsed).toEqual([])
   })
 })
+
+describe('탈락한 사람은 개입 지점에서 빠진다', () => {
+  /*
+   * 조기 고발에 실패한 사람은 고발·이의제기·밀담을 잃는다(룰 개편 §2-5).
+   * 여기서 빼지 않으면 화면이 버튼을 그리고, 눌러도 엔진이 던져 판이 갇힌다.
+   */
+  const fallen = (phase: GameState['phase']): GameState => {
+    const game = gameWhereHumanIs('citizen')
+    const human = game.players.find((p) => p.isHuman)
+    if (!human) throw new Error('사람 자리가 없다')
+    return { ...game, phase, eliminated: [human.id] }
+  }
+
+  it('최종 고발을 요구하지 않는다 — 남은 AI 시민 합의로 넘어간다', () => {
+    expect(needsHuman(fallen('accuse'))).toBe(false)
+  })
+
+  it('이의제기와 밀담도 요구하지 않는다', () => {
+    expect(needsHuman(fallen('challenge'))).toBe(false)
+    expect(needsHuman(fallen('whisper'))).toBe(false)
+  })
+
+  /*
+   * needsHuman이 false가 되는 것만으로는 부족하다. 「그러면 누가 판을 닫는가」까지
+   * 묶어야 한다 — 여기가 비면 합의 인원이 엔진과 어긋나도 스위트가 초록불이다.
+   */
+  it('사람 시민이 탈락하면 남은 AI 시민 합의로 판이 닫힌다', async () => {
+    const state = fallen('accuse')
+    const closed = await stepAi(state, deciders(state)(state.round))
+
+    expect(closed.phase).toBe('over')
+    expect(closed.outcome?.accuser.kind).toBe('council')
+  })
+
+  it('탈락한 AI 시민은 합의 인원에서 빠진다', async () => {
+    const game = gameWhereHumanIs('culprit')
+    const ai = game.players.find((p) => !p.isHuman && p.faction === 'citizen')
+    if (!ai) throw new Error('AI 시민이 없다')
+    const state: GameState = { ...game, phase: 'accuse', eliminated: [ai.id] }
+
+    const closed = await stepAi(state, deciders(state)(state.round))
+    const accuser = closed.outcome?.accuser
+
+    expect(closed.phase).toBe('over')
+    expect(accuser?.kind === 'council' && accuser.votes).toHaveLength(4)
+  })
+
+  /** 반증은 계속한다. 탈락자는 «말 없는 카드 보관함»이지 자리를 뜨는 것이 아니다. */
+  it('반증 선언은 그대로 사람이 한다', async () => {
+    const initial = createGame({ seed: 'refute', humanIndex: 3 })
+    const game = await advanceToHuman(initial, deciders(initial))
+    const human = game.players.find((p) => p.isHuman)
+    if (!human) throw new Error('사람 자리가 없다')
+
+    expect(game.phase).toBe('refute')
+    expect(needsHuman({ ...game, eliminated: [human.id] })).toBe(true)
+  })
+})

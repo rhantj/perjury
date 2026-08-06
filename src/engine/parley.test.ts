@@ -368,3 +368,25 @@ describe('detect-lie — 정보상', () => {
     ])
   })
 })
+
+describe('탈락자와 밀담', () => {
+  it('탈락한 사람은 밀담을 걸 수 없다', () => {
+    const state = atWhisper()
+    const fallen: GameState = { ...state, eliminated: [state.players[0]?.id ?? 'p0'] }
+
+    expect(canParley(fallen)).toBe(false)
+    // 사유가 다르면 메시지도 달라야 한다. 한 번도 안 쓴 사람이 한도 초과 안내를 보면 안 된다.
+    expect(() => parley(fallen, 'p1', '무엇을 아나', '모른다')).toThrow('탈락자는 밀담을 걸 수 없다')
+  })
+
+  /*
+   * 탈락자는 승패에서 빠져 있어 거래가 성립하지 않는다. 열어두면 판을 못 움직이는
+   * 상대에게 판당 예산과 LLM 호출을 태우게 된다.
+   */
+  it('탈락자에게는 말을 걸 수 없다', () => {
+    const state = atWhisper()
+    const fallen: GameState = { ...state, eliminated: ['p1'] }
+
+    expect(() => parley(fallen, 'p1', '무엇을 아나', '모른다')).toThrow()
+  })
+})

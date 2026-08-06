@@ -111,6 +111,14 @@ export function suggest(
   if (state.phase !== 'suggest') throw new Error(`제안 페이즈가 아니다: ${state.phase}`)
 
   const suggester = requirePlayer(state, suggesterId)
+  /*
+   * 탈락자는 제안권을 잃는다. 정상 경로에서는 차례 계산(progress.ts의 nextSeat)이 이미
+   * 건너뛰지만, 그 보장이 «다른 파일»에 있어서 화면이나 AI가 차례를 잘못 흉내내면
+   * 그대로 통과한다. 룰이므로 엔진이 막는다(작업 규칙 2).
+   */
+  if (state.eliminated.includes(suggesterId)) {
+    throw new Error(`탈락자는 제안할 수 없다: ${suggester.name}`)
+  }
   if (state.players[state.turnIndex]?.id !== suggesterId) {
     throw new Error(`${suggester.name}의 차례가 아니다`)
   }

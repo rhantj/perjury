@@ -33,6 +33,12 @@ function lastRound(state: GameState) {
  */
 export function needsHuman(state: GameState): boolean {
   const human = humanOf(state)
+  /*
+   * 조기 고발에 실패해 탈락하면 고발·이의제기·밀담·능력을 잃는다(룰 개편 §2-5).
+   * 여기서 빼지 않으면 화면이 버튼을 그리고, 누르면 엔진이 던져 그 페이즈에 갇힌다.
+   * **반증만은 그대로 한다** — 탈락자는 「말 없는 카드 보관함」이지 자리를 뜨는 것이 아니다.
+   */
+  const out = state.eliminated.includes(human.id)
 
   switch (state.phase) {
     case 'suggest':
@@ -44,12 +50,12 @@ export function needsHuman(state: GameState): boolean {
        */
       return lastRound(state).responderIds.includes(human.id)
     case 'challenge':
-      return true
+      return !out
     case 'accuse':
-      return human.faction === 'citizen'
+      return human.faction === 'citizen' && !out
     case 'whisper':
       // 밀담은 언제나 사람이 건다. 건너뛰더라도 «건너뛴다»는 결정을 사람이 한다(설계 §2).
-      return true
+      return !out
     case 'over':
       return false
   }
@@ -148,7 +154,10 @@ async function offerChallenge(
   decider: Decider,
   except: PlayerId | null,
 ): Promise<GameState> {
-  const askable = state.players.filter((player) => player.id !== except)
+  // 탈락자는 이의제기를 잃었다(룰 개편 §2-5). 물어봐야 엔진이 버리므로 판단자를 부르지 않는다.
+  const askable = state.players.filter(
+    (player) => player.id !== except && !state.eliminated.includes(player.id),
+  )
   const answers = await Promise.all(
     askable.map(async (player) => ({
       player,
@@ -239,12 +248,20 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
       return skipParley(state)
     case 'accuse': {
       const human = humanOf(state)
-      if (human.faction === 'citizen') {
+      if (human.faction === 'citizen' && !state.eliminated.includes(human.id)) {
         // 사람 자리를 AI가 대신 두는 경로(autoPlay)다. 사람의 고발에는 대사가 없다.
         const spoken = await decider.chooseAccusation(viewFor(state, human.id))
         return accuse(state, spoken.value, human.id)
       }
-      const citizens = state.players.filter((p) => !p.isHuman && p.faction === 'citizen')
+      /*
+       * 탈락자는 고발권이 없으므로 합의에서도 뺀다. 엔진(accuseByCouncil)이 같은 기준으로
+       * 인원을 세므로, 여기서 안 빼면 「전원이 투표해야 한다」에 걸려 판이 닫히지 않는다.
+       *
+       * 사람이 시민인데 탈락한 판도 이 경로로 온다 — 그때 판을 닫는 것은 남은 AI 시민들이다.
+       */
+      const citizens = state.players.filter(
+        (p) => !p.isHuman && p.faction === 'citizen' && !state.eliminated.includes(p.id),
+      )
       const votes: Vote[] = await Promise.all(
         citizens.map(async (p) => {
           const spoken = await decider.chooseAccusation(viewFor(state, p.id))

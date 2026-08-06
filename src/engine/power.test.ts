@@ -473,3 +473,23 @@ describe('publish — 신문기자', () => {
     ).toThrow()
   })
 })
+
+describe('탈락자는 능력을 쓰지 않는다', () => {
+  it('탈락한 사람은 능력을 발동할 수 없다', () => {
+    const state = game()
+    const me = idOf(state, 0)
+    const fallen: GameState = { ...state, eliminated: [me] }
+
+    expect(() => usePower(fallen, me, { kind: 'inspect-hand', targetId: idOf(state, 1) })).toThrow()
+  })
+
+  /** 탈락자도 반증은 계속하므로 지목 «대상»으로는 유효하다. 손패도 여전히 비밀이다. */
+  it('탈락자를 지목하는 것은 막지 않는다', () => {
+    const state = game()
+    const fallen: GameState = { ...state, eliminated: [idOf(state, 1)] }
+
+    expect(
+      usePower(fallen, idOf(state, 0), { kind: 'inspect-hand', targetId: idOf(state, 1) }).grants,
+    ).toHaveLength(1)
+  })
+})
