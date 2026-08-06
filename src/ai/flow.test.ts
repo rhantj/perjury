@@ -602,3 +602,114 @@ describe('탈락한 사람은 개입 지점에서 빠진다', () => {
     expect(needsHuman({ ...opened, eliminated: [human.id] })).toBe(true)
   })
 })
+
+describe('stepAi — AI의 조기 고발 (룰 개편 §2-6, 3-C-2)', () => {
+  /** 제안 대신 조기 고발을 내겠다는 판단자. 나머지는 부르면 안 된다. */
+  function accuser(accusation: Suggestion | null): Decider {
+    return {
+      chooseSuggestion: () =>
+        Promise.resolve({
+          ...silent<Suggestion>({ suspect: 's1', weapon: 'w1', place: 'p1' }),
+          accuse: accusation,
+        }),
+      chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseChallengeTarget: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
+    }
+  }
+
+  /** 제안 차례가 AI 시민에게 오도록 좌석을 옮긴다. */
+  function turnOf(game: GameState, faction: 'citizen' | 'culprit'): GameState {
+    const index = game.players.findIndex((p) => !p.isHuman && p.faction === faction)
+    if (index < 0) throw new Error(`${faction} AI 자리가 없다`)
+    return { ...game, turnIndex: index }
+  }
+
+  const base = () => createGame({ seed: 'early-accuse', humanIndex: 0 })
+
+  it('의사가 없으면 평소대로 제안한다', async () => {
+    const state = turnOf(base(), 'citizen')
+
+    const next = await stepAi(state, accuser(null))
+
+    expect(next.phase).toBe('refute')
+    expect(next.outcome).toBeNull()
+  })
+
+  it('정답을 외치면 그 자리에서 시민이 이긴다', async () => {
+    const state = turnOf(base(), 'citizen')
+
+    const next = await stepAi(state, accuser(state.solution))
+
+    expect(next.phase).toBe('over')
+    expect(next.outcome?.winner).toBe('citizen')
+  })
+
+  it('틀리게 외치면 외친 사람만 탈락하고 판은 이어진다', async () => {
+    const state = turnOf(base(), 'citizen')
+    const wrong: Suggestion = { ...state.solution, weapon: state.solution.weapon === 'w1' ? 'w2' : 'w1' }
+    const accused = state.players[state.turnIndex]
+    if (!accused) throw new Error('제안자가 없다')
+
+    const next = await stepAi(state, accuser(wrong))
+
+    expect(next.eliminated).toContain(accused.id)
+    expect(next.phase).not.toBe('over')
+  })
+
+  /*
+   * 범인이 외치면 엔진은 자백으로 읽어 시민 승으로 닫는다(결정 011 §2).
+   * LLM이 한 번 잘못 고르면 판이 어이없이 끝나므로 flow가 그 문을 아예 안 연다.
+   * 엔진 쪽 룰은 그대로 둔다 — 막는 자리는 부르는 쪽이다.
+   */
+  it('범인 좌석의 고발 의사는 무시하고 제안으로 간다', async () => {
+    const state = turnOf(base(), 'culprit')
+
+    const next = await stepAi(state, accuser(state.solution))
+
+    expect(next.phase).toBe('refute')
+    expect(next.outcome).toBeNull()
+  })
+})
+
+describe('stepAi — 조기 고발은 능력을 태우지 않는다', () => {
+  /** 능력 사용 의사와 고발 의사를 함께 내는 판단자. */
+  function greedy(accusation: Suggestion): Decider {
+    return {
+      chooseSuggestion: () =>
+        Promise.resolve({
+          ...silent<Suggestion>({ suspect: 's1', weapon: 'w1', place: 'p1' }),
+          power: { targetId: 'p3' },
+          accuse: accusation,
+        }),
+      chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseChallengeTarget: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
+    }
+  }
+
+  /*
+   * 외치면 그 라운드에 제안이 없다. 능력을 먼저 걸면 판당 1회짜리가 제안도 안 한
+   * 라운드에 소모되고, 틀려서 탈락하면 능력마저 잃는데 powersUsed는 이미 찍혀 있다.
+   */
+  it('고발하는 라운드에는 능력을 걸지 않는다', async () => {
+    const game = createGame({ seed: 'early-accuse', humanIndex: 0 })
+    const index = game.players.findIndex((p) => !p.isHuman && p.faction === 'citizen')
+    const state = { ...game, turnIndex: index }
+    const accuser = state.players[index]
+    if (!accuser) throw new Error('제안자가 없다')
+    // 틀린 고발이라 판은 이어진다 — 이어져야 powersUsed를 볼 수 있다.
+    const wrong: Suggestion = {
+      ...state.solution,
+      weapon: state.solution.weapon === 'w1' ? 'w2' : 'w1',
+    }
+
+    const next = await stepAi(state, greedy(wrong))
+
+    expect(next.eliminated).toContain(accuser.id)
+    expect(next.powersUsed).not.toContain(accuser.id)
+    expect(next.pending).toHaveLength(0)
+  })
+})

@@ -50,6 +50,16 @@ const REQUEST_TIMEOUT_MS = 20_000
 
 type DecideKind = 'suggest' | 'refute' | 'challenge' | 'accuse' | 'parley'
 
+/**
+ * 워커가 돌려준 한 답. Spoken에 **아직 좁히지 않은** 조기 고발 의사를 얹는다.
+ *
+ * Spoken.accuse는 Suggestion인데 이 시점에는 결정을 아직 안 좁혔다. 좁힌 뒤에야
+ * 「그 세 장이 고발이다」를 만들 수 있으므로, 여기서는 «예/아니오»만 들고 나른다.
+ */
+interface Answered extends Spoken<unknown> {
+  readonly accuseNow: boolean
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -152,7 +162,7 @@ export function createLlmDecider(
   /** 로그 상관관계 전용. 프록시가 신뢰하지 않는 값이다. */
   const sessionId = crypto.randomUUID()
 
-  async function ask(kind: DecideKind, view: GameView, said?: string): Promise<Spoken<unknown>> {
+  async function ask(kind: DecideKind, view: GameView, said?: string): Promise<Answered> {
     if (exhausted) throw new LlmUnavailableError('budget_exhausted')
 
     /*
@@ -212,6 +222,20 @@ export function createLlmDecider(
        * 여기서 잘못 읽으면 정보상이 없는 거짓말을 잡았다고 통보받는다.
        */
       truthful: payload['truthful'] === true ? true : payload['truthful'] === false ? false : null,
+      /*
+       * 조기 고발 의사(3-C-2b). **불리언 true만 «함»이고 나머지는 전부 «안 함»이다.**
+       *
+       * 모델은 "yes"/"no" 문자열로 답하지만 그것을 불리언으로 바꾸는 것은 워커다
+       * (workers/src/llm.ts) — truthful과 같은 길이다. 여기서 문자열과 비교하면
+       * 양쪽이 각자 정합적인 채로 «서로 다른 계약»을 보게 되어 값이 조용히 사라진다.
+       * 실제로 그렇게 죽어 있었고, 그래서 이음매를 태우는 테스트를 따로 뒀다
+       * (workers/src/proxy-contract.test.ts).
+       *
+       * 옛 워커는 이 칸을 아예 안 준다. 모르는 값을 「고발함」으로 읽으면 배포 순서가
+       * 어긋난 그 순간 AI가 아무렇게나 고발해 판이 끝난다 — 되돌릴 수 없는 쪽으로
+       * 틀리지 않게 «안 함»으로 닫는다.
+       */
+      accuseNow: payload['accuseNow'] === true,
     }
   }
 
@@ -221,7 +245,17 @@ export function createLlmDecider(
   }
 
   return {
-    chooseSuggestion: async (view) => decide(await ask('suggest', view), toSuggestion),
+    /*
+     * 제안과 조기 고발이 한 답에서 나온다. 고발하겠다면 **방금 지목한 그 세 장**이
+     * 곧 고발이다 — 따로 고르게 하면 칸이 셋 더 늘고 그만큼 응답이 흔들린다.
+     *
+     * 판정은 하지 않는다. 맞고 틀림은 엔진의 accuseEarly가 정한다(작업 규칙 2).
+     */
+    chooseSuggestion: async (view) => {
+      const spoken = await ask('suggest', view)
+      const decided = decide(spoken, toSuggestion)
+      return { ...decided, accuse: spoken.accuseNow ? decided.value : null }
+    },
     chooseClaim: async (view) => decide(await ask('refute', view), toClaim),
     chooseChallengeTarget: async (view) => decide(await ask('challenge', view), toTarget),
     chooseAccusation: async (view) => decide(await ask('accuse', view), toSuggestion),

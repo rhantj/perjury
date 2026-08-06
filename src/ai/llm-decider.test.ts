@@ -312,3 +312,62 @@ describe('createLlmDecider — 능력', () => {
     expect((await decider.chooseClaim(viewOf())).power).toBeNull()
   })
 })
+
+describe('조기 고발 의사 파싱 (3-C-2b)', () => {
+  const TRIPLE = { suspect: 's2', weapon: 'w3', place: 'p2' }
+
+  /**
+   * 워커 응답에 accuseNow를 얹은 대역.
+   *
+   * **워커는 불리언으로 보낸다**(workers/src/llm.ts가 "yes"/"no"를 여기서 이미 바꾼다).
+   * 그 계약 자체는 이 파일이 아니라 workers/src/proxy-contract.test.ts가 지킨다.
+   */
+  function withAccuseNow(accuseNow: unknown) {
+    return {
+      ok: true,
+      json: async () => ({
+        ok: true,
+        kind: 'suggest',
+        decision: TRIPLE,
+        line: '이 셋이오',
+        accuseNow,
+        budget: { remaining: 9 },
+      }),
+    } as unknown as Response
+  }
+
+  /* 고발은 «따로 고른 세 장»이 아니라 방금 지목한 그 세 장이다. 칸을 늘리지 않으려고 그렇게 뒀다. */
+  it('참이면 지목한 세 장이 그대로 고발이 된다', async () => {
+    fetchMock.mockResolvedValue(withAccuseNow(true))
+
+    const spoken = await createLlmDecider().chooseSuggestion(viewOf())
+
+    expect(spoken.accuse).toEqual(TRIPLE)
+    expect(spoken.value).toEqual(TRIPLE)
+  })
+
+  it('거짓이면 고발하지 않는다', async () => {
+    fetchMock.mockResolvedValue(withAccuseNow(false))
+
+    expect((await createLlmDecider().chooseSuggestion(viewOf())).accuse).toBeNull()
+  })
+
+  /*
+   * 옛 워커는 이 칸을 아예 안 준다. 없는 것을 「고발함」으로 읽으면 배포 순서가 어긋난
+   * 그 순간 AI가 무작위로 고발해 판이 끝난다 — 모르는 값은 «안 함»으로 읽는다.
+   */
+  it('칸이 없거나 모르는 값이면 고발하지 않는다', async () => {
+    /* 문자열 'yes'가 여기 있는 것이 핵심이다 — 워커는 불리언으로 바꿔 보낸다(proxy-contract.test.ts). */
+    for (const value of [undefined, null, 'maybe', 'yes', 1]) {
+      fetchMock.mockResolvedValue(withAccuseNow(value))
+      expect((await createLlmDecider().chooseSuggestion(viewOf())).accuse).toBeNull()
+    }
+  })
+
+  /** 최종 고발은 이 필드를 쓰지 않는다. 그 자체가 이미 고발이다. */
+  it('최종 고발 응답에 accuseNow가 섞여 와도 무시한다', async () => {
+    fetchMock.mockResolvedValue(withAccuseNow('yes'))
+
+    expect((await createLlmDecider().chooseAccusation(viewOf())).accuse).toBeUndefined()
+  })
+})

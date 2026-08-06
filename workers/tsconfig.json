@@ -4,5 +4,10 @@
     "lib": ["ES2022"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  // 계약 테스트만 뺀다. 그 파일이 프론트를 부르느라 vite/client를 끌어오는데,
+  // 그 참조는 **프로그램 전체**에 퍼져 워커 런타임 코드의 import.meta.env 오용까지
+  // 통과시킨다. 배포 사고를 잡으라고 만든 검사(worker:typecheck)의 구멍이 되므로
+  // 프로그램을 나눈다 — 이쪽은 운영 코드만 엄격하게 본다.
+  "exclude": ["src/proxy-contract.test.ts"]
 }

@@ -208,6 +208,7 @@ export default {
           line: result.line,
           usePowerOn: result.usePowerOn,
           truthful: result.truthful,
+          accuseNow: result.accuseNow,
           budget: { remaining: verdict.remaining },
         },
         200,

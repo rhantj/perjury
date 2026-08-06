@@ -241,7 +241,22 @@ function taskBlock(kind: DecideKind, view: GameView, ask: string | null, label: 
 
   switch (kind) {
     case 'suggest':
-      return '[할 일] 네 차례다. 용의자·수단·장소를 한 장씩 지목해 제안하라.'
+      /*
+       * 조기 고발을 제안과 같은 답에 얹는다(룰 개편 §2-6, 3-C-2b). 고른 세 장을 그대로
+       * 고발로 쓰므로 칸이 하나만 는다 — 별도 호출도, 별도 카드 선택도 만들지 않는다.
+       *
+       * **범인에게는 이 문장을 주지 않는다.** 범인이 외치면 엔진이 자백으로 읽어 시민
+       * 승으로 닫는다(결정 011 §2). 시야에 solution이 채워진 쪽이 범인이다(engine/view.ts).
+       */
+      if (view.solution) return '[할 일] 네 차례다. 용의자·수단·장소를 한 장씩 지목해 제안하라.'
+      return [
+        '[할 일] 네 차례다. 용의자·수단·장소를 한 장씩 지목하라.',
+        '',
+        '세 장 모두를 확신한다면 accuseNow를 "yes"로 하라 — 지목한 그 세 장이 곧 고발이 된다.',
+        '맞으면 그 자리에서 판이 끝나고 시민이 이긴다.',
+        '틀리면 **너만 탈락한다.** 제안·고발·밀담·능력을 잃고 반증만 계속하게 된다.',
+        '확신이 없으면 "no"로 두고 평소대로 제안하라 — 서두를 이유는 없다.',
+      ].join('\n')
     case 'refute':
       return `[할 일] 이번 제안은 ${current}다. 반증 선언을 내라.`
     case 'challenge':
@@ -365,12 +380,26 @@ export function schemaFor(
 
   switch (kind) {
     case 'suggest':
-    case 'accuse':
-      return object(['suspect', 'weapon', 'place', 'line'], {
+    case 'accuse': {
+      const triple = {
         suspect: { type: 'string', enum: CARDS.filter((c) => c.kind === 'suspect').map((c) => c.id) },
         weapon: { type: 'string', enum: CARDS.filter((c) => c.kind === 'weapon').map((c) => c.id) },
         place: { type: 'string', enum: CARDS.filter((c) => c.kind === 'place').map((c) => c.id) },
+      }
+      /*
+       * 조기 고발은 «제안»에서만, 그리고 «시민»에게만 연다(3-C-2b).
+       *   최종 고발(accuse) — 이미 고발이다. 또 열면 같은 행동이 두 갈래로 갈린다
+       *   범인             — 외치면 자백이 되어 시민이 이긴다(결정 011 §2)
+       *
+       * usePowerOn과 같은 모양으로 «필수 + 빠져나갈 문»으로 둔다. 선택 필드로 두면
+       * 모델이 조용히 생략해 「고발 안 함」과 「대답 안 함」이 구분되지 않는다.
+       */
+      if (kind === 'accuse' || view.solution) return object(['suspect', 'weapon', 'place', 'line'], triple)
+      return object(['suspect', 'weapon', 'place', 'line', 'accuseNow'], {
+        ...triple,
+        accuseNow: { type: 'string', enum: ['yes', 'no'] },
       })
+    }
     case 'refute':
       return object(['kind', 'cardId', 'line'], {
         kind: { type: 'string', enum: ['refute', 'pass'] },

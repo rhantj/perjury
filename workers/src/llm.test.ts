@@ -175,3 +175,35 @@ describe('decide — 응답 읽기', () => {
     if (!result.ok) expect(result.detail).not.toContain('sk-ant')
   })
 })
+
+describe('decide — 조기 고발 의사를 프론트로 넘긴다 (3-C-2b)', () => {
+  const TRIPLE = { suspect: 's2', weapon: 'w3', place: 'p2', line: '이 셋이오' }
+
+  it('"yes"를 그대로 싣는다', async () => {
+    fetchMock.mockResolvedValue(reply([jsonBlock({ ...TRIPLE, accuseNow: 'yes' })]))
+
+    const result = await decide(config, 'suggest', viewOf())
+
+    expect(result.ok && result.accuseNow).toBe(true)
+  })
+
+  it('"no"면 거짓으로 싣는다', async () => {
+    fetchMock.mockResolvedValue(reply([jsonBlock({ ...TRIPLE, accuseNow: 'no' })]))
+
+    const result = await decide(config, 'suggest', viewOf())
+
+    expect(result.ok && result.accuseNow).toBe(false)
+  })
+
+  /*
+   * 범인 시야와 최종 고발에는 이 칸이 아예 안 열린다(prompt.ts). 모델이 그래도 얹어 보내거나
+   * 아예 빠뜨릴 수 있으므로, 「yes가 아니면 안 함」으로 닫는다 — 되돌릴 수 없는 쪽이다.
+   */
+  it('칸이 없으면 안 하는 것으로 읽는다', async () => {
+    fetchMock.mockResolvedValue(reply([jsonBlock(TRIPLE)]))
+
+    const result = await decide(config, 'suggest', viewOf())
+
+    expect(result.ok && result.accuseNow).toBe(false)
+  })
+})
