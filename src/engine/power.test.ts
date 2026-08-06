@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createGame } from './setup'
 import { buildPowerUse, findingsFor, usableIn, usePower } from './power'
-import { declareAll } from './round'
+import { declareAll, suggest as suggestDrawn } from './round'
 import { suggestAll as suggest } from './testing'
 import { skipChallenge } from './challenge'
 import { nextRound } from './progress'
@@ -194,8 +194,12 @@ describe('verify-claim — 순사', () => {
     expect(declared.pending).toHaveLength(0)
   })
 
-  /** 제안자는 선언하지 않는다. 볼 것이 없으므로 능력은 답 없이 소진된다. */
-  it('선언하지 않는 사람을 지목하면 답 없이 끝난다', () => {
+  /*
+   * 제안자는 선언하지 않는다. 이때 능력을 거두면 판당 1회짜리가 답 없이 증발한다 —
+   * 추첨제에서는 지목한 상대가 안 뽑힐 확률이 3/5라 이 증발이 흔해진다.
+   * 그래서 겨눈 라운드가 지나도 대상이 말할 때까지 기다린다.
+   */
+  it('지목한 사람이 선언하지 않으면 답을 기다린다', () => {
     const state = afterSuggest(game())
     const record = state.rounds[0]
     if (!record) throw new Error('라운드가 없다')
@@ -209,8 +213,38 @@ describe('verify-claim — 순사', () => {
     const declared = declareAll(armed, allPass(armed))
 
     expect(findingsFor(declared, me.id)).toHaveLength(0)
-    expect(declared.pending).toHaveLength(0)
+    expect(declared.pending).toHaveLength(1)
+    // 기다리는 동안에도 능력은 쓴 것이다. 여기가 풀리면 대기 중에 재발동할 수 있게 된다.
     expect(declared.powersUsed).toContain(me.id)
+  })
+
+  it('대상이 말하는 라운드가 오면 그때 통보받는다', () => {
+    // 좌석0이 1라운드 제안자다. 지목해 두면 자기 차례가 지난 2라운드에 선언하게 된다.
+    const first = afterSuggest(game())
+    const me = idOf(first, 1)
+    const target = idOf(first, 0)
+
+    const armed = usePower(first, me, { kind: 'verify-claim', targetId: target })
+    const waiting = declareAll(armed, allPass(armed))
+    const second = afterSuggest(nextRound(skipChallenge(waiting)))
+    const done = declareAll(second, allPass(second))
+
+    const grant = findingsFor(done, me)[0]
+    if (grant?.finding.kind !== 'claim') throw new Error('finding 종류가 다르다')
+    expect(grant.finding.targetId).toBe(target)
+    expect(done.pending).toHaveLength(0)
+  })
+
+  /** 「언제 알았나」는 지목한 라운드가 아니라 답이 나온 라운드다. 프롬프트가 이 값을 읽는다. */
+  it('알게 된 라운드는 답이 나온 라운드로 남는다', () => {
+    const first = afterSuggest(game())
+    const me = idOf(first, 1)
+
+    const armed = usePower(first, me, { kind: 'verify-claim', targetId: idOf(first, 0) })
+    const second = afterSuggest(nextRound(skipChallenge(declareAll(armed, allPass(armed)))))
+    const done = declareAll(second, allPass(second))
+
+    expect(findingsFor(done, me)[0]?.round).toBe(2)
   })
 })
 
@@ -218,6 +252,38 @@ describe('verify-claim — 순사', () => {
 function withHands(state: GameState, hands: readonly (readonly string[])[]): GameState {
   return { ...state, players: state.players.map((p, i) => ({ ...p, hand: hands[i] ?? [] })) }
 }
+
+/*
+ * 이 대기가 만들어진 진짜 이유다. 추첨은 다섯 중 둘만 뽑으므로 지목한 상대가 빠질 확률이
+ * 3/5다. 그 라운드에 거두면 판당 1회짜리 능력이 답 없이 증발한다.
+ *
+ * 위 테스트들과 달리 «진짜» suggest를 쓴다 — 추첨을 끄면 검증할 상황 자체가 생기지 않는다.
+ */
+describe('verify-claim — 추첨에서 빠진 좌석', () => {
+  it('뽑히지 않은 사람을 지목하면 답을 기다린다', () => {
+    const base = game()
+    const suggester = base.players[base.turnIndex]
+    if (!suggester) throw new Error('제안자가 없다')
+    const state = suggestDrawn(base, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const record = state.rounds[0]
+    if (!record) throw new Error('라운드가 없다')
+
+    const missed = state.players.find(
+      (p) => p.id !== record.suggesterId && !record.responderIds.includes(p.id),
+    )
+    const owner = state.players.find((p) => p.id !== record.suggesterId && p.id !== missed?.id)
+    if (!missed || !owner) throw new Error('좌석이 모자란다')
+
+    const armed = usePower(state, owner.id, { kind: 'verify-claim', targetId: missed.id })
+    const drawnPass = new Map<PlayerId, Claim>(
+      record.responderIds.map((id) => [id, { kind: 'pass' } as Claim]),
+    )
+    const declared = declareAll(armed, drawnPass)
+
+    expect(findingsFor(declared, owner.id)).toHaveLength(0)
+    expect(declared.pending).toHaveLength(1)
+  })
+})
 
 describe('verify-claim — 진위 양쪽과 때늦은 지목', () => {
   it('제안 카드를 쥐고도 침묵하면 거짓으로 통보된다', () => {
@@ -247,9 +313,9 @@ describe('verify-claim — 진위 양쪽과 때늦은 지목', () => {
     expect(grant.finding.truthful).toBe(true)
   })
 
-  /**
-   * 선언이 끝난 뒤 지목하면 답을 낼 기회가 이미 지났다.
-   * 막지 않으면 pending에 영원히 남아 능력만 조용히 타 없어진다.
+  /*
+   * 선언을 다 듣고 지목하면 「참인지 알려달라」가 아니라 「거짓말한 놈을 짚어달라」가 된다.
+   * 대기가 생긴 뒤로는 늦게 지목해도 다음 라운드에 회수되므로, 이 가드는 밸런스로만 남는다.
    */
   it('선언이 끝난 뒤에는 지목할 수 없다', () => {
     const state = afterSuggest(game())
@@ -323,6 +389,31 @@ describe('photograph — 사진사', () => {
     const done = declareAll(second, allPass(second))
 
     expect(done.rounds[1]?.exposed).toEqual([])
+    expect(done.pending).toHaveLength(0)
+  })
+
+  /*
+   * 찍힌 사람이 다음 라운드의 제안자면 선언할 기회가 없다. 그 한 라운드로 필름을
+   * 태워버리면 촬영이 억지력이 아니라 복권이 된다 — 말할 때까지 들고 있는다.
+   */
+  it('찍힌 사람이 말하지 않은 라운드는 넘기고 기다린다', () => {
+    // 좌석1은 2라운드 제안자다. 그 라운드에는 선언하지 않고, w1을 쥔 채 3라운드에 침묵한다.
+    const base = withHands(game(), [[], ['w1'], [], [], [], []])
+    const first = afterSuggest(base)
+    const armed = usePower(first, idOf(first, 2), {
+      kind: 'photograph',
+      targetId: idOf(first, 1),
+    })
+
+    const second = afterSuggest(nextRound(skipChallenge(declareAll(armed, allPass(armed)))))
+    const skipped = declareAll(second, allPass(second))
+    expect(skipped.rounds[1]?.exposed).toEqual([])
+    expect(skipped.pending).toHaveLength(1)
+
+    const third = afterSuggest(nextRound(skipChallenge(skipped)))
+    const done = declareAll(third, allPass(third))
+
+    expect(done.rounds[2]?.exposed).toEqual([idOf(done, 1)])
     expect(done.pending).toHaveLength(0)
   })
 
@@ -412,5 +503,31 @@ describe('publish — 신문기자', () => {
     expect(() =>
       usePower(second, idOf(second, 1), { kind: 'publish', targetId: record.suggesterId }),
     ).toThrow()
+  })
+})
+
+describe('탈락자는 능력을 쓰지 않는다', () => {
+  it('탈락한 사람은 능력을 발동할 수 없다', () => {
+    const state = game()
+    const me = idOf(state, 0)
+    const fallen: GameState = { ...state, eliminated: [me] }
+
+    expect(() => usePower(fallen, me, { kind: 'inspect-hand', targetId: idOf(state, 1) })).toThrow()
+  })
+
+  /*
+   * 탈락자도 «선언»은 계속하므로, 선언에 걸리는 능력의 대상으로는 유효하다.
+   *
+   * 손패를 직접 캐는 검시관(inspect-hand)까지 열어둘지는 아직 안 정했다 — 그건
+   * 결정 011이 탈락자에게 밀담을 막은 근거(「틀려도 정보원이 하나 생긴다」)와 같은 문이다.
+   * 그래서 여기서는 논란 없는 쪽만 못 박는다.
+   */
+  it('탈락자를 선언 관련 능력의 대상으로 삼는 것은 막지 않는다', () => {
+    const state = afterSuggest(game())
+    const fallen: GameState = { ...state, eliminated: [idOf(state, 1)] }
+
+    expect(
+      usePower(fallen, idOf(state, 2), { kind: 'verify-claim', targetId: idOf(state, 1) }).pending,
+    ).toHaveLength(1)
   })
 })

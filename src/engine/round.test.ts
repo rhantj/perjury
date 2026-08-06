@@ -533,3 +533,17 @@ describe('frame — 협잡꾼의 조작', () => {
     expect(mine?.claim).toEqual({ kind: 'refute', cardId: 'p1' })
   })
 })
+
+describe('탈락자는 제안하지 않는다', () => {
+  /*
+   * 정상 경로에서는 nextRound가 탈락자를 건너뛰므로 여기 닿지 않는다. 그래도 엔진이 막는다 —
+   * 차례 계산이 다른 파일(progress.ts)에 있어서, 화면이나 AI가 그것을 잘못 흉내내면
+   * 탈락자가 제안을 통과시킨다(작업 규칙 2).
+   */
+  it('탈락한 사람이 자기 차례여도 제안할 수 없다', () => {
+    const base = withHands([[], [], [], [], [], []])
+    const fallen: GameState = { ...base, turnIndex: 1, eliminated: ['p1'] }
+
+    expect(() => suggest(fallen, 'p1', SUGGESTION)).toThrow()
+  })
+})

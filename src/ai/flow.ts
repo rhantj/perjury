@@ -33,6 +33,12 @@ function lastRound(state: GameState) {
  */
 export function needsHuman(state: GameState): boolean {
   const human = humanOf(state)
+  /*
+   * 조기 고발에 실패해 탈락하면 고발·이의제기·밀담·능력을 잃는다(룰 개편 §2-5).
+   * 여기서 빼지 않으면 화면이 버튼을 그리고, 누르면 엔진이 던져 그 페이즈에 갇힌다.
+   * **반증만은 그대로 한다** — 탈락자는 「말 없는 카드 보관함」이지 자리를 뜨는 것이 아니다.
+   */
+  const out = state.eliminated.includes(human.id)
 
   switch (state.phase) {
     case 'suggest':
@@ -44,12 +50,12 @@ export function needsHuman(state: GameState): boolean {
        */
       return lastRound(state).responderIds.includes(human.id)
     case 'challenge':
-      return true
+      return !out
     case 'accuse':
-      return human.faction === 'citizen'
+      return human.faction === 'citizen' && !out
     case 'whisper':
       // 밀담은 언제나 사람이 건다. 건너뛰더라도 «건너뛴다»는 결정을 사람이 한다(설계 §2).
-      return true
+      return !out
     case 'over':
       return false
   }
@@ -148,7 +154,10 @@ async function offerChallenge(
   decider: Decider,
   except: PlayerId | null,
 ): Promise<GameState> {
-  const askable = state.players.filter((player) => player.id !== except)
+  // 탈락자는 이의제기를 잃었다(룰 개편 §2-5). 물어봐야 엔진이 버리므로 판단자를 부르지 않는다.
+  const askable = state.players.filter(
+    (player) => player.id !== except && !state.eliminated.includes(player.id),
+  )
   const answers = await Promise.all(
     askable.map(async (player) => ({
       player,
@@ -179,9 +188,13 @@ async function offerChallenge(
  * 판단 전이보다 **먼저** 부른다. 남의 선언을 건드리는 능력(협잡꾼)이 선언 기록에
  * 반영되려면 declareAll이 도는 시점에 이미 상태에 들어와 있어야 한다.
  *
- * **제안·반증에서만 걷는다.** 제안자는 chooseSuggestion을, 나머지는 chooseClaim을 정확히
- * 한 번씩 부르므로 이 둘이면 매 라운드 전원이 한 번씩 물어보게 된다. 이의제기·고발에서
- * 또 걷으면 같은 사람에게 두 번 묻는 셈이고, 프롬프트도 그만큼 길어진다.
+ * **제안·반증에서만 걷는다.** 제안자는 chooseSuggestion을, 추첨된 좌석은 chooseClaim을
+ * 정확히 한 번씩 부르므로 이 둘이면 그 라운드에 말하는 사람 전원을 한 번씩 훑게 된다.
+ * 이의제기·고발에서 또 걷으면 같은 사람에게 두 번 묻는 셈이고, 프롬프트도 그만큼 길어진다.
+ *
+ * 추첨이 들어온 뒤로는 한 라운드에 물어보는 것이 제안자 1 + 뽑힌 2 = **6명 중 3명**이다.
+ * 나머지 셋은 그 라운드에 능력을 쓸 기회가 없다 — 능력 대기(engine/power.ts)가 필요한
+ * 이유가 여기서도 나온다.
  */
 function withPowers(
   state: GameState,
@@ -239,12 +252,20 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
       return skipParley(state)
     case 'accuse': {
       const human = humanOf(state)
-      if (human.faction === 'citizen') {
+      if (human.faction === 'citizen' && !state.eliminated.includes(human.id)) {
         // 사람 자리를 AI가 대신 두는 경로(autoPlay)다. 사람의 고발에는 대사가 없다.
         const spoken = await decider.chooseAccusation(viewFor(state, human.id))
         return accuse(state, spoken.value, human.id)
       }
-      const citizens = state.players.filter((p) => !p.isHuman && p.faction === 'citizen')
+      /*
+       * 탈락자는 고발권이 없으므로 합의에서도 뺀다. 엔진(accuseByCouncil)이 같은 기준으로
+       * 인원을 세므로, 여기서 안 빼면 「전원이 투표해야 한다」에 걸려 판이 닫히지 않는다.
+       *
+       * 사람이 시민인데 탈락한 판도 이 경로로 온다 — 그때 판을 닫는 것은 남은 AI 시민들이다.
+       */
+      const citizens = state.players.filter(
+        (p) => !p.isHuman && p.faction === 'citizen' && !state.eliminated.includes(p.id),
+      )
       const votes: Vote[] = await Promise.all(
         citizens.map(async (p) => {
           const spoken = await decider.chooseAccusation(viewFor(state, p.id))

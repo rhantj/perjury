@@ -97,9 +97,15 @@ export interface PowerTiming {
 /**
  * 지금 써도 되는 능력인가.
  *
- * 답이 «나중»에 나오는 능력은 그 나중이 남아 있어야 쓸 수 있다. 때를 놓치고 쓰면
- * 소진만 되고 답은 영영 오지 않는다. 화면에서 막을 수도 있지만 이건 룰이므로
- * 엔진이 막는다 — 화면 버그가 능력을 조용히 태워 없애면 안 된다(작업 규칙 2).
+ * 막는 이유가 둘이고, 능력마다 다르다.
+ *   답이 나올 «나중»이 없다 — 마지막 라운드의 촬영, 첫 라운드의 신문.
+ *     쓰면 소진만 되고 답은 영영 오지 않는다.
+ *   지목이 선언보다 앞서야 한다 — 순사.
+ *     선언을 다 듣고 지목하면 「참인지 알려달라」가 아니라 「거짓말한 놈을 짚어달라」가 된다.
+ *     대기가 생긴 뒤로는 회수 자체는 가능하므로, 이 가드는 밸런스로만 남는다.
+ *
+ * 화면에서 막을 수도 있지만 이건 룰이므로 엔진이 막는다 —
+ * 화면 버그가 능력을 조용히 태워 없애면 안 된다(작업 규칙 2).
  */
 export function usableIn(kind: PowerUse['kind'], at: PowerTiming): boolean {
   switch (kind) {
@@ -185,6 +191,8 @@ export function usePower(state: GameState, playerId: PlayerId, use: PowerUse): G
    * **끝난 판만 예외다.** 여기서 막지 않으면 결과 화면에서 능력을 태워 없앨 수 있다.
    */
   if (state.phase === 'over') throw new Error('끝난 판에서는 능력을 쓸 수 없다')
+  // 탈락자는 능력을 잃는다(룰 개편 §2-5). 지목 «대상»으로는 여전히 유효하다 — 반증은 계속하므로.
+  if (state.eliminated.includes(playerId)) throw new Error(`탈락자는 능력을 쓸 수 없다: ${playerId}`)
   if (!usableIn(use.kind, state)) throw new Error(`지금은 쓸 수 없는 능력이다: ${state.phase}`)
   if (state.powersUsed.includes(playerId)) throw new Error('능력은 한 판에 한 번뿐이다')
 
@@ -258,57 +266,67 @@ export function buildPowerUse(effect: PowerUse['kind'], intent: PowerIntent): Po
 }
 
 /**
+ * 이 지목이 지금 «누구의 선언»을 기다리고 있는가. 기다릴 때가 아직 아니면 null.
+ *
+ * 겨누기 시작하는 라운드가 능력마다 다르다.
+ *   verify-claim(순사) — 지목한 그 라운드부터
+ *   photograph(사진사) — 지목한 «다음» 라운드부터
+ *
+ * 시점이 아니라 «구간»인 것이 핵심이다. 그 라운드 하나만 보면 대상이 선언하지 않은 라운드에
+ * 걸렸을 때 판당 1회짜리 능력이 답 없이 증발한다 — 추첨제에서는 대상이 안 뽑힐 확률이
+ * 3/5라 증발이 예외가 아니라 기본이 된다.
+ */
+function watchedTarget(p: PendingPower, round: number): PlayerId | null {
+  if (p.use.kind === 'verify-claim' && p.round <= round) return p.use.targetId
+  if (p.use.kind === 'photograph' && p.round < round) return p.use.targetId
+  return null
+}
+
+/**
  * 선언이 확정된 뒤에야 답이 나오는 지목을 푼다. `declareAll`이 마지막에 부른다.
  *
  * 순사가 여기 걸린다 — 지목은 선언 «전»에 하고 답은 선언 «후»에 나온다.
- * 이번 라운드 것만 본다. 답을 낼 기회는 이 한 번뿐이라, 지목한 상대가 선언하지 않았으면
- * (제안자를 지목한 경우다) 답 없이 소진된다.
+ * 지목한 상대가 이번 라운드에 선언하지 않았으면 거두지 않고 **다음 라운드로 넘긴다.**
+ * 판이 끝날 때까지 대상이 한 번도 말하지 않으면 그때는 답 없이 남는다.
  */
 export function resolveAfterDeclare(
   state: GameState,
   declarations: readonly Declaration[],
 ): GameState {
-  /*
-   * 겨누는 라운드가 능력마다 다르다.
-   *   verify-claim(순사) — 지목한 그 라운드의 선언
-   *   photograph(사진사) — 지목한 «다음» 라운드의 선언
-   * 어느 쪽이든 기회는 한 번뿐이라, 때가 지나면 답이 없어도 거둔다.
-   */
-  const ripe = (p: PendingPower) =>
-    (p.use.kind === 'verify-claim' && p.round === state.round) ||
-    (p.use.kind === 'photograph' && p.round === state.round - 1)
-  if (!state.pending.some(ripe)) return state
+  const said = new Map(declarations.map((d) => [d.playerId, d]))
+
+  const ripe: { readonly pending: PendingPower; readonly declaration: Declaration }[] = []
+  for (const pending of state.pending) {
+    const targetId = watchedTarget(pending, state.round)
+    if (targetId === null) continue
+    const declaration = said.get(targetId)
+    if (!declaration) continue
+    ripe.push({ pending, declaration })
+  }
+  if (ripe.length === 0) return state
 
   const grants: Grant[] = []
   const exposed: PlayerId[] = []
 
-  for (const p of state.pending) {
-    // p.use를 꺼내 둬야 유니온이 좁혀진다 — 중첩 속성은 좁힘이 유지되지 않는다.
-    const use = p.use
-    if (!ripe(p)) continue
-
-    if (use.kind === 'verify-claim') {
-      const declaration = declarations.find((d) => d.playerId === use.targetId)
-      if (!declaration) continue
+  for (const { pending, declaration } of ripe) {
+    if (pending.use.kind === 'verify-claim') {
       grants.push({
-        round: p.round,
-        ownerId: p.ownerId,
+        // 지목한 라운드가 아니라 답이 나온 라운드다. Grant.round는 「언제 알았나」이므로.
+        round: state.round,
+        ownerId: pending.ownerId,
         finding: { kind: 'claim', targetId: declaration.playerId, truthful: !declaration.isPerjury },
       })
       continue
     }
-
-    if (use.kind === 'photograph') {
-      const declaration = declarations.find((d) => d.playerId === use.targetId)
-      if (declaration?.isPerjury) exposed.push(declaration.playerId)
-    }
+    if (declaration.isPerjury) exposed.push(declaration.playerId)
   }
 
+  const settled = new Set(ripe.map((r) => r.pending))
   const record = state.rounds[state.rounds.length - 1]
   return {
     ...state,
     grants: [...state.grants, ...grants],
-    pending: state.pending.filter((p) => !ripe(p)),
+    pending: state.pending.filter((p) => !settled.has(p)),
     rounds:
       record && exposed.length > 0
         ? [...state.rounds.slice(0, -1), { ...record, exposed: [...record.exposed, ...exposed] }]
