@@ -1015,16 +1015,33 @@
   font-size: 0.82em;
   opacity: 0.7;
 }
+/*
+ * 좌석 대사는 한 필체로 묶는다 — 고정 문구(say)든 LLM이 쓴 줄(line)든 «남이 하는 말»이다.
+ * 예전에는 둘이 크기·기울기·색이 달라서, 같은 좌석이 라운드마다 다른 글씨로 말하는 것처럼
+ * 보였다. 폴백으로 떨어지는 순간 그 차이가 화면에 그대로 드러난다.
+ */
 .seat__say {
-  font-size: 0.94rem;
-  line-height: 1.55;
-  color: oklch(92% 0.015 70);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: oklch(80% 0.035 75);
   text-shadow: 0 1px 6px oklch(4% 0.01 250 / 0.8);
   /* 발언이 바뀔 때마다(Table.tsx의 key) 새로 마운트돼 이 애니메이션이 다시 돈다. */
   animation: seat-say-in var(--duration-fast) var(--ease-out-expo);
 }
 .seat__say--mute {
   color: oklch(68% 0.01 80);
+}
+/*
+ * 제안자만 갈라 둔다. 이 라운드를 연 사람이고 나머지 다섯은 그 말에 답하는 자리라,
+ * 같은 굵기로 놓으면 누가 물었고 누가 답했는지가 안 보인다. 기울이지 않고 한 급 밝게.
+ */
+.seat--suggester .seat__say,
+.seat--suggester .seat__line {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  font-style: normal;
+  color: oklch(93% 0.02 70);
 }
 /*
  * 폴백 표시. 눈에 띄되 판을 가리지 않는다 — 이건 오류가 아니라 «지금 누가 판단하고 있는가»다.
