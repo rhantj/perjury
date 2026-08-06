@@ -57,6 +57,9 @@ function frameClaim(
 ): Claim {
   if (claim.kind !== 'refute') return claim
   const others = suggestedCards(record.suggestion).filter((id) => id !== claim.cardId)
+  // 지금은 닿지 않는다 — 제안 3장은 종류가 달라 ID가 겹치지 않고(cards.ts), 반증 카드는
+  // 그 3장 안으로 강제되므로 others는 늘 2장이다. 이 전제가 깨지면 아래 spent()가
+  // 「조작 못 했는데 소모」로 어긋나므로, 카드 체계를 바꿀 때 여기를 함께 본다.
   if (!others[0]) return claim
   // 대상을 시드에 넣는다. 지금은 한 판에 협잡꾼도 대상도 하나뿐이라 없어도 되지만,
   // 그 전제가 코드에 적혀 있지 않다. 이의제기(challenge.ts)가 이미 같은 이유로 양쪽을 넣는다.
