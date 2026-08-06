@@ -67,6 +67,22 @@ function countLies(view: GameView): Liar[] {
 }
 
 /**
+ * 시드를 사건 번호로 옮긴다.
+ *
+ * 시드를 그대로 찍었더니 「判 第ci2pwe號」가 나왔다. 36진수 난수라 글자가 섞여
+ * 사건 번호로 읽히지 않고 내부값이 새어 나온 것처럼 보인다. 숫자 넷으로 접으면
+ * 조서철에 붙은 번호처럼 읽힌다.
+ *
+ * **순수 함수다.** 같은 판은 언제 그려도 같은 번호를 낸다 — 판결문을 다시 열 때마다
+ * 번호가 바뀌면 그건 사건 번호가 아니다. 시드 원문은 title로 남겨 재현에 쓴다.
+ */
+function caseNumber(seed: string): string {
+  let n = 0
+  for (const ch of seed) n = (n * 31 + ch.charCodeAt(0)) % 10000
+  return String(n).padStart(4, '0')
+}
+
+/**
  * 판결문. 12~15분을 굴린 판이 한 줄로 끝나면 아무것도 남지 않는다 —
  * 진범이 누구였고 누가 몇 번 거짓말했는지가 여기서 처음 드러난다.
  */
@@ -189,7 +205,9 @@ export default function Verdict({ view, scenario, seed, onRestart }: Props) {
           <button type="button" className="btn btn--go" onClick={onRestart}>
             새 판
           </button>
-          <span className="verdict__seed">判 第{seed}號</span>
+          <span className="verdict__seed" title={`시드 ${seed}`}>
+            判 第{caseNumber(seed)}號
+          </span>
           <span className="verdict__seal" aria-hidden="true">
             檢
           </span>
