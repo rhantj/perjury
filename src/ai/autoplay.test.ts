@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createGame, REFUTER_COUNT } from '../engine/setup'
+import { DEFAULT_ROUNDS, createGame, REFUTER_COUNT } from '../engine/setup'
 import { autoPlay } from './autoplay'
 
 describe('autoPlay — LLM 없이 완주', () => {
@@ -11,10 +11,10 @@ describe('autoPlay — LLM 없이 완주', () => {
     expect(['citizen', 'culprit']).toContain(final.outcome?.winner)
   })
 
-  it('8라운드가 전부 기록된다', async () => {
+  it('전 라운드가 기록된다', async () => {
     const final = await autoPlay(createGame({ seed: 'auto-2' }))
 
-    expect(final.rounds).toHaveLength(8)
+    expect(final.rounds).toHaveLength(DEFAULT_ROUNDS)
     for (const round of final.rounds) {
       // 전원이 아니라 추첨으로 뽑힌 좌석만 선언한다.
       expect(round.responderIds).toHaveLength(REFUTER_COUNT)

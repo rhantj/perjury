@@ -3,7 +3,7 @@ import { challenge, skipChallenge } from './challenge'
 import { accuse, accuseByCouncil, accuseEarly, nextRound } from './progress'
 import { declareAll } from './round'
 import { suggestAll as suggest } from './testing'
-import { createGame } from './setup'
+import { DEFAULT_ROUNDS, createGame } from './setup'
 import type { CardId, Claim, GameState, PlayerId, Suggestion, Vote } from './types'
 
 const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
@@ -65,10 +65,10 @@ describe('nextRound — 라운드 진행', () => {
 
   it('마지막 라운드가 끝나면 최종 고발 페이즈가 된다', () => {
     let state = fresh()
-    for (let i = 0; i < 8; i += 1) state = nextRound(playRound(state))
+    for (let i = 0; i < DEFAULT_ROUNDS; i += 1) state = nextRound(playRound(state))
 
     expect(state.phase).toBe('accuse')
-    expect(state.round).toBe(8)
+    expect(state.round).toBe(DEFAULT_ROUNDS)
   })
 
   it('밀담 페이즈가 아니면 넘어갈 수 없다', () => {
@@ -86,7 +86,7 @@ describe('nextRound — 라운드 진행', () => {
 
 function ready(seed = 'accuse', humanSeat = 1): GameState {
   let state = fresh(seed, humanSeat)
-  for (let i = 0; i < 8; i += 1) state = nextRound(playRound(state))
+  for (let i = 0; i < DEFAULT_ROUNDS; i += 1) state = nextRound(playRound(state))
   return state
 }
 
@@ -218,12 +218,12 @@ describe('accuseByCouncil — AI 합의 고발 (플레이어가 범인일 때)',
 })
 
 describe('한 판 완주', () => {
-  it('LLM 없이 8라운드를 돌고 승패가 난다', () => {
+  it('LLM 없이 전 라운드를 돌고 승패가 난다', () => {
     let state = fresh('fullgame')
-    for (let i = 0; i < 8; i += 1) state = nextRound(playRound(state))
+    for (let i = 0; i < DEFAULT_ROUNDS; i += 1) state = nextRound(playRound(state))
     const final = accuse(state, state.solution, 'p1')
 
-    expect(final.rounds).toHaveLength(8)
+    expect(final.rounds).toHaveLength(DEFAULT_ROUNDS)
     expect(final.phase).toBe('over')
     expect(final.outcome?.winner).toBe('citizen')
   })

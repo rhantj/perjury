@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { assignRoles } from '../content/roles'
 import { declareAll } from '../engine/round'
 import { suggestAll as suggest } from '../engine/testing'
-import { createGame } from '../engine/setup'
+import { DEFAULT_ROUNDS, createGame } from '../engine/setup'
 import type { Claim, GameState, PlayerId, Suggestion } from '../engine/types'
 import type { Decider, DeciderForRound } from './decider'
 import { silent } from './decider'
@@ -20,6 +20,15 @@ function gameWhereHumanIs(faction: 'citizen' | 'culprit'): GameState {
 
 /** 테스트에서 판마다 필요한 Decider 팩토리. */
 const deciders = (game: GameState) => ruleDeciderForRound(game.seed)
+
+/**
+ * 판을 끝까지 돌리는 루프의 상한. **기대값이 아니라 폭주 방지선이다** —
+ * 무한루프에 빠지면 테스트가 멈추는 대신 여기서 끊고 단언이 실패하게 만든다.
+ *
+ * 한 라운드가 제안·반증·이의제기·밀담으로 여러 걸음을 먹으므로 회차보다 넉넉해야 한다.
+ * 리터럴로 박아 두면 라운드 수를 올릴 때마다 «판이 안 끝났다»로 조용히 깨진다.
+ */
+const MAX_STEPS = DEFAULT_ROUNDS * 8
 
 describe('needsHuman — 개입 지점', () => {
   it('내 차례의 제안은 사람이 한다', () => {
@@ -109,7 +118,7 @@ describe('advanceToHuman — AI 자동 진행', () => {
     let game = gameWhereHumanIs('culprit')
     const forRound = deciders(game)
 
-    for (let i = 0; i < 60 && game.phase !== 'over'; i += 1) {
+    for (let i = 0; i < MAX_STEPS && game.phase !== 'over'; i += 1) {
       game = await advanceToHuman(game, forRound)
       if (game.phase === 'over') break
       game = await stepAi(game, forRound(game.round)) // 사람 자리를 규칙 AI로 대신 둔다
@@ -123,7 +132,7 @@ describe('advanceToHuman — AI 자동 진행', () => {
     let game = gameWhereHumanIs('citizen')
     const forRound = deciders(game)
 
-    for (let i = 0; i < 60 && game.phase !== 'accuse'; i += 1) {
+    for (let i = 0; i < MAX_STEPS && game.phase !== 'accuse'; i += 1) {
       game = await advanceToHuman(game, forRound)
       if (game.phase === 'accuse') break
       game = await stepAi(game, forRound(game.round))
