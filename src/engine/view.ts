@@ -117,6 +117,14 @@ export interface GameView {
    * 그래서 «썼는가»를 따로 싣는다.
    */
   readonly powerSpent: boolean
+  /**
+   * 조기 고발에 실패해 탈락한 좌석. **전체 공개다** — 누가 헛다리를 짚었는지는 모두가 본다.
+   *
+   * 손패는 여기 실리지 않는다. 탈락자를 「말 없는 카드 보관함」으로 두는 것이 룰이라
+   * (룰 개편 §2-5, decisions/011) 까면 남은 사람들이 2장을 한꺼번에 알게 되어 판이 즉시 끝난다.
+   * 캐내는 길은 검시관과 이의제기뿐이고, 그 둘은 한 장씩만 연다.
+   */
+  readonly eliminated: readonly PlayerId[]
   /** 범인 진영만 안다. 시민이면 null. */
   readonly solution: Solution | null
   readonly outcome: OutcomeView | null
@@ -227,6 +235,7 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     rounds,
     findings: findingsFor(state, viewerId),
     powerSpent: state.powersUsed.includes(viewerId),
+    eliminated: state.eliminated,
     solution: viewer.faction === 'culprit' || over ? state.solution : null,
     outcome,
   }

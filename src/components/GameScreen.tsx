@@ -135,6 +135,14 @@ function cardArtFor(scenario: Scenario, id: CardId): string | undefined {
 export default function GameScreen() {
   const store = useGame()
   const [picked, setPicked] = useState<Picked>({})
+  /**
+   * 조기 고발을 «고르는 중»인가.
+   *
+   * 제안과 손가락이 겹치기 때문에 모드로 가른다 — 둘 다 카드 석 장을 고르는 일이라,
+   * 같은 화면에서 버튼만 둘로 두면 「제안 확정」과 「고발」을 잘못 누른 순간 판이 끝난다.
+   * 고발은 되돌릴 수 없으므로 «지금 고발을 고르는 중»이라는 상태가 화면에 남아야 한다.
+   */
+  const [accusing, setAccusing] = useState(false)
   const [seed, setSeed] = useState(newSeed)
   const [stage, setStage] = useState<Stage>('briefing')
   /** 브리핑에서 고른 사건. 카드 표시 이름과 좌석 직함이 여기서 나온다. */
@@ -407,7 +415,18 @@ export default function GameScreen() {
   // 이번 라운드에 이미 건 밀담 수. 회선이 둘인 좌석에서 패널을 다시 열 때 쓴다.
   const liveParleys = view.rounds[view.rounds.length - 1]?.parleys.length ?? 0
 
-  const picking = (view.phase === 'suggest' || view.phase === 'accuse') && myMove
+  /*
+   * 조기 고발은 «내 차례»를 기다리지 않는다 — 라운드 중간에 언제든 외칠 수 있다(룰 개편 §2-5).
+   * 막는 것은 셋뿐이다: 이미 탈락했거나, 판이 끝났거나, 최종 고발 페이즈이거나.
+   *
+   * 마지막이 중요하다. 거기서도 받으면 «같은 오답»이 부르는 함수에 따라
+   * 「판 종료·범인 승」과 「나만 탈락·판 계속」으로 갈려, 룰이 화면 배선에 따라 정해진다.
+   * 엔진도 같은 이유로 막는다(engine/progress.ts의 accuseEarly).
+   */
+  const iAmOut = view.eliminated.includes(view.viewerId)
+  const canAccuseEarly = !iAmOut && !view.outcome && view.phase !== 'accuse' && view.phase !== 'over'
+
+  const picking = ((view.phase === 'suggest' || view.phase === 'accuse') && myMove) || accusing
 
   /*
    * 추리표에서 강조할 석 장.
@@ -435,6 +454,18 @@ export default function GameScreen() {
    * draft도 없고 live도 없어 「아직 아무것도 오르지 않았다」로 떨어진다. LLM이 느릴수록
    * 그 빈 시간이 길어진다. 기다렸다 비우면 카드가 상에 놓인 채로 판정으로 이어진다.
    */
+  /*
+   * 조기 고발 확정. 모드를 «먼저» 닫는 이유는 이 한 번으로 판이 끝나거나(정답)
+   * 내가 빠지거나(오답) 하기 때문이다 — 응답을 기다리는 사이 다시 눌리면 안 된다.
+   */
+  const callEarly = async () => {
+    const accusation = toSuggestion(picked)
+    if (!accusation) return
+    setAccusing(false)
+    await store.accuseEarly(accusation)
+    setPicked({})
+  }
+
   const submit = async (action: (s: Suggestion) => Promise<void>) => {
     const suggestion = toSuggestion(picked)
     if (!suggestion) return
@@ -579,7 +610,53 @@ export default function GameScreen() {
 
         <footer className="actions">
           {store.error && <p className="actions__error">{store.error}</p>}
-          {view.outcome ? null : !myMove ? (
+          {/*
+            고발을 고르는 동안은 나머지 조작을 감춘다. 제안과 손가락이 겹치므로
+            두 확정 버튼이 한 화면에 같이 있으면 되돌릴 수 없는 쪽을 잘못 누른다.
+          */}
+          {accusing ? (
+            <div className="accuse-early">
+              <span className="accuse-early__ask" role="status">
+                정답 석 장을 짚으시오 — 틀리면 이 판에서 빠진다
+              </span>
+              <button
+                type="button"
+                className="btn btn--danger"
+                disabled={!toSuggestion(picked)}
+                onClick={callEarly}
+              >
+                고발한다
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => {
+                  setAccusing(false)
+                  setPicked({})
+                }}
+              >
+                무른다
+              </button>
+            </div>
+          ) : iAmOut ? (
+            /* 탈락자는 반증만 계속한다 — 제안·고발·밀담·능력을 잃는다(룰 개편 §2-5). */
+            <p className="actions__waiting" role="status">
+              판에서 빠졌다 — 반증만 이어 간다
+            </p>
+          ) : null}
+          {!accusing && canAccuseEarly && (
+            <button
+              type="button"
+              className="btn btn--ghost accuse-early__open"
+              onClick={() => {
+                setAccusing(true)
+                setPicked({})
+              }}
+            >
+              범인을 지목한다
+            </button>
+          )}
+          {accusing || iAmOut ? null : view.outcome ? null : !myMove ? (
             <Waiting />
           ) : view.phase === 'suggest' ? (
             <button

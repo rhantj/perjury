@@ -409,6 +409,7 @@ function gameView(value: unknown): GameView {
       'rounds',
       'findings',
       'powerSpent',
+      'eliminated',
       'solution',
       'outcome',
     ],
@@ -440,6 +441,16 @@ function gameView(value: unknown): GameView {
         : list(obj, 'findings', LIMITS.findings, where).map(grant),
     // findings와 같은 이유로 관용한다 — 워커를 먼저 배포하는 순서를 지키기 위한 창이다.
     powerSpent: obj['powerSpent'] === undefined ? false : flag(obj, 'powerSpent', where),
+    /*
+     * 조기 고발에 실패해 탈락한 좌석. 전체 공개 정보다 — 누가 헛다리를 짚었는지는 모두가 본다.
+     *
+     * 모델이 이걸 알아야 하는 이유는 탈락자가 «반증은 계속하되 제안·고발은 못 하는» 상태라서다
+     * (룰 개편 §2-5). 모르면 이미 빠진 사람에게 말을 걸거나 그 좌석의 침묵을 소거 정보로 잘못 읽는다.
+     *
+     * 여기서도 관용한다 — findings·powerSpent·responderIds와 같은 이유다.
+     */
+    eliminated:
+      obj['eliminated'] === undefined ? [] : ids(obj, 'eliminated', LIMITS.players, where),
     solution: obj['solution'] === null ? null : suggestion(obj['solution'], `${where}.solution`),
     outcome: null,
   }
