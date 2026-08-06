@@ -1,6 +1,8 @@
 import { challengeTargetFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
 import { silent } from './decider'
 import { parleyLine } from '../content/fallback-lines'
+import { cardName, cardsOfKind } from '../engine/cards'
+import { createRng, pickOne } from '../engine/rng'
 import type { Decider, DeciderForRound } from './decider'
 import type { GameView } from '../engine/view'
 
@@ -16,6 +18,15 @@ import type { GameView } from '../engine/view'
 function saltOf(seed: string, kind: string, view: GameView): string {
   return `${seed}:${kind}:${view.round}:${view.viewerId}`
 }
+
+/**
+ * 폴백이 밀담에서 거짓을 말할 확률.
+ *
+ * 0이면 정보상이 언제 써도 «참»만 보므로 능력이 판정이 아니라 통과 의례가 된다.
+ * 너무 높이면 밀담으로 얻는 말을 아무도 믿지 않게 되어 교환 자체가 죽는다.
+ * 근거를 재서 정한 값은 아니다 — 규칙 기반으로 판을 돌려 측정해야 한다(룰 개편 부록 B).
+ */
+const LIE_RATE = 0.3
 
 /** 이 시야의 주인이 연기하는 용의자. 대사 말투가 여기 붙는다. */
 function characterOf(view: GameView): string {
@@ -40,13 +51,31 @@ export function createRuleDecider(seed: string): Decider {
      * «답을 피하는 말»만 들어 있다 — 프록시가 죽어도 밀담이 닫히지 않는 것이 요점이다(절대규칙 4).
      */
     /*
-     * 폴백 대사는 답을 피하는 말이라 주장 자체가 없다 — 그래서 truthful이 null이다.
-     * 정보상은 이 라운드에 아무것도 얻지 못하고 능력을 그대로 들고 다음 밀담을 기다린다.
+     * 피하는 말 뒤에 «판정할 수 있는 주장» 한 문장을 붙인다.
+     *
+     * 예전에는 truthful이 항상 null이었다. 답을 피하는 말에는 참·거짓을 물을 대상이
+     * 없으니 그 자체로는 옳은 값이었는데, 결과가 두 가지였다 —
+     * 정보상 능력이 폴백에서 **영영 아무것도 얻지 못하고**, 판당 3회뿐인 밀담이
+     * 프록시가 죽은 동안 정보를 0으로 낸다. 아껴 쓰는 자원이 값을 못 하게 된다.
+     *
+     * 그래서 주장을 만들되 **용의자 카드로만** 한다. 용의자 6명은 사건과 무관하게
+     * 고정이므로(decisions/002) 시나리오 이름표 없이도 화면과 같은 이름을 부를 수 있다.
+     * 수단·장소로 하면 여기서 부르는 이름과 상 위 카드 이름이 갈린다.
      */
-    speakInParley: async (view) => ({
-      line: parleyLine(characterOf(view), saltOf(seed, 'pl', view)),
-      truthful: null,
-    }),
+    speakInParley: async (view) => {
+      const salt = saltOf(seed, 'pl', view)
+      const rng = createRng(salt)
+      const hand = view.players.find((p) => p.isMe)?.hand ?? []
+      const about = pickOne(cardsOfKind('suspect'), rng).id
+      const holds = hand.includes(about)
+      /* 늘 사실만 말하면 정보상이 «참»만 보게 되어 능력이 판정이 아니라 통과 의례가 된다. */
+      const lies = rng() < LIE_RATE
+      const says = lies ? !holds : holds
+      return {
+        line: `${parleyLine(characterOf(view), salt)} ${cardName(about)} 패는 내게 ${says ? '있소' : '없소'}.`,
+        truthful: !lies,
+      }
+    },
   }
 }
 

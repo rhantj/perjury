@@ -66,3 +66,45 @@ describe('ruleDeciderForRound', () => {
     expect(forRound(1)).toBe(forRound(5))
   })
 })
+
+/*
+ * 정보상은 밀담 상대의 참·거짓을 가려내는 능력인데, 폴백이 truthful을 늘 null로 주면
+ * 엔진이 판정을 건너뛴다(engine/parley.ts). 프록시가 죽어 있는 동안은 모든 밀담이
+ * 폴백이므로, 그 상태에서 이 능력은 판 내내 아무것도 얻지 못한다.
+ * 완주 테스트로는 안 잡힌다 — 판은 그대로 끝까지 굴러가기 때문이다.
+ */
+describe('speakInParley — 폴백도 판정할 수 있는 말을 한다', () => {
+  /*
+   * salt는 «판단자 시드 : 라운드 : 시야 주인»이라 판 시드를 흔들어도 값이 그대로다.
+   * 흔들 것은 판단자 시드다 — 판마다 다른 좌석·다른 라운드가 여기에 해당한다.
+   */
+  const views = Array.from({ length: 12 }, (_, i) =>
+    viewFor(createGame({ seed: `parley-${i}`, humanIndex: 0 }), firstPlayerId(1)),
+  )
+  const sayAll = () =>
+    Promise.all(
+      views.map((view, i) => createRuleDecider(`${SEED}-${i}`).speakInParley(view, '패를 보자')),
+    )
+
+  it('truthful이 늘 null이지 않다', async () => {
+    const said = await sayAll()
+
+    expect(said.every((s) => s.truthful === null)).toBe(false)
+  })
+
+  it('참과 거짓이 모두 나온다', async () => {
+    const kinds = new Set((await sayAll()).map((s) => s.truthful))
+
+    expect(kinds.has(true)).toBe(true)
+    expect(kinds.has(false)).toBe(true)
+  })
+
+  it('같은 시야면 같은 말과 같은 판정이 나온다', async () => {
+    const view = views[0]
+    if (!view) throw new Error('시야가 없다')
+    const once = await createRuleDecider(SEED).speakInParley(view, '패를 보자')
+    const twice = await createRuleDecider(SEED).speakInParley(view, '패를 보자')
+
+    expect(once).toEqual(twice)
+  })
+})
