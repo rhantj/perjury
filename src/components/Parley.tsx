@@ -159,9 +159,13 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
         </>
       )}
 
+      {/*
+        「말을 고르는 중」은 상대가 무슨 말을 지어낼지 재고 있다는 뜻으로 읽혀서,
+        아직 오지도 않은 답을 미리 의심하게 만든다. 지금 벌어지는 일은 그냥 대답이다.
+      */}
       {step === 'waiting' && (
         <p className="parley__note" role="status">
-          {josa(targetName, 'i')} 말을 고르는 중
+          {josa(targetName, 'i')} 대답하는 중…
         </p>
       )}
 

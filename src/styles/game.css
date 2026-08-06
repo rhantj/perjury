@@ -1355,6 +1355,52 @@
   animation: seat-badge-in 360ms var(--ease-out-expo);
 }
 
+/*
+ * 제안자 좌석에 커서를 올렸을 때 뜨는 제안 한 문장.
+ *
+ * 좌석 «안쪽»을 덮는다. .seat에 초상화를 자르려고 넣은 overflow:hidden이 걸려 있어서
+ * 밖으로 뻗는 말풍선은 통째로 잘린다 — 반증 카드가 예전에 그렇게 사라졌다.
+ *
+ * 움직이는 것은 opacity·transform뿐이다(레이아웃을 건드리지 않는다).
+ * pointer-events를 끄는 이유는 이 판이 좌석을 덮어 커서를 가로채면 hover가 깜빡이기 때문이다.
+ */
+.seat__suggestion {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 7;
+  display: grid;
+  gap: 0.18rem;
+  padding: 1.4rem 0.9rem 0.75rem;
+  background: linear-gradient(
+    to top,
+    oklch(10% 0.015 250 / 0.97) 55%,
+    oklch(10% 0.015 250 / 0)
+  );
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: oklch(93% 0.015 70);
+  /* 폭이 좁아 「아편대로」가 「아편/대로」로 갈라진다. */
+  word-break: keep-all;
+  opacity: 0;
+  transform: translateY(0.35rem);
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-out-expo);
+  pointer-events: none;
+}
+.seat__suggestion em {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  color: var(--tone-key);
+}
+.seat--suggester:hover .seat__suggestion,
+.seat__suggestion:focus-visible {
+  opacity: 1;
+  transform: none;
+}
+
 /* 이의제기와 달리 잡은 사람이 없다. 인장색으로 「증거가 나왔다」만 말한다. */
 .seat__shot-badge {
   font-family: var(--font-display);
@@ -1376,6 +1422,10 @@
   .seat__suggest-badge,
   .seat__shot-badge {
     animation-duration: 0.01ms;
+  }
+  .seat__suggestion {
+    transition-duration: 0.01ms;
+    transform: none;
   }
   .seat--reveal {
     animation-duration: 0.01ms;

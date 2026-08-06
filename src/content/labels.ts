@@ -1,6 +1,7 @@
 import { CARDS, cardName } from '../engine/cards'
-import type { CardId, PlayerId } from '../engine/types'
+import type { CardId, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
+import { josa } from './josa'
 import type { Scenario, Title } from './scenarios'
 
 /**
@@ -25,6 +26,20 @@ export function cardLabel(scenario: Scenario, id: CardId): string {
   if (place >= 0) return scenario.places[place] ?? cardName(id)
 
   return cardName(id)
+}
+
+/**
+ * 제안 한 문장. 상 위에 흩어진 카드 석 장을 사람이 읽는 말로 잇는다.
+ *
+ * 카드 세 장이 나란히 놓인 것만으로는 «이 사람이 무슨 주장을 했는가»가 안 읽힌다 —
+ * 그림은 물건이고 주장은 문장이다. 조사는 josa로 붙인다. 카드 이름은 데이터라
+ * 받침이 제각각이고, 템플릿에 박으면 「아편대으로」가 그대로 나간다.
+ */
+export function suggestionSentence(scenario: Scenario, suggestion: Suggestion): string {
+  const who = cardLabel(scenario, suggestion.suspect)
+  const where = cardLabel(scenario, suggestion.place)
+  const how = cardLabel(scenario, suggestion.weapon)
+  return `${josa(who, 'i')} ${where}에서 ${josa(how, 'ro')} ${scenario.deed}`
 }
 
 /**
