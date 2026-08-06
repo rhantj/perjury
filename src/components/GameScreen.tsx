@@ -113,6 +113,20 @@ const CHALLENGE_CALL_MS = 2000
 const CHALLENGE_BEAT_MS = 520
 const CHALLENGE_RESULT_MS = 2800
 
+/**
+ * 제안 회차를 «바퀴»로 접는다. 여섯이 한 번씩 돌면 1라운드다(룰 개편 §3-1).
+ *
+ * 엔진은 회차로 세고(engine/setup.ts의 DEFAULT_ROUNDS = 24) 화면만 바퀴로 보여준다.
+ * 엔진을 바퀴 단위로 바꾸면 사진사의 「다음 라운드」가 최대 6선언 뒤로 밀려
+ * 능력이 대폭 세진다 — 그래서 회차를 남기고 표시만 접는 쪽으로 정했다(룰 개편 §4).
+ *
+ * 좌석 수를 인자로 받는 것은 6을 두 번 적지 않기 위해서다. 판이 6인 고정이라도
+ * 숫자를 화면에 박으면 엔진과 화면이 서로 다른 바퀴를 세는 날이 온다.
+ */
+function lapOf(round: number, seats: number): number {
+  return Math.ceil(round / seats)
+}
+
 /** 손패 카드 사진. MyPlate.artFor와 같은 소스 — id 접두사가 종류별로 갈려 하나만 걸린다. */
 function cardArtFor(scenario: Scenario, id: CardId): string | undefined {
   return suspectArtFor(id) ?? placeArtFor(scenario, id) ?? weaponArtFor(scenario, id)
@@ -226,15 +240,22 @@ export default function GameScreen() {
    */
   const view = store.state ? store.view() : null
 
-  /* 라운드가 바뀔 때마다 큐에 신문 알림을 넣는다. 1라운드는 착석 컷이 이미 시작을 알린다. */
-  const lastRoundRef = useRef(0)
+  /*
+   * 바퀴가 바뀔 때마다 큐에 신문 알림을 넣는다. 1라운드는 착석 컷이 이미 시작을 알린다.
+   *
+   * **회차가 아니라 바퀴로 센다.** 회차마다 띄우면 24제안 = 23번이라 알림이 판을 덮는다.
+   * 바퀴로 접으면 세 번(2·3·4라운드)만 뜨고, 그 세 번이 실제로 국면이 바뀌는 지점이다.
+   */
+  const lastLapRef = useRef(0)
   useEffect(() => {
-    if (!view || view.round === lastRoundRef.current) return
-    lastRoundRef.current = view.round
-    if (view.round > 1) {
-      enqueueFlash({ kind: 'round', text: `제${view.round}회 신문`, ms: 1000 })
+    if (!view) return
+    const lap = lapOf(view.round, view.players.length)
+    if (lap === lastLapRef.current) return
+    lastLapRef.current = lap
+    if (lap > 1) {
+      enqueueFlash({ kind: 'round', text: `제${lap}회 신문`, ms: 1000 })
     }
-  }, [view?.round, enqueueFlash])
+  }, [view?.round, view?.players.length, enqueueFlash])
 
   /*
    * 제안이 나오면 반증 추첨 컷을 큐에 넣는다.
@@ -470,7 +491,8 @@ export default function GameScreen() {
       >
         <header className="bar">
           <span className="bar__round">
-            라운드 <b>{view.round}</b> / {view.totalRounds}
+            라운드 <b>{lapOf(view.round, view.players.length)}</b> /{' '}
+            {lapOf(view.totalRounds, view.players.length)}
           </span>
           <span key={view.phase} className="bar__phase">
             {PHASE_LABEL[view.phase]}

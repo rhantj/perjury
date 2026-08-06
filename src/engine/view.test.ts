@@ -4,7 +4,7 @@ import { parley } from './parley'
 import { accuse, nextRound } from './progress'
 import { declareAll } from './round'
 import { suggestAll as suggest } from './testing'
-import { createGame } from './setup'
+import { DEFAULT_ROUNDS, createGame } from './setup'
 import { usePower } from './power'
 import { viewFor } from './view'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
@@ -187,7 +187,7 @@ describe('viewFor — 반증 카드는 제안자만 본다', () => {
 describe('viewFor — 판이 끝난 뒤', () => {
   function finished(accusation: Suggestion): GameState {
     let state = staged()
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < DEFAULT_ROUNDS; i += 1) {
       const suggesterId = state.players[state.turnIndex]?.id ?? 'p0'
       const opened = suggest(state, suggesterId, {
         suspect: 's6',
@@ -240,7 +240,8 @@ describe('viewFor — 검증', () => {
     const view = viewFor(staged(), 'p0')
 
     expect(view.round).toBe(1)
-    expect(view.totalRounds).toBe(8)
+    // 제안 회차다. 6인이 넉 바퀴 도는 값이라 화면에는 «4라운드»로 나간다.
+    expect(view.totalRounds).toBe(24)
     expect(view.phase).toBe('suggest')
     expect(view.viewerId).toBe('p0')
   })
