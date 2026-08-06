@@ -14,6 +14,8 @@ import type { CardId, CardKind, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { useGame } from '../store/game'
 import Briefing from './Briefing'
+import DrawCut, { DRAW_CUT_MS } from './DrawCut'
+import type { Plate } from './DrawCut'
 import Landing from './Landing'
 import Log from './Log'
 import MyPlate from './MyPlate'
@@ -46,10 +48,26 @@ function toSuggestion(picked: Picked): Suggestion | null {
 
 /** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, myTurn은 내 제안 차례가 될 때 큐에 들어간다. */
 interface FlashEvent {
-  kind: 'round' | 'suggest' | 'refute' | 'perjury' | 'myTurn' | 'caught' | 'challengeCall' | 'wrongCall'
+  kind:
+    | 'round'
+    | 'suggest'
+    | 'refute'
+    | 'perjury'
+    | 'myTurn'
+    | 'caught'
+    | 'challengeCall'
+    | 'wrongCall'
+    | 'draw'
   text: string
   /** 주 문구 아래 작게 붙는 보조 문구. */
   detail?: string
+  /**
+   * 추첨 명패. draw 전용 — 제안자를 뺀 후보 전원이 좌석 순서대로 들어간다.
+   *
+   * 큐에 «넣는 시점»의 값을 굳혀 담는다. 렌더 때 view에서 다시 읽으면
+   * 앞선 알림이 큐에서 대기하는 사이 라운드가 넘어가 다음 판의 추첨이 그려진다.
+   */
+  plates?: readonly Plate[]
   /** 이의제기로 공개된 카드 그림. caught·wrongCall 전용 — 있으면 문구와 함께 카드 실물을 크게 띄운다. */
   art?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
@@ -191,6 +209,36 @@ export default function GameScreen() {
       enqueueFlash({ kind: 'round', text: `제${view.round}회 신문`, ms: 1000 })
     }
   }, [view?.round, enqueueFlash])
+
+  /*
+   * 제안이 나오면 반증 추첨 컷을 큐에 넣는다.
+   *
+   * 라운드가 아니라 «라운드 기록이 생겼는가»로 감지한다 — 기록은 제안이 접수돼야
+   * 만들어지므로(engine/round.ts suggest), 라운드가 넘어간 직후 아직 아무도 제안하지
+   * 않은 순간에 빈 추첨통이 뜨는 걸 이걸로 막는다.
+   *
+   * stage·opening으로 막는 이유는 아래 myTurn 훅과 같다: 판이 이미 굴러가는 동안
+   * 브리핑·착석 컷이 화면을 덮고 있어서, 그대로 두면 게임판에 들어오기도 전에
+   * 1라운드 추첨이 혼자 끝난다. 여기서 걸러도 opening이 걷히면 훅이 다시 돌아 뜬다.
+   */
+  const lastDrawRoundRef = useRef(0)
+  useEffect(() => {
+    if (!view || stage !== 'play' || opening) return
+    const record = view.rounds[view.rounds.length - 1]
+    if (!record || record.round !== view.round) return
+    if (lastDrawRoundRef.current === record.round) return
+    lastDrawRoundRef.current = record.round
+
+    const plates: Plate[] = view.players
+      .filter((p) => p.id !== record.suggesterId)
+      .map((p) => ({
+        id: p.id,
+        name: participantLabel(view, p.id),
+        drawn: record.responderIds.includes(p.id),
+      }))
+
+    enqueueFlash({ kind: 'draw', text: '반증 추첨', plates, ms: DRAW_CUT_MS })
+  }, [view, stage, opening, enqueueFlash])
 
   /*
    * 이의제기 결과(성공·실패 둘 다)를 화면 전체로 띄운다. 이전에는 성공(위증 확정)만
@@ -366,7 +414,12 @@ export default function GameScreen() {
         <Verdict view={view} scenario={scenario} seed={seed} onRestart={() => open(newSeed())} />
       )}
 
-      {activeFlash && (
+      {/* 추첨만 문구가 아니라 별도 연출이라 같은 큐를 쓰되 렌더만 갈라진다. */}
+      {activeFlash?.event.kind === 'draw' && (
+        <DrawCut key={activeFlash.id} plates={activeFlash.event.plates ?? []} />
+      )}
+
+      {activeFlash && activeFlash.event.kind !== 'draw' && (
         <div
           key={activeFlash.id}
           className={`action-flash action-flash--${activeFlash.event.kind}`}
