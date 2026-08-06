@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createGame } from './setup'
 import { buildPowerUse, findingsFor, usableIn, usePower } from './power'
-import { declareAll } from './round'
+import { declareAll, suggest as suggestDrawn } from './round'
 import { suggestAll as suggest } from './testing'
 import { skipChallenge } from './challenge'
 import { nextRound } from './progress'
@@ -252,6 +252,38 @@ describe('verify-claim — 순사', () => {
 function withHands(state: GameState, hands: readonly (readonly string[])[]): GameState {
   return { ...state, players: state.players.map((p, i) => ({ ...p, hand: hands[i] ?? [] })) }
 }
+
+/*
+ * 이 대기가 만들어진 진짜 이유다. 추첨은 다섯 중 둘만 뽑으므로 지목한 상대가 빠질 확률이
+ * 3/5다. 그 라운드에 거두면 판당 1회짜리 능력이 답 없이 증발한다.
+ *
+ * 위 테스트들과 달리 «진짜» suggest를 쓴다 — 추첨을 끄면 검증할 상황 자체가 생기지 않는다.
+ */
+describe('verify-claim — 추첨에서 빠진 좌석', () => {
+  it('뽑히지 않은 사람을 지목하면 답을 기다린다', () => {
+    const base = game()
+    const suggester = base.players[base.turnIndex]
+    if (!suggester) throw new Error('제안자가 없다')
+    const state = suggestDrawn(base, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const record = state.rounds[0]
+    if (!record) throw new Error('라운드가 없다')
+
+    const missed = state.players.find(
+      (p) => p.id !== record.suggesterId && !record.responderIds.includes(p.id),
+    )
+    const owner = state.players.find((p) => p.id !== record.suggesterId && p.id !== missed?.id)
+    if (!missed || !owner) throw new Error('좌석이 모자란다')
+
+    const armed = usePower(state, owner.id, { kind: 'verify-claim', targetId: missed.id })
+    const drawnPass = new Map<PlayerId, Claim>(
+      record.responderIds.map((id) => [id, { kind: 'pass' } as Claim]),
+    )
+    const declared = declareAll(armed, drawnPass)
+
+    expect(findingsFor(declared, owner.id)).toHaveLength(0)
+    expect(declared.pending).toHaveLength(1)
+  })
+})
 
 describe('verify-claim — 진위 양쪽과 때늦은 지목', () => {
   it('제안 카드를 쥐고도 침묵하면 거짓으로 통보된다', () => {

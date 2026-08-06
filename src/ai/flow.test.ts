@@ -575,14 +575,21 @@ describe('탈락한 사람은 개입 지점에서 빠진다', () => {
     expect(accuser?.kind === 'council' && accuser.votes).toHaveLength(4)
   })
 
-  /** 반증은 계속한다. 탈락자는 «말 없는 카드 보관함»이지 자리를 뜨는 것이 아니다. */
-  it('반증 선언은 그대로 사람이 한다', async () => {
-    const initial = createGame({ seed: 'refute', humanIndex: 3 })
-    const game = await advanceToHuman(initial, deciders(initial))
+  /*
+   * 반증은 계속한다. 탈락자는 «말 없는 카드 보관함»이지 자리를 뜨는 것이 아니다.
+   *
+   * 추첨을 끄고 배치를 직접 세운다 — 사람이 뽑히지 않는 시드면 반증 페이즈에 서지도
+   * 못해서, 검증하려는 것과 무관한 이유로 죽는다(engine/testing.ts).
+   */
+  it('추첨에 뽑혔으면 탈락해도 반증은 사람이 한다', () => {
+    const game = createGame({ seed: 'refute', humanIndex: 3 })
+    const suggester = game.players[game.turnIndex]
     const human = game.players.find((p) => p.isHuman)
-    if (!human) throw new Error('사람 자리가 없다')
+    if (!suggester || !human) throw new Error('자리가 모자란다')
+    const opened = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
 
-    expect(game.phase).toBe('refute')
-    expect(needsHuman({ ...game, eliminated: [human.id] })).toBe(true)
+    expect(opened.phase).toBe('refute')
+    expect(opened.rounds[0]?.responderIds).toContain(human.id)
+    expect(needsHuman({ ...opened, eliminated: [human.id] })).toBe(true)
   })
 })
