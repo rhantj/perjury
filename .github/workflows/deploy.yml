@@ -25,6 +25,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # 여기서 막지 않으면 깨진 것이 그대로 심사용 링크가 된다(푸시 = 배포).
+      #
+      # 「build만 돌리면 되지 않나」에 대한 답: build의 tsc는 루트 tsconfig만 본다.
+      # workers/는 별도 tsconfig(다른 lib·types라 합칠 수도 없다)라 그 밖에 있었고,
+      # 실제로 그 틈으로 장애가 나갔다 — 시야에 필드가 늘었는데 워커 스키마가 안 따라가서
+      # 배포본의 판단 요청이 전부 400을 맞고 폴백으로 떨어졌다.
+      # 그때 worker:typecheck는 이미 깨져 있었고, CI가 그 명령을 안 돌려서 지나갔다
+      # (session-resume/2026-08-06-worker-outage-and-merge.md).
+      #
+      # 순서는 성능 결정이 아니다 — 셋을 합쳐도 2~3초라 npm ci에 묻힌다.
+      # 없어서 장애가 난 검사를 맨 앞에 둔 것뿐이다.
+      - run: npm run worker:typecheck
+      - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
