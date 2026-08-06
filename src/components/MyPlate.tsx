@@ -24,6 +24,11 @@ interface Props {
    * 능력은 «나만 보는 패»에 붙어야 읽히지만, 이 컴포넌트는 그대로 표현 전용으로 둔다.
    */
   powerSlot?: ReactNode
+  /**
+   * 능력을 이미 썼는가. 판당 한 번뿐이라 «남았는가»가 계속 보여야 한다 —
+   * 발동 패널은 조건이 안 맞으면 버튼이 사라지므로, 직업 카드 자체가 상태를 들고 있어야 한다.
+   */
+  powerUsed: boolean
 }
 
 const KIND_LABEL: Record<CardKind, string> = {
@@ -45,7 +50,7 @@ function artFor(scenario: Scenario, id: CardId): string | undefined {
  * 범인 진영에게는 봉인된 정답도 여기 붙는다. 브리핑에서 한 번 보여주고 마는 것이 아니라
  * 판이 도는 내내 손 닿는 곳에 있어야 «감추는 쪽»의 플레이가 가능하다.
  */
-export default function MyPlate({ view, scenario, role, powerSlot }: Props) {
+export default function MyPlate({ view, scenario, role, powerSlot, powerUsed }: Props) {
   const me = view.players.find((p) => p.isMe)
   const culprit = me?.faction === 'culprit'
   const hand = me?.hand ?? []
@@ -110,7 +115,11 @@ export default function MyPlate({ view, scenario, role, powerSlot }: Props) {
         <span className="plate__faction">{culprit ? '범인' : '시민'}</span>
       </header>
 
-      <div className="plate__who">
+      {/*
+        쓴 능력은 카드째로 물러난다. 「壹回」가 「已使」로 바뀌는 것만으로는 글자가 작아
+        눈에 안 걸리므로, 초상과 글자에서 색을 빼 «다 쓴 패»로 읽히게 한다.
+      */}
+      <div className={`plate__who${powerUsed ? ' plate__who--spent' : ''}`}>
         <img
           className="plate__art"
           src={ROLE_ART[role.id]}
@@ -124,7 +133,7 @@ export default function MyPlate({ view, scenario, role, powerSlot }: Props) {
             <em>{role.hanja}</em>
           </span>
           <span className="plate__power">{role.power}</span>
-          <span className="plate__once">壹回</span>
+          <span className="plate__once">{powerUsed ? '已使' : '壹回'}</span>
         </span>
       </div>
 

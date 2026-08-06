@@ -364,6 +364,31 @@
   line-height: 1.65;
   color: oklch(72% 0.01 80);
 }
+
+/*
+ * 다 쓴 직업 카드. 「已使」 글자만으로는 작아서 안 걸리므로 카드째로 물러나게 한다.
+ *
+ * 초상에서 색을 빼는 것이 핵심이다 — 판이 도는 내내 눈이 가는 것은 글자가 아니라 그림이라,
+ * 그림이 살아 있으면 아직 쓸 수 있는 것처럼 읽힌다.
+ * filter·opacity만 건드려 레이아웃을 흔들지 않는다(내 패는 계속 떠 있다).
+ */
+.plate__who--spent .plate__art {
+  filter: grayscale(1) brightness(0.82);
+  opacity: 0.55;
+}
+.plate__who--spent .plate__role,
+.plate__who--spent .plate__power {
+  color: var(--color-muted);
+}
+.plate__who--spent .plate__role em {
+  color: var(--color-muted);
+}
+/* 남은 상태(壹回)는 등불색이었다. 다 쓰면 그 불이 꺼진 것으로 읽히게 한다. */
+.plate__who--spent .plate__once {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+  opacity: 0.7;
+}
 /*
  * 직업 능력 발동. 「壹回」 뱃지 바로 아래 붙어 «한 번뿐인 패»라는 것이 한눈에 읽히게 한다.
  * 움직임은 transform·opacity만 쓴다 — 내 패는 판이 도는 내내 떠 있어서 레이아웃이 흔들리면 안 된다.
