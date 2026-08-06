@@ -1650,6 +1650,22 @@
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-weight: 600;
+  /* 표가 빽빽해 배경색만으로는 묻힌다. 링을 둘러 이름 칸이 «떠 있게» 만든다. */
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 40%, transparent);
+}
+
+/*
+ * 고른 줄 전체. 열다섯 줄 가운데 «지금 고른 셋»만 살아나야 한다 —
+ * 이름 칸에만 색을 물리면 표 왼쪽 끝을 훑어야 찾을 수 있다.
+ *
+ * 배경과 그림자만 쓴다. 테두리를 주면 그 줄만 1px씩 밀려 표 전체가 흔들린다.
+ */
+.nb__row--picked > th,
+.nb__row--picked > td {
+  background: color-mix(in oklch, var(--color-accent) 13%, transparent);
+}
+.nb__row--picked > .nb__label {
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 /*
  * 고른 칸의 hover. 이걸 안 두면 위의 `.nb__pick:hover`가 이긴다 —
