@@ -268,6 +268,8 @@ function Seat({
 }) {
   const declaration = live?.declarations.find((d) => d.playerId === player.id)
   const isSuggester = live?.suggesterId === player.id
+  /** 이번 라운드 추첨에 뽑혔는가. 전체 공개다(engine/view.ts). */
+  const isDrawn = live?.responderIds.includes(player.id) ?? false
   const caught = live?.challenge?.targetId === player.id && live.challenge.success
   /*
    * 사진사에게 잡힌 위증. 이의제기와 같은 «들켰다» 처리를 받되 배지가 따로다 —
@@ -432,6 +434,11 @@ function Seat({
         <span className="seat__face">{participantInitial(view, player.id)}</span>
         {isTurn && <span className="seat__turn-badge">차례</span>}
         {isSuggester && <span className="seat__suggest-badge">제안</span>}
+        {/*
+          추첨으로 반증 의무를 진 좌석. 이게 없으면 왜 다섯 중 둘만 입을 열었는지 읽히지
+          않는다 — 「답할 자리였는데 넘겼다」와 「애초에 뽑히지 않았다」가 같은 침묵으로 보인다.
+        */}
+        {isDrawn && <span className="seat__draw-badge">籤 반증</span>}
         {shot && <span className="seat__shot-badge">寫 발각</span>}
       </span>
 

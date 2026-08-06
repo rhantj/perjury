@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { assignRoles } from '../content/roles'
-import { declareAll, suggest } from '../engine/round'
+import { declareAll } from '../engine/round'
+import { suggestAll as suggest } from '../engine/testing'
 import { createGame } from '../engine/setup'
 import type { Claim, GameState, PlayerId, Suggestion } from '../engine/types'
 import type { Decider, DeciderForRound } from './decider'
@@ -34,12 +35,37 @@ describe('needsHuman — 개입 지점', () => {
     expect(needsHuman(game)).toBe(false)
   })
 
-  it('내가 제안자가 아니면 반증 선언은 사람이 한다', async () => {
+  it('추첨에 뽑히면 반증 선언은 사람이 한다', () => {
     const initial = createGame({ seed: 'refute', humanIndex: 3 })
-    const game = await advanceToHuman(initial, deciders(initial))
+    const suggesterId = initial.players[initial.turnIndex]?.id
+    if (!suggesterId) throw new Error('제안자가 없다')
+    // 이 파일의 suggest는 추첨을 끈 테스트용이라 사람이 반드시 응답자에 들어간다.
+    const opened = suggest(initial, suggesterId, { suspect: 's1', weapon: 'w1', place: 'p1' })
 
-    expect(game.phase).toBe('refute')
-    expect(needsHuman(game)).toBe(true)
+    expect(opened.phase).toBe('refute')
+    expect(needsHuman(opened)).toBe(true)
+  })
+
+  /*
+   * 이게 없으면 판이 멈춘다. 예전 규칙은 「제안자가 아니면 사람 차례」였는데, 추첨에서
+   * 빠진 라운드에도 그대로 두면 화면이 낼 버튼도 없이 사람의 선언을 기다린다.
+   */
+  it('추첨에서 빠지면 반증 페이즈에서 사람을 기다리지 않는다', () => {
+    const initial = createGame({ seed: 'refute', humanIndex: 3 })
+    const suggesterId = initial.players[initial.turnIndex]?.id
+    if (!suggesterId) throw new Error('제안자가 없다')
+    const opened = suggest(initial, suggesterId, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const record = opened.rounds[opened.rounds.length - 1]
+    if (!record) throw new Error('라운드 기록이 없다')
+    const withoutHuman: GameState = {
+      ...opened,
+      rounds: [
+        ...opened.rounds.slice(0, -1),
+        { ...record, responderIds: record.responderIds.filter((id) => id !== 'p3') },
+      ],
+    }
+
+    expect(needsHuman(withoutHuman)).toBe(false)
   })
 
   it('밀담 페이즈에서는 사람이 상대를 고른다', () => {
@@ -349,7 +375,11 @@ describe('대사 전달', () => {
 
   it('사람의 선언에는 대사가 붙지 않는다', async () => {
     const game = createGame({ seed: 'line-human', humanIndex: 3 })
-    const suggested = await advanceToHuman(game, () => talkative(game))
+    // advanceToHuman은 사람이 추첨에서 빠지면 반증 페이즈를 지나쳐 버린다. 여기서
+    // 보려는 것은 «사람이 선언할 때»의 대사이므로 추첨을 끈 suggest로 자리를 만든다.
+    const suggesterId = game.players[game.turnIndex]?.id
+    if (!suggesterId) throw new Error('제안자가 없다')
+    const suggested = suggest(game, suggesterId, { suspect: 's1', weapon: 'w1', place: 'p1' })
 
     const next = await declareWithHuman(suggested, { kind: 'pass' }, () => talkative(suggested))
 

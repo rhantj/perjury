@@ -38,7 +38,11 @@ export function needsHuman(state: GameState): boolean {
     case 'suggest':
       return state.players[state.turnIndex]?.id === human.id
     case 'refute':
-      return lastRound(state).suggesterId !== human.id
+      /*
+       * 추첨에 뽑혔을 때만 사람을 기다린다. 「제안자가 아니면」으로 두면 뽑히지 않은
+       * 라운드에도 화면이 사람의 선언을 기다리며 멈춘다 — 낼 버튼도 없는 채로.
+       */
+      return lastRound(state).responderIds.includes(human.id)
     case 'challenge':
       return true
     case 'accuse':
@@ -213,7 +217,8 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
     }
     case 'refute': {
       const record = lastRound(state)
-      const others = state.players.filter((p) => p.id !== record.suggesterId)
+      // 뽑힌 좌석에게만 묻는다. 나머지에게 물어봐야 엔진이 버리므로 판단 호출만 낭비된다.
+      const others = state.players.filter((p) => record.responderIds.includes(p.id))
       // 병렬인 것은 최적화가 아니라 룰이다 — 동시 선언은 서로의 답을 못 보고 낸다 (설계 §1.4.1)
       const spokens = await Promise.all(
         others.map(async (p) => {
@@ -267,7 +272,7 @@ export async function declareWithHuman(
   const human = humanOf(state)
   const decider = deciderForRound(state.round)
 
-  const others = state.players.filter((p) => p.id !== record.suggesterId)
+  const others = state.players.filter((p) => record.responderIds.includes(p.id))
   const spokens = await Promise.all(
     others.map(async (p) => {
       // 사람의 선언은 그대로 낸다 — 대사도 없고, legalClaim으로 조용히 바꾸지도 않는다.

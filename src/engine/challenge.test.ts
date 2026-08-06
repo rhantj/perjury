@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { challenge, skipChallenge } from './challenge'
-import { declareAll, suggest } from './round'
+import { declareAll } from './round'
+import { suggestAll as suggest } from './testing'
 import { usePower } from './power'
 import { createGame } from './setup'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'

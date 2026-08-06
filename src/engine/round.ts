@@ -1,6 +1,7 @@
 import { cardKind } from './cards'
 import { resolveAfterDeclare } from './power'
-import { createRng, pickOne } from './rng'
+import { createRng, pickOne, shuffle } from './rng'
+import { REFUTER_COUNT } from './setup'
 import type {
   CardId,
   Claim,
@@ -62,6 +63,28 @@ function frameClaim(
   return { kind: 'refute', cardId: pickOne(others, rng) }
 }
 
+/**
+ * 이번 라운드에 반증 «의무»를 질 좌석을 뽑는다. 제안자를 뺀 다섯 중 REFUTER_COUNT명이다.
+ *
+ * **시드에서 파생되므로 순수 함수다** — 같은 판·같은 라운드면 언제 불러도 같은 결과다.
+ * 시드를 `:draw:라운드`로 갈라 쓰는 이유는 격리다. createGame의 rng를 같이 쓰면
+ * 여기서 난수를 뽑는 순간 기존 시드의 카드 배분이 전부 달라진다(content/roles.ts와 같은 사안).
+ *
+ * 좌석 순서로 되돌려 돌려준다. 뽑은 «순서»는 아무 의미가 없는데, 그대로 두면
+ * 화면과 기록에 라운드마다 뒤죽박죽인 차례로 나타나 없는 규칙이 있는 것처럼 읽힌다.
+ */
+export function drawResponders(
+  seed: string,
+  round: number,
+  candidates: readonly PlayerId[],
+): PlayerId[] {
+  if (candidates.length <= REFUTER_COUNT) return [...candidates]
+  const drawn = new Set(
+    shuffle(candidates, createRng(`${seed}:draw:${round}`)).slice(0, REFUTER_COUNT),
+  )
+  return candidates.filter((id) => drawn.has(id))
+}
+
 function requirePlayer(state: GameState, playerId: PlayerId) {
   const player = state.players.find((p) => p.id === playerId)
   if (!player) throw new Error(`없는 플레이어: ${playerId}`)
@@ -110,6 +133,11 @@ export function suggest(
         suggesterId,
         suggestion,
         suggestionLine: line,
+        responderIds: drawResponders(
+          state.seed,
+          state.round,
+          state.players.filter((p) => p.id !== suggesterId).map((p) => p.id),
+        ),
         declarations: [],
         challenge: null,
         exposed: [],
@@ -138,7 +166,14 @@ export function declareAll(
   if (state.phase !== 'refute') throw new Error(`반증 페이즈가 아니다: ${state.phase}`)
 
   const record = currentRound(state)
-  const responders = state.players.filter((p) => p.id !== record.suggesterId)
+  /*
+   * 선언하는 것은 «뽑힌» 좌석뿐이다. 제안자를 뺀 전원이 아니다.
+   *
+   * 뽑히지 않은 좌석의 선언이 함께 들어와도 던지지 않고 버린다. 부르는 쪽이 다섯 명에게
+   * 다 물어본 뒤 넘길 수도 있고, 그건 룰 위반이 아니라 낭비일 뿐이다 —
+   * 룰이 지켜야 하는 것은 «뽑힌 사람은 반드시 답한다»이고 그건 아래에서 던진다.
+   */
+  const responders = state.players.filter((p) => record.responderIds.includes(p.id))
   const allowed = suggestedCards(record.suggestion)
   const refusing = new Set(
     state.pending.filter((p) => p.use.kind === 'refuse-demand').map((p) => p.ownerId),
@@ -147,8 +182,9 @@ export function declareAll(
     state.pending.flatMap((p) => (p.use.kind === 'frame' ? [p.use.targetId] : [])),
   )
 
-  if (claims.size !== responders.length) {
-    throw new Error(`선언은 ${responders.length}명 전원이 해야 한다 (받은 수: ${claims.size})`)
+  const missing = responders.filter((p) => !claims.has(p.id))
+  if (missing.length > 0) {
+    throw new Error(`뽑힌 좌석의 선언이 빠졌다: ${missing.map((p) => p.name).join(', ')}`)
   }
 
   const declarations: Declaration[] = responders.map((player) => {
