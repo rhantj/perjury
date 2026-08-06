@@ -1,8 +1,10 @@
 import { CARDS, cardName } from '../engine/cards'
+import { createRng, pickOne } from '../engine/rng'
 import type { CardId, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 import { josa } from './josa'
 import type { Scenario, Title } from './scenarios'
+import { toneOf } from './voice'
 
 /**
  * 카드 «표시 이름». 엔진은 건드리지 않는다 — 카드 id도 장수도 그대로고, 화면에 쓰는 글자만 바꾼다.
@@ -29,17 +31,38 @@ export function cardLabel(scenario: Scenario, id: CardId): string {
 }
 
 /**
- * 제안 한 문장. 상 위에 흩어진 카드 석 장을 사람이 읽는 말로 잇는다.
+ * 제안 한 문장. 상 위에 흩어진 카드 석 장을 «그 좌석이 한 말»로 잇는다.
  *
  * 카드 세 장이 나란히 놓인 것만으로는 «이 사람이 무슨 주장을 했는가»가 안 읽힌다 —
- * 그림은 물건이고 주장은 문장이다. 조사는 josa로 붙인다. 카드 이름은 데이터라
- * 받침이 제각각이고, 템플릿에 박으면 「아편대으로」가 그대로 나간다.
+ * 그림은 물건이고 주장은 문장이다.
+ *
+ * 맺는 말은 말하는 사람의 말투를 따라간다(content/voice.ts). 여섯 좌석이 전부
+ * 「죽였습니다」로 끝나면 자막이지 대사가 아니다. 같은 말투 안에서도 여러 줄을
+ * 두고 salt로 골라, 같은 사람이 매번 같은 문장을 읊지 않게 한다.
+ *
+ * 조사는 josa로 붙인다. 카드 이름은 데이터라 받침이 제각각이고, 템플릿에 박으면
+ * 「아편대으로」가 그대로 나간다.
+ *
+ * **순수 함수다.** 같은 salt면 언제 그려도 같은 문장이 나온다 — 리렌더마다
+ * 말이 바뀌면 읽는 도중에 문장이 갈린다.
  */
-export function suggestionSentence(scenario: Scenario, suggestion: Suggestion): string {
+export function suggestionSentence(
+  scenario: Scenario,
+  suggestion: Suggestion,
+  /** 말한 사람. 제안자 좌석의 인물이다. */
+  speakerId: CardId,
+  /** 라운드 등 «같은 제안»을 가리키는 씨앗. */
+  salt = '',
+): string {
   const who = cardLabel(scenario, suggestion.suspect)
   const where = cardLabel(scenario, suggestion.place)
   const how = cardLabel(scenario, suggestion.weapon)
-  return `${josa(who, 'i')} ${where}에서 ${josa(how, 'ro')} ${scenario.deed}`
+  const tone = toneOf(speakerId)
+  const pool = scenario.deed[tone]
+  /* pickOne은 빈 배열에 던진다. 여기는 렌더 중이라 던지면 판 전체가 흰 화면이 된다. */
+  const deed =
+    pool.length > 0 ? pickOne(pool, createRng(`deed:${scenario.id}:${tone}:${salt}`)) : '그리 했습니다.'
+  return `${josa(who, 'i')} ${where}에서 ${josa(how, 'ro')} ${deed}`
 }
 
 /**

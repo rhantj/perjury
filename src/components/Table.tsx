@@ -509,7 +509,7 @@ function Seat({
       {isSuggester && live && (
         <span className="seat__suggestion" tabIndex={0}>
           <em>이번 제안</em>
-          {suggestionSentence(scenario, live.suggestion)}
+          {suggestionSentence(scenario, live.suggestion, player.characterId, `${live.round}`)}
         </span>
       )}
 
