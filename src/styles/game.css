@@ -1599,6 +1599,14 @@
   background: oklch(30% 0.05 40);
   cursor: default;
 }
+/*
+ * 손패가 다 찬 사람의 남은 칸. 「내가 찍은 ✕」와 구분돼야 한다 —
+ * 이쪽은 내 판단이 아니라 표가 대신 채워 준 값이라 더 흐리게 둔다.
+ */
+.nb__cell--sealed {
+  cursor: default;
+  opacity: 0.45;
+}
 .nb__hint {
   margin: 0.8rem 0 0;
   font-size: 0.84rem;
