@@ -22,6 +22,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # 액션 버전은 deploy.yml과 «일부러» 맞춰 둔 것이다. 최신은 v7이지만, 두 파일이
+      # 같은 검사를 돌리는 것이 이 구조의 전제라 한쪽만 올리면 그 전제가 깨진다.
+      # 올릴 때는 배포 경로도 함께 올린다(마감 뒤에).
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
