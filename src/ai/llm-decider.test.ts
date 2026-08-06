@@ -82,11 +82,29 @@ describe('createLlmDecider', () => {
   it('카드 표시 이름을 함께 보낸다', async () => {
     fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
 
-    await createLlmDecider(() => null, { w1: '명주 목도리' }).chooseClaim(viewOf())
+    await createLlmDecider(() => null, () => ({ w1: '명주 목도리' })).chooseClaim(viewOf())
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
     expect(body.names).toEqual({ w1: '명주 목도리' })
     expect(body.view.names).toBeUndefined()
+  })
+
+  /*
+   * 판단자는 판을 만들 때 한 번 생기고, 사건은 그 **다음** 화면인 브리핑에서 정해진다
+   * (브리핑이 손패·진영을 보여주려면 판이 먼저 있어야 한다). 그래서 이름표를 만들 때
+   * 값으로 굳히면 사건이 정해지기 전의 것으로 영영 고정된다 — 화면은 고른 사건을 그리는데
+   * 모델은 다른 사건의 수단·장소 이름을 부르게 된다.
+   */
+  it('이름표를 요청 시점에 읽는다 — 사건은 판단자를 만든 뒤에 정해진다', async () => {
+    fetchMock.mockResolvedValue(ok({ kind: 'pass' }))
+    let chosen: Record<string, string> = {}
+    const decider = createLlmDecider(() => null, () => chosen)
+
+    chosen = { w1: '명주 목도리', p1: '서재' }
+    await decider.chooseClaim(viewOf())
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body.names).toEqual({ w1: '명주 목도리', p1: '서재' })
   })
 
   it('네트워크 실패를 던진다', async () => {
