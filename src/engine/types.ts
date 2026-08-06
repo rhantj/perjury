@@ -113,9 +113,9 @@ export type PowerUse =
   | { readonly kind: 'inspect-hand'; readonly targetId: PlayerId }
   /** 약제사 — 수단 카드 1장을 지정해 정답 여부를 확인한다. */
   | { readonly kind: 'check-weapon'; readonly cardId: CardId }
-  /** 순사 — 한 명의 이번 라운드 반증이 참인지 통보받는다. 선언이 나와야 풀린다. */
+  /** 순사 — 지목한 사람이 «다음에 선언할 때» 그 반증이 참인지 통보받는다. */
   | { readonly kind: 'verify-claim'; readonly targetId: PlayerId }
-  /** 사진사 — 지목한 사람이 «다음» 라운드에 위증하면 이의제기 없이 드러난다. */
+  /** 사진사 — 지목한 사람이 «다음 라운드 이후 처음 선언할 때» 위증하면 이의제기 없이 드러난다. */
   | { readonly kind: 'photograph'; readonly targetId: PlayerId }
   /**
    * 신문기자 — 지목한 사람의 «가장 최근» 지난 반증, 그 진위를 전체에 공개한다.
