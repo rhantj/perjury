@@ -6,7 +6,6 @@ import { llmDeciderForRound } from '../ai/llm-decider'
 import { cardLabel, cardNames, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
-import { pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { weaponArtFor } from '../content/weapon-art'
@@ -90,6 +89,18 @@ export default function GameScreen() {
   const [stage, setStage] = useState<Stage>('briefing')
   /** 브리핑에서 고른 사건. 카드 표시 이름과 좌석 직함이 여기서 나온다. */
   const [scenario, setScenario] = useState<Scenario | null>(null)
+  /*
+   * 같은 사건을 판단자에게도 보여주는 통로.
+   *
+   * state를 그대로 못 쓰는 이유는 판단자가 **판을 만들 때 한 번** 만들어지기 때문이다.
+   * 그 시점의 클로저는 아직 null인 state를 붙잡고 영영 놓지 않는다(stale closure).
+   * ref는 같은 상자를 계속 들여다보므로 나중에 정해진 사건이 그대로 보인다.
+   */
+  const scenarioRef = useRef<Scenario | null>(null)
+  const chooseScenario = (chosen: Scenario | null) => {
+    scenarioRef.current = chosen
+    setScenario(chosen)
+  }
   /** 착석 직후 게임판 위에 얹히는 도입 세 문장. */
   const [opening, setOpening] = useState(false)
   const closeOpening = useCallback(() => setOpening(false), [])
@@ -149,12 +160,18 @@ export default function GameScreen() {
    */
   const open = (next: string) => {
     setSeed(next)
+    chooseScenario(null)
     /*
-     * 카드 이름표를 함께 넘긴다. 사건을 여기서 뽑으므로(pickScenario) 판단자를 만드는 시점에
-     * 이미 정해져 있다 — 이게 없으면 모델이 엔진 기본 이름으로 말해 화면과 어긋난다.
+     * 카드 이름표는 «지금» 넘기지 않고 읽는 방법만 넘긴다. 사건은 다음 화면인 브리핑에서
+     * 골라지므로 여기서 값으로 굳히면 아직 없는 사건으로 고정된다 — 화면은 고른 사건을
+     * 그리는데 모델은 다른 사건의 수단·장소 이름을 부르게 된다.
      */
-    const names = cardNames(pickScenario(next))
-    store.start(next, 0, (_seed, powerOf) => llmDeciderForRound(powerOf, names))
+    store.start(next, 0, (_seed, powerOf) =>
+      llmDeciderForRound(powerOf, () => {
+        const chosen = scenarioRef.current
+        return chosen ? cardNames(chosen) : {}
+      }),
+    )
     setStage('briefing')
   }
 
@@ -271,7 +288,7 @@ export default function GameScreen() {
         view={view}
         role={role}
         onEnter={(chosen) => {
-          setScenario(chosen)
+          chooseScenario(chosen)
           setStage('play')
           setOpening(true)
         }}

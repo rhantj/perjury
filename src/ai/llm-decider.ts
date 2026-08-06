@@ -123,15 +123,24 @@ function toIntent(power: PowerBrief | null, chosen: string | null): PowerIntent 
   }
 }
 
+/**
+ * 카드 id → 이 사건에서 쓰는 표시 이름을 «지금» 읽어오는 통로.
+ *
+ * 값이 아니라 함수인 이유는 **판단자보다 사건이 늦게 정해지기 때문이다.**
+ * 판단자는 판을 만들 때 생기고 사건은 그 다음 화면인 브리핑에서 골라지므로,
+ * 값으로 굳히면 사건이 정해지기 전의 것으로 고정된다.
+ */
+export type NameLookup = () => Readonly<Record<string, string>>
+
 export function createLlmDecider(
   powerOf: PowerLookup = () => null,
   /**
-   * 카드 id → 이 사건에서 쓰는 표시 이름.
+   * 이 사건의 카드 표시 이름.
    *
    * 이걸 안 보내면 모델은 엔진 기본 이름으로 말하는데 화면은 사건별 이름으로 그린다 —
    * 같은 카드를 두고 좌석 대사와 그 옆 카드 그림이 서로 다른 이름을 부르게 된다.
    */
-  names: Readonly<Record<string, string>> = {},
+  names: NameLookup = () => ({}),
 ): Decider {
   /**
    * 예산 소진은 라운드 폴백이 아니라 **세션 폴백**이다.
@@ -171,7 +180,7 @@ export function createLlmDecider(
           view,
           ask: said,
           power: power ?? undefined,
-          names,
+          names: names(),
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
@@ -232,10 +241,7 @@ export function createLlmDecider(
  * 라운드마다 새로 만들면 exhausted 플래그가 매 라운드 지워져서
  * 예산이 소진된 뒤에도 라운드마다 헛왕복이 나간다.
  */
-export function llmDeciderForRound(
-  powerOf?: PowerLookup,
-  names?: Readonly<Record<string, string>>,
-): DeciderForRound {
+export function llmDeciderForRound(powerOf?: PowerLookup, names?: NameLookup): DeciderForRound {
   const decider = createLlmDecider(powerOf, names)
   return () => decider
 }
