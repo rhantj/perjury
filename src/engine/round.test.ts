@@ -490,13 +490,20 @@ describe('frame — 협잡꾼의 조작', () => {
     expect(mine?.line).toBe('아편팅크는 내 손에 있소')
   })
 
-  it('침묵은 조작할 것이 없다', () => {
+  /*
+   * 침묵은 조작할 것이 없다. 그래서 **소모하지도 않는다**(룰 개편 §2-7).
+   *
+   * 예전에는 여기서 pending이 비는 것을 단언했다. 헛돌아도 거둬 갔기 때문인데,
+   * 그것이 §2-7이 없애려는 동작이다. 아래 「선언 능력은 헛돌면 소모하지 않는다」가
+   * 이 경로를 정면으로 묶는다.
+   */
+  it('침묵은 조작하지 못하고, 능력도 소모하지 않는다', () => {
     const base = suggestAll(withHands(FRAME_HANDS), 'p0', SUGGESTION)
     const state = usePower(base, TRICKSTER, { kind: 'frame', targetId: VICTIM })
     const after = declareAll(state, claims(ALL_PASS))
 
     expect(after.rounds[0]?.declarations.find((d) => d.playerId === VICTIM)?.claim.kind).toBe('pass')
-    expect(after.pending).toHaveLength(0)
+    expect(after.pending.map((p) => p.use.kind)).toEqual(['frame'])
   })
 
   it('한 번 쓰면 거둔다', () => {
@@ -583,11 +590,33 @@ describe('선언 능력은 헛돌면 소모하지 않는다', () => {
       expect(pendingKinds(after)).toContain('frame')
     })
 
-    it('대상이 뽑힌 라운드에는 소모한다', () => {
+    /*
+     * 뽑힌 것만으로는 모자란다. frameClaim은 반증만 조작하고 침묵·거부는 그대로 돌려주므로
+     * (round.ts의 `claim.kind !== 'refute'`), 대상이 뽑혀도 반증을 안 내면 아무 일이 없다.
+     * 「대상이 뽑혔는가」는 필요조건일 뿐이다.
+     */
+    it('대상이 뽑혔어도 반증을 내지 않으면 소모하지 않는다', () => {
       const opened = respondersAre(suggest(EMPTY(), 'p0', SUGGESTION), ['p2', 'p4'])
       const armed = usePower(opened, 'p1', { kind: 'frame', targetId: 'p2' })
 
+      // 손패가 비어 있어 p2는 낼 카드가 없다 — 뽑혔지만 침묵한다.
       const after = declareAll(armed, passesFrom(['p2', 'p4']))
+
+      expect(pendingKinds(after)).toContain('frame')
+    })
+
+    it('대상이 반증을 낸 라운드에는 소모한다', () => {
+      const hands: CardId[][] = [['s2'], ['s3'], ['w1'], ['s4'], ['s5'], ['p2']]
+      const opened = respondersAre(suggest(withHands(hands), 'p0', SUGGESTION), ['p2', 'p4'])
+      const armed = usePower(opened, 'p1', { kind: 'frame', targetId: 'p2' })
+
+      const after = declareAll(
+        armed,
+        new Map<PlayerId, Claim>([
+          ['p2', { kind: 'refute', cardId: 'w1' }],
+          ['p4', { kind: 'pass' }],
+        ]),
+      )
 
       expect(pendingKinds(after)).not.toContain('frame')
     })

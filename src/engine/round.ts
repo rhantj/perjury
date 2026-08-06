@@ -176,12 +176,22 @@ export function suggest(
  * 선언이 만들어지는 여기에 있다.
  *
  * 걸리는 조건이 서로 다르다는 것이 핵심이다.
- *   refuse-demand(변호사) — 거부하는 것은 «자신»이므로 자기가 뽑혀야 한다
- *   frame(협잡꾼)        — 조작하는 것은 «남의» 선언이므로 대상이 뽑혀야 한다
+ *
+ *   refuse-demand(변호사) — 거부하는 것은 «자신»이므로 자기가 선언했으면 그것으로 걸렸다.
+ *     뽑히기만 하면 아래에서 무엇을 냈든 거부로 덮이므로, 선언의 «내용»은 볼 것이 없다.
+ *
+ *   frame(협잡꾼) — 조작하는 것은 «남의» 반증이다. 대상이 뽑히는 것만으로는 모자라다 —
+ *     frameClaim이 반증만 바꾸고 침묵·거부는 그대로 돌려주므로(위 `claim.kind !== 'refute'`),
+ *     대상이 낼 카드가 없어 침묵하면 뽑혀도 아무 일이 없다. 대상이 거부 능력까지 쥐고 있어
+ *     거부로 덮이는 경우도 같다. 그래서 «뽑혔는가»가 아니라 «반증이 남았는가»를 본다.
+ *
+ * 그래서 responderIds가 아니라 이번 라운드의 선언 결과를 받는다. 뽑힌 것과 실제로
+ * 무엇을 냈는지는 다른 값이고, 이 판정에 필요한 것은 뒤쪽이다.
  */
-function spent(pending: PendingPower, responderIds: readonly PlayerId[]): boolean {
-  if (pending.use.kind === 'refuse-demand') return responderIds.includes(pending.ownerId)
-  if (pending.use.kind === 'frame') return responderIds.includes(pending.use.targetId)
+function spent(pending: PendingPower, declarations: readonly Declaration[]): boolean {
+  const said = (id: PlayerId) => declarations.find((d) => d.playerId === id)
+  if (pending.use.kind === 'refuse-demand') return said(pending.ownerId) !== undefined
+  if (pending.use.kind === 'frame') return said(pending.use.targetId)?.claim.kind === 'refute'
   return false
 }
 
@@ -247,7 +257,7 @@ export function declareAll(
     {
       ...state,
       phase: 'challenge',
-      pending: state.pending.filter((p) => !spent(p, record.responderIds)),
+      pending: state.pending.filter((p) => !spent(p, declarations)),
       rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
     },
     declarations,
