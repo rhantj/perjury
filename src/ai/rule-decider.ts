@@ -1,4 +1,4 @@
-import { challengeTargetFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
+import { accusationFrom, challengeTargetFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
 import { silent } from './decider'
 import { parleyLine } from '../content/fallback-lines'
 import { cardName, cardsOfKind } from '../engine/cards'
@@ -42,7 +42,16 @@ function characterOf(view: GameView): string {
  */
 export function createRuleDecider(seed: string): Decider {
   return {
-    chooseSuggestion: async (view) => silent(suggestionFrom(view, saltOf(seed, 'sg', view))),
+    /*
+     * 제안에 조기 고발 의사를 얹는다. 세 칸이 다 좁혀졌을 때만 값이 붙는다(accusationFrom).
+     *
+     * **폴백에도 이 판단이 있어야 한다.** 없으면 프록시가 죽은 판은 아무도 조기 고발을
+     * 못 해 언제나 상한까지 가고, 범인이 가만히 있어도 이긴다(절대규칙 4 · §2-6).
+     */
+    chooseSuggestion: async (view) => ({
+      ...silent(suggestionFrom(view, saltOf(seed, 'sg', view))),
+      accuse: accusationFrom(view),
+    }),
     chooseClaim: async (view) => silent(claimFrom(view, saltOf(seed, 'cl', view))),
     chooseChallengeTarget: async (view) => silent(challengeTargetFrom(view)),
     chooseAccusation: async (view) => silent(voteFrom(view, saltOf(seed, 'vote', view))),

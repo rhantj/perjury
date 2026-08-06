@@ -164,3 +164,31 @@ export function challengeTargetFrom(view: GameView): PlayerId | null {
 export function voteFrom(view: GameView, salt: string): Suggestion {
   return suggestionFrom(view, salt)
 }
+
+/**
+ * 지금 조기 고발할 것인가. 확신이 없으면 null이다 (룰 개편 §2-6, 3-C-2).
+ *
+ * **세 칸이 모두 한 장으로 좁혀졌을 때만 외친다.** 조기 고발은 틀리면 탈락이므로
+ * 「그럴듯하다」로는 부족하다. 후보가 하나뿐이면 이 시야 안에서는 그것이 답이다.
+ *
+ * 확신이 틀릴 수 있다는 것이 이 판단의 성격이다 — 소거는 선언을 액면 그대로 믿으므로
+ * (eliminated 주석) 위증 하나가 진짜 정답을 후보에서 지운다. 그래서 확신에 도달하는
+ * 것 자체가 범인에게 조작당한 결과일 수 있고, **그게 이 게임이 의도한 함정이다.**
+ * 여기서 안전장치를 더 두면 위증이 아무 힘도 못 쓴다.
+ *
+ * 범인은 부르지 않는다 — 외치면 자백이 되어 시민이 이긴다(결정 011 §2).
+ * 그 차단은 부르는 쪽(ai/flow.ts)에 있다. 여기는 시야만 보고 답하는 자리다.
+ */
+export function accusationFrom(view: GameView): Suggestion | null {
+  const only = (kind: CardKind): CardId | null => {
+    const left = candidates(view, kind)
+    // candidates는 모순으로 다 지워지면 전체로 되돌린다. 그때는 길이가 1이 아니라 안전하다.
+    return left.length === 1 ? (left[0] ?? null) : null
+  }
+
+  const suspect = only('suspect')
+  const weapon = only('weapon')
+  const place = only('place')
+  if (!suspect || !weapon || !place) return null
+  return { suspect, weapon, place }
+}

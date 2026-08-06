@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { suggest } from '../engine/round'
 import { createGame } from '../engine/setup'
 import { viewFor } from '../engine/view'
-import { claimFrom, suggestionFrom, voteFrom } from './rules'
+import type { GameView } from '../engine/view'
+import { CARDS } from '../engine/cards'
+import type { CardId, Suggestion } from '../engine/types'
+import { accusationFrom, claimFrom, suggestionFrom, voteFrom } from './rules'
 import { createRuleDecider, ruleDeciderForRound } from './rule-decider'
 
 const SEED = 'rule-decider'
@@ -114,5 +117,60 @@ describe('speakInParley — 폴백도 판정할 수 있는 말을 한다', () =>
     const twice = await createRuleDecider(SEED).speakInParley(view, '패를 보자')
 
     expect(once).toEqual(twice)
+  })
+})
+
+describe('accusationFrom — 규칙 기반 조기 고발 판단', () => {
+  /**
+   * 한 좌석의 공개 카드를 조작해 소거를 원하는 만큼 진행시킨다.
+   *
+   * revealed를 쓰는 이유는 그것이 **전원 공개**라 시야 주인이 누구든 같은 결론에
+   * 닿기 때문이다. 손패로 세우면 그 좌석에서만 성립해 테스트가 배치에 얽힌다.
+   */
+  function withRevealed(view: GameView, revealed: readonly CardId[]): GameView {
+    const first = view.players[0]
+    if (!first) throw new Error('자리가 없다')
+    return { ...view, players: [{ ...first, revealed }, ...view.players.slice(1)] }
+  }
+
+  /** kind별로 keep 한 장만 남기고 전부 공개된 카드로 만든다. */
+  function allButOne(keep: Suggestion): CardId[] {
+    const kept = [keep.suspect, keep.weapon, keep.place]
+    return CARDS.map((c) => c.id).filter((id) => !kept.includes(id))
+  }
+
+  function freshView(): GameView {
+    return viewFor(createGame({ seed: 'accuse-rule', humanIndex: 0 }), 'p1')
+  }
+
+  it('판이 막 시작하면 확신이 없어 고발하지 않는다', () => {
+    expect(accusationFrom(freshView())).toBeNull()
+  })
+
+  it('세 칸이 모두 한 장으로 좁혀지면 그 조합을 낸다', () => {
+    const answer: Suggestion = { suspect: 's3', weapon: 'w2', place: 'p4' }
+    const view = withRevealed(freshView(), allButOne(answer))
+
+    expect(accusationFrom(view)).toEqual(answer)
+  })
+
+  /** 한 칸이라도 둘 이상 남으면 외치지 않는다. 틀리면 탈락이라 「그럴듯하다」로는 부족하다. */
+  it('한 칸이라도 후보가 둘이면 고발하지 않는다', () => {
+    const answer: Suggestion = { suspect: 's3', weapon: 'w2', place: 'p4' }
+    // 흉기 한 장을 후보로 되살린다 — w2와 w3 둘이 남는다.
+    const revealed = allButOne(answer).filter((id) => id !== 'w3')
+    const view = withRevealed(freshView(), revealed)
+
+    expect(accusationFrom(view)).toBeNull()
+  })
+
+  /**
+   * 소거가 모순으로 전부 지워지면 candidates가 전체로 되돌린다. 그때 「한 장」이 되어
+   * 엉뚱한 고발이 나가면 안 된다 — 되돌린 목록은 길이가 1이 아니므로 null이어야 한다.
+   */
+  it('모든 카드가 지워진 모순 상태에서는 고발하지 않는다', () => {
+    const view = withRevealed(freshView(), CARDS.map((c) => c.id))
+
+    expect(accusationFrom(view)).toBeNull()
   })
 })

@@ -7,7 +7,7 @@ import {
 import { skipParley } from '../engine/parley'
 import { buildPowerUse, usePower } from '../engine/power'
 import type { PowerIntent } from '../engine/power'
-import { accuse, accuseByCouncil } from '../engine/progress'
+import { accuse, accuseByCouncil, accuseEarly } from '../engine/progress'
 import { declareAll, suggest } from '../engine/round'
 import { viewFor } from '../engine/view'
 import type { Claim, GameState, PlayerId, Suggestion, Vote } from '../engine/types'
@@ -225,6 +225,25 @@ export async function stepAi(state: GameState, decider: Decider): Promise<GameSt
       const suggester = state.players[state.turnIndex]
       if (!suggester) throw new Error('제안자를 찾을 수 없다')
       const spoken = await decider.chooseSuggestion(viewFor(state, suggester.id))
+      /*
+       * 조기 고발은 제안 «대신»이므로 능력을 걸기 «전에» 갈린다. 판당 1회짜리를
+       * 제안도 안 하는 라운드에 태워 버리지 않으려는 것이다 — 외치고 탈락하면
+       * 능력마저 잃는데(§2-5) powersUsed는 이미 찍혀 되돌릴 자리가 없다.
+       *
+       * **시민에게만 연다.** 범인이 외치면 엔진이 자백으로 읽어 시민 승으로 닫는데
+       * (결정 011 §2), LLM이 한 번 잘못 고르면 판이 어이없이 끝난다. 엔진의 룰은
+       * 그대로 두고 부르는 쪽에서 막는다 — 룰을 무르는 것이 아니라 안 쓰는 것이다.
+       *
+       * 엔진이 거절하면 조용히 평소 제안으로 간다. 판단자가 이상한 것을 골랐다고
+       * 라운드가 멈추면 판이 끝까지 못 간다(withPowers와 같은 이유).
+       */
+      if (spoken.accuse && suggester.faction === 'citizen') {
+        try {
+          return accuseEarly(state, suggester.id, spoken.accuse)
+        } catch {
+          // 무시하고 아래 제안으로 떨어진다.
+        }
+      }
       const armed = withPowers(state, [[suggester.id, spoken.power]])
       return suggest(armed, suggester.id, spoken.value, spoken.line)
     }
