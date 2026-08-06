@@ -2969,15 +2969,19 @@
   inset: 0;
   z-index: 2;
   border-radius: 0.35rem 0.35rem 0.9rem 0.9rem;
+  /*
+   * 겹 순서(위→아래): 놋쇠 테 두 줄 · 상하 명암 · 원통 음영 · 옻칠 나뭇결.
+   *
+   * **원통 음영이 놋쇠 테보다 아래인데도 테가 입체로 보이는 이유**는 테 이미지가
+   * 위아래 베벨을 «자기 안에» 굽고 있어서다. 좌우 명암은 굽지 않았으므로 통의
+   * 원통감과 싸우지 않는다 — 이미지를 부탁할 때 그 구분을 요구한 것이 여기서 값을 한다.
+   *
+   * 테는 no-repeat에 폭 100%로 늘린다. 가로로 반복하면 이미지 왼끝(어둠)과
+   * 오른끝(밝음)이 맞물려 이음매마다 계단이 생긴다.
+   */
   background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 2px,
-      oklch(0% 0 0 / 0.14) 2px 3px,
-      transparent 3px 7px,
-      oklch(100% 0 0 / 0.035) 7px 8px,
-      transparent 8px 13px
-    ),
+    url('../assets/textures/tex_brass_band.webp') no-repeat 0 16% / 100% 7%,
+    url('../assets/textures/tex_brass_band.webp') no-repeat 0 78% / 100% 7%,
     linear-gradient(
       180deg,
       oklch(0% 0 0 / 0.45) 0%,
@@ -2987,28 +2991,16 @@
     ),
     linear-gradient(
       90deg,
-      oklch(0% 0 0 / 0.82) 0%,
-      oklch(0% 0 0 / 0.3) 14%,
-      oklch(100% 0 0 / 0.06) 33%,
-      oklch(100% 0 0 / 0.11) 42%,
+      oklch(0% 0 0 / 0.8) 0%,
+      oklch(0% 0 0 / 0.28) 14%,
+      oklch(100% 0 0 / 0.08) 33%,
+      oklch(100% 0 0 / 0.13) 42%,
       oklch(0% 0 0 / 0.06) 58%,
-      oklch(0% 0 0 / 0.42) 82%,
-      oklch(0% 0 0 / 0.88) 100%
+      oklch(0% 0 0 / 0.4) 82%,
+      oklch(0% 0 0 / 0.86) 100%
     ),
-    linear-gradient(
-      180deg,
-      transparent 0 15%,
-      oklch(72% 0.1 84) 15% 16.5%,
-      oklch(52% 0.08 76) 16.5% 21%,
-      oklch(30% 0.045 64) 21% 22.5%,
-      transparent 22.5% 76%,
-      oklch(72% 0.1 84) 76% 77.5%,
-      oklch(52% 0.08 76) 77.5% 82%,
-      oklch(30% 0.045 64) 82% 83.5%,
-      transparent 83.5%
-    ),
-    linear-gradient(180deg, oklch(31% 0.035 46), oklch(22% 0.028 42));
-  border: 1px solid oklch(40% 0.05 58 / 0.55);
+    url('../assets/textures/tex_wood_dark.webp') 0 0 / 55% auto;
+  border: 1px solid oklch(46% 0.06 62 / 0.7);
   box-shadow:
     inset 0 -1rem 1.8rem oklch(0% 0 0 / 0.55),
     0 1.6rem 3.4rem oklch(0% 0 0 / 0.75);
@@ -3053,7 +3045,8 @@
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 1rem + 1.1vw, 2.1rem);
   color: var(--color-seal);
-  background: linear-gradient(168deg, oklch(88% 0.03 88), oklch(76% 0.04 82));
+  /* 낡은 한지. 매끈한 크림색이면 인쇄물처럼 보여 통의 질감과 따로 논다. */
+  background: url('../assets/textures/tex_hanji.webp') 50% 50% / 130% auto;
   box-shadow:
     inset 0 0 0 1px oklch(58% 0.06 70 / 0.5),
     0 0.15rem 0.5rem oklch(0% 0 0 / 0.6);
@@ -3107,22 +3100,17 @@
  * 같은 간격이면 명패가 통과 같은 크기의 판자처럼 읽힌다.
  */
 .draw-cut__plate-back {
+  /* 결 간격을 통보다 좁게 깐다(45%). 같은 배율이면 명패가 통만 한 판자로 읽힌다. */
   background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 1px,
-      oklch(0% 0 0 / 0.16) 1px 2px,
-      transparent 2px 5px
-    ),
     linear-gradient(
       90deg,
-      oklch(0% 0 0 / 0.5) 0%,
+      oklch(0% 0 0 / 0.45) 0%,
       oklch(0% 0 0 / 0.05) 22%,
-      oklch(100% 0 0 / 0.08) 40%,
+      oklch(100% 0 0 / 0.06) 40%,
       oklch(0% 0 0 / 0.08) 66%,
-      oklch(0% 0 0 / 0.55) 100%
+      oklch(0% 0 0 / 0.5) 100%
     ),
-    linear-gradient(168deg, oklch(40% 0.04 54), oklch(26% 0.028 44));
+    url('../assets/textures/tex_wood_dark.webp') 50% 0 / 45% auto;
   box-shadow:
     inset 0 0 0 1px oklch(48% 0.05 58 / 0.55),
     inset 0 0.5rem 0.6rem oklch(100% 0 0 / 0.05);
@@ -3133,14 +3121,7 @@
   /* 부모가 180도 돌아간 상태에서 글자가 거울로 보이지 않게 되돌린다. */
   transform: rotateY(180deg);
   /* 뽑힌 명패는 새로 깎은 면이라 결이 얕고 밝다. 붉은 테두리가 딱지와 짝을 이룬다. */
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 1px,
-      oklch(0% 0 0 / 0.05) 1px 2px,
-      transparent 2px 6px
-    ),
-    linear-gradient(168deg, oklch(90% 0.045 86), oklch(76% 0.055 76));
+  background: url('../assets/textures/tex_wood_light.webp') 50% 0 / 45% auto;
   box-shadow:
     inset 0 0 0 1px oklch(58% 0.09 66),
     inset 0 0 0 3px oklch(88% 0.04 84),
