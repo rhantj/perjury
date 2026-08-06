@@ -55,6 +55,13 @@ export type LlmResult =
        * 엔진이 텍스트를 판정할 수 없어서 말한 쪽이 스스로 낸다. 이걸 쓰는 것은 정보상뿐이다.
        */
       readonly truthful: boolean | null
+      /**
+       * 제안 대신 **조기 고발**을 하겠다는 답(룰 개편 §2-6). 시민의 제안에만 칸이 열린다.
+       *
+       * 워커는 무엇을 고발하는지 모른다 — 고발 대상은 같은 답에 담긴 세 장이고,
+       * 그 조합은 decision에 이미 있다. 여기 있는 것은 «그것으로 외치겠다»는 표시뿐이다.
+       */
+      readonly accuseNow: boolean
       readonly usage: Usage
     }
   | { readonly ok: false; readonly code: UpstreamCode; readonly detail: string }
@@ -243,12 +250,18 @@ export async function decide(
   const chosen = textField(parsed, 'usePowerOn')
   // 모르는 값은 «주장 없음»으로 읽는다. 판정할 것이 없으면 정보상은 능력을 그대로 들고 있는다.
   const said = textField(parsed, 'truthful')
+  /*
+   * 「yes」만 «함»이다. 이 칸은 시민의 제안에만 열리므로(prompt.ts) 대부분의 답에는 아예 없고,
+   * 없는 것을 «함»으로 읽으면 되돌릴 수 없는 쪽으로 틀린다 — 판이 그 자리에서 끝난다.
+   */
+  const shouts = textField(parsed, 'accuseNow')
   return {
     ok: true,
     decision,
     line: textField(parsed, 'line') ?? '',
     usePowerOn: !chosen || chosen === 'none' ? null : chosen,
     truthful: said === 'yes' ? true : said === 'no' ? false : null,
+    accuseNow: shouts === 'yes',
     usage,
   }
 }
