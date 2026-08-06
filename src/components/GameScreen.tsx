@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
-import { cardLabel, cardNames, participantLabel } from '../content/labels'
+import { cardLabel, cardNames, participantLabel, seatSlot } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
@@ -235,6 +235,7 @@ export default function GameScreen() {
         id: p.id,
         name: participantLabel(view, p.id),
         drawn: record.responderIds.includes(p.id),
+        slot: seatSlot(view, p.id),
       }))
 
     enqueueFlash({ kind: 'draw', text: '반증 추첨', plates, ms: DRAW_CUT_MS })

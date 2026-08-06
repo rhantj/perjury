@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
+import type { SeatSlot } from '../content/labels'
 import type { PlayerId } from '../engine/types'
 
 /** 추첨통에 들어간 명패 하나. 제안자를 뺀 후보 전원이 좌석 순서대로 들어온다. */
@@ -7,6 +8,11 @@ export interface Plate {
   readonly id: PlayerId
   readonly name: string
   readonly drawn: boolean
+  /**
+   * 이 사람이 원탁 어느 칸에 앉아 있는가. 뽑힌 명패가 «그쪽으로» 날아가 사라진다 —
+   * 패를 나눠주는 모양이라, 방향이 실제 자리와 어긋나면 뜻이 통째로 틀린다.
+   */
+  readonly slot: SeatSlot
 }
 
 /**
@@ -47,6 +53,7 @@ export default function DrawCut({ plates }: { plates: readonly Plate[] }) {
                 <li
                   key={plate.id}
                   className={`draw-cut__plate${plate.drawn ? ' draw-cut__plate--drawn' : ''}`}
+                  data-seat={plate.slot}
                   style={{ '--i': i, '--slot': plate.drawn ? slot : 0 } as CSSProperties}
                 >
                   <span className="draw-cut__plate-back">籤</span>

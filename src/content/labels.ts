@@ -116,6 +116,24 @@ export function participantLabel(view: GameView, playerId: PlayerId): string {
   return index >= 0 ? `참가${index + 1}` : '참가?'
 }
 
+/** 원탁에서 좌석이 앉는 칸. game.css의 grid-template-areas와 이름이 같다. */
+export type SeatSlot = 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'me'
+
+/**
+ * 좌석이 원탁 어느 칸에 앉는가.
+ *
+ * **participantLabel과 같은 순서를 쓴다.** 둘 다 «나를 뺀 좌석 배열»의 인덱스로 매기므로
+ * 「참가3」과 칸 p3이 같은 사람을 가리킨다. 이 대응이 어긋나면 추첨 명패가
+ * 엉뚱한 사람 쪽으로 날아가고, 화면은 멀쩡해 보이는데 뜻만 틀린다.
+ */
+export function seatSlot(view: GameView, playerId: PlayerId): SeatSlot {
+  const player = view.players.find((p) => p.id === playerId)
+  if (player?.isMe) return 'me'
+  const others = view.players.filter((p) => !p.isMe)
+  const index = others.findIndex((p) => p.id === playerId)
+  return index >= 0 && index < 5 ? (`p${index + 1}` as SeatSlot) : 'p5'
+}
+
 /** 좌석 얼굴칸에 쓰는 한 글자/숫자. participantLabel과 짝이다. */
 export function participantInitial(view: GameView, playerId: PlayerId): string {
   const full = participantLabel(view, playerId)
