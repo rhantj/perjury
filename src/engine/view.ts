@@ -28,10 +28,26 @@ export interface PlayerView {
   readonly faction: Faction | null
 }
 
-/** Declaration에서 isPerjury를 뺀 것. 선언 내용은 공개, 진위는 비공개다. */
+/**
+ * 시야에 실리는 반증 선언. Claim과 달리 refute의 cardId가 **null일 수 있다.**
+ *
+ * 「반증했는가」는 전원 공개, 「무슨 카드로 했는가」는 제안자만 — 그 둘을 한 값에 담는다.
+ * kind는 남기고 cardId만 비우는 것이 핵심이다. kind까지 감추면 「못 했다」(pass)가
+ * 같이 사라지는데, 그건 **제안된 3장을 하나도 안 가졌다**는 뜻이라
+ * 비공개 반증에서 판을 굴리는 유일한 공개 단서다(룰 개편 §2-2).
+ *
+ * cardId를 «지우지 않고 null을 담는» 이유는 타입이다. 옵셔널로 두면 읽는 쪽이
+ * 조용히 undefined를 흘려보내지만, null이면 컴파일러가 소비처를 전부 잡아낸다.
+ */
+export type ClaimView =
+  | { readonly kind: 'refute'; readonly cardId: CardId | null }
+  | { readonly kind: 'pass' }
+  | { readonly kind: 'refuse' }
+
+/** Declaration에서 isPerjury를 뺀 것. 선언 «했다는 사실»은 공개, 카드와 진위는 비공개다. */
 export interface DeclarationView {
   readonly playerId: PlayerId
-  readonly claim: Claim
+  readonly claim: ClaimView
   /**
    * 그 자리에서 «소리내어» 한 말이라 전원이 들었다. 그래서 시야에서 뺄 이유가 없다.
    * 오히려 실어야 에이전트가 남의 말에 반응할 수 있다. 없으면 null이다.
@@ -121,6 +137,17 @@ export interface GameView {
  *   - isPerjury    → 보이면 이의제기가 무의미해진다
  *   - 남의 밀담     → 낀 두 사람만. 있었다는 사실도 감춘다
  */
+/**
+ * 반증 선언에서 카드를 가릴지 정한다. refute가 아니면 감출 것이 없어 그대로 통과한다.
+ *
+ * **가리는 쪽이 기본이다.** 볼 수 있는 조건을 부르는 쪽이 계산해 넘기게 두면
+ * 조건을 빠뜨렸을 때 카드가 새는 방향이 아니라 가려지는 방향으로 틀린다.
+ */
+function claimFor(claim: Claim, canSeeCard: boolean): ClaimView {
+  if (claim.kind !== 'refute') return claim
+  return { kind: 'refute', cardId: canSeeCard ? claim.cardId : null }
+}
+
 export function viewFor(state: GameState, viewerId: PlayerId): GameView {
   const viewer = state.players.find((p) => p.id === viewerId)
   if (!viewer) throw new Error(`없는 플레이어: ${viewerId}`)
@@ -156,7 +183,15 @@ export function viewFor(state: GameState, viewerId: PlayerId): GameView {
     responderIds: record.responderIds,
     declarations: record.declarations.map((d) => ({
       playerId: d.playerId,
-      claim: d.claim,
+      /*
+       * 카드를 볼 수 있는 사람은 셋뿐이다 — 제안자(반증을 받은 당사자), 선언한 본인,
+       * 그리고 판이 끝난 뒤의 전원. 이의제기로 «열린» 카드는 challenge.reveals에
+       * 따로 실리므로 여기서 막아도 발각 연출은 그대로 남는다.
+       */
+      claim: claimFor(
+        d.claim,
+        over || record.suggesterId === viewerId || d.playerId === viewerId,
+      ),
       line: d.line,
     })),
     challenge: record.challenge,

@@ -77,8 +77,19 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       text,
     })
     switch (d.claim.kind) {
+      /*
+       * 카드는 제안자만 본다. 나머지 기록에는 «반증했다»만 남는다 —
+       * 「셋 중 하나」가 사실 그대로다. 제안된 셋 중 하나를 쥐었으되 무엇인지는 밝히지 않았다.
+       */
       case 'refute':
-        out.push(said('refute', `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`))
+        out.push(
+          said(
+            'refute',
+            d.claim.cardId === null
+              ? '셋 중 하나가 제게 있습니다.'
+              : `${josa(label(d.claim.cardId), 'ro')} 반증합니다.`,
+          ),
+        )
         break
       case 'pass':
         out.push(said('pass', '없습니다.'))
