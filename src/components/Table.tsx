@@ -39,12 +39,14 @@ function declarationLine(
   claim: Claim,
   characterId: CardId,
   label: (id: CardId) => string,
+  /** 라운드·좌석을 섞은 씨앗. 같은 자리는 언제 그려도 같은 말이어야 한다(fallback-lines.ts). */
+  salt: string,
 ): string {
   switch (claim.kind) {
     case 'refute':
-      return `“${refuteLine(characterId, label(claim.cardId))}”`
+      return `“${refuteLine(characterId, label(claim.cardId), salt)}”`
     case 'pass':
-      return `“${passLine(characterId)}”`
+      return `“${passLine(characterId, salt)}”`
     case 'refuse':
       return '“답변을 거부하오.”'
   }
@@ -308,10 +310,10 @@ function Seat({
       : live?.challenge?.challengerId === player.id
         ? `“${challengeLine(player.characterId, participantLabel(view, live.challenge.targetId))}”`
         : isSuggester
-          ? `“${suggestLine(player.characterId)}”`
+          ? `“${suggestLine(player.characterId, `${live?.round}`)}”`
           : declaration
             ? revealed
-              ? declarationLine(declaration.claim, player.characterId, label)
+              ? declarationLine(declaration.claim, player.characterId, label, `${live?.round}:${player.id}`)
               : '…'
             : null
 

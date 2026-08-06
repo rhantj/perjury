@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { caughtLine, clearedLine, parleyLine, wrongCallLine } from './fallback-lines'
+import {
+  caughtLine,
+  clearedLine,
+  parleyLine,
+  passLine,
+  refuteLine,
+  suggestLine,
+  wrongCallLine,
+} from './fallback-lines'
 
 describe('parleyLine — 폴백 밀담 대사', () => {
   it('같은 자리·같은 salt면 같은 말이 나온다', () => {
@@ -66,5 +74,64 @@ describe('이의제기 판정 반응', () => {
     expect(caughtLine('zzz').length).toBeGreaterThan(0)
     expect(clearedLine('zzz').length).toBeGreaterThan(0)
     expect(wrongCallLine('zzz', '참가1')).toContain('참가1')
+  })
+})
+
+/**
+ * 라운드마다 되풀이되는 세 자리. 반증은 라운드당 5회씩 나가므로 한 판에 40번 가까이 뜬다.
+ * 캐릭터당 한 줄만 두면 폴백이라는 것이 대사만 봐도 드러난다 — 밀담과 같은 하한을 건다.
+ */
+describe('되풀이되는 대사 — 반증·넘김·제안', () => {
+  const CHARACTERS = ['s1', 's2', 's3', 's4', 's5', 's6']
+  const SALTS = Array.from({ length: 20 }, (_, i) => `r${i}`)
+
+  it('반증은 캐릭터마다 서로 다른 말이 3개 이상 나온다', () => {
+    for (const id of CHARACTERS) {
+      const said = new Set(SALTS.map((salt) => refuteLine(id, '대리석 문진', salt)))
+
+      expect(said.size, `${id}의 반증 대사가 모자라다`).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('넘김은 캐릭터마다 서로 다른 말이 3개 이상 나온다', () => {
+    for (const id of CHARACTERS) {
+      const said = new Set(SALTS.map((salt) => passLine(id, salt)))
+
+      expect(said.size, `${id}의 넘김 대사가 모자라다`).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('제안은 캐릭터마다 서로 다른 말이 3개 이상 나온다', () => {
+    for (const id of CHARACTERS) {
+      const said = new Set(SALTS.map((salt) => suggestLine(id, salt)))
+
+      expect(said.size, `${id}의 제안 대사가 모자라다`).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  /** 리렌더마다 말이 바뀌면 좌석이 딸꾹질한다. 같은 자리는 언제 그려도 같은 말이어야 한다. */
+  it('같은 salt면 같은 말이 나온다', () => {
+    expect(refuteLine('s1', '아편팅크', 'r2:p3')).toBe(refuteLine('s1', '아편팅크', 'r2:p3'))
+    expect(passLine('s4', 'r2:p3')).toBe(passLine('s4', 'r2:p3'))
+    expect(suggestLine('s6', 'r2')).toBe(suggestLine('s6', 'r2'))
+  })
+
+  /** 반증은 «무엇을» 쥐고 있는지가 정보다. 어느 줄이 나와도 카드 이름이 빠지면 안 된다. */
+  it('반증은 어떤 줄이 나와도 카드 이름을 말한다', () => {
+    for (const id of CHARACTERS) {
+      for (const salt of SALTS) {
+        expect(refuteLine(id, '명주 목도리', salt)).toContain('명주 목도리')
+      }
+    }
+  })
+
+  it('캐릭터마다 말투가 다르다', () => {
+    expect(passLine('s1', 'x')).not.toBe(passLine('s6', 'x'))
+  })
+
+  it('모르는 캐릭터도 화면이 비지 않는다', () => {
+    expect(refuteLine('없는-카드', '계단', 'x').length).toBeGreaterThan(0)
+    expect(passLine('없는-카드', 'x').length).toBeGreaterThan(0)
+    expect(suggestLine('없는-카드', 'x').length).toBeGreaterThan(0)
   })
 })
