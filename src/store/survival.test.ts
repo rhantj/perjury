@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGame } from './game'
 import type { Decider, DeciderForRound, FallbackReason } from '../ai/decider'
+import { cardsOfKind } from '../engine/cards'
+import { CHALLENGE_LIMIT, challengesUsedIn } from '../engine/challenge'
+import { needsOf, usableIn } from '../engine/power'
 import { PARLEY_LIMIT, parleysUsedIn } from '../engine/parley'
 import type { Claim, PlayerId, Suggestion } from '../engine/types'
 
@@ -74,7 +77,68 @@ function parleyTarget(): PlayerId | null {
   return other ? other.id : null
 }
 
+/**
+ * 지금 이의제기를 걸 수 있는 상대. 없으면 null이다.
+ *
+ * **화면과 같은 관문을 쓴다**(GameScreen.tsx) — 판당 상한, 낼 수 있는 패, 그리고
+ * 반증을 선언한 남의 자리. 엔진이 거절하기 «전에» 눌리지 않아야 한다.
+ */
+function challengeTarget(): PlayerId | null {
+  const view = game().view()
+  const me = view.players.find((p) => p.isMe)
+  if (!me) throw new Error('내 자리가 없다')
+  if (CHALLENGE_LIMIT - challengesUsedIn(view.rounds, view.viewerId) <= 0) return null
+
+  const hidden = (me.hand ?? []).filter((c) => !me.revealed.includes(c))
+  if (hidden.length === 0) return null
+
+  const record = view.rounds[view.rounds.length - 1]
+  const target = (record?.declarations ?? []).find(
+    (d) => d.claim.kind === 'refute' && d.playerId !== view.viewerId,
+  )
+  return target ? target.playerId : null
+}
+
+/**
+ * 쓸 수 있으면 능력을 쓴다. 이미 썼거나 지금 쓸 수 없는 능력이면 아무 일도 하지 않는다.
+ *
+ * 대상은 화면과 같은 방식으로 고른다 — 종류는 «좌석의 직업»에서 나오므로
+ * 여기서 정하는 것은 대상뿐이다(store.usePower, 작업 규칙 2).
+ */
+function useAnyPower(): void {
+  const view = game().view()
+  const effect = game().role().effect
+  if (effect === null || game().powerUsed()) return
+  if (!usableIn(effect, view)) return
+
+  switch (needsOf(effect)) {
+    case 'none':
+      game().usePower({})
+      return
+    case 'weapon': {
+      const card = cardsOfKind('weapon')[0]
+      if (card) game().usePower({ cardId: card.id })
+      return
+    }
+    case 'player': {
+      const other = view.players.find((p) => !p.isMe)
+      if (other) game().usePower({ targetId: other.id })
+      return
+    }
+  }
+}
+
 type Whisper = 'skip' | 'talk'
+
+/**
+ * 사람이 실제로 누를 수 있는 것을 전부 눌러본다.
+ *
+ * 능력과 이의제기는 판단자를 거치지 않는 «순수 엔진 호출»이라, 폴백과 무관해 보인다.
+ * 그런데 그 둘이 남기는 것(pending·grants·공개된 패)은 다음 페이즈의 입력이 된다 —
+ * 협잡꾼이 남의 반증을 바꾸고, 밀정이 이의제기를 막고, 변호사가 「거부」를 만든다.
+ * 판단자가 죽은 상태에서 그 결합이 판을 세우지 않는지 보려면 실제로 눌러야 한다.
+ */
+type Aggression = 'quiet' | 'loud'
 
 /** 밀담이 아닌 페이즈를 한 걸음 민다. 밀담까지 도달하려면 그 앞을 지나야 한다. */
 async function playOneStep(): Promise<void> {
@@ -100,10 +164,11 @@ async function playOneStep(): Promise<void> {
  * 한 걸음도 진전이 없으면 즉시 멈춘다 — 그것이 «판이 섰다»의 정의다.
  * 200은 8라운드 × 페이즈 수보다 넉넉하다. 넘으면 전이에 구멍이 있다는 뜻이다.
  */
-async function playToEnd(whisper: Whisper): Promise<void> {
+async function playToEnd(whisper: Whisper, aggression: Aggression = 'quiet'): Promise<void> {
   for (let step = 0; step < 200; step += 1) {
     const view = game().view()
     if (view.phase === 'over') return
+    if (aggression === 'loud') useAnyPower()
     if (!game().awaitingHuman()) throw new Error(`사람 차례가 아닌 채로 멈췄다: ${view.phase}`)
 
     switch (view.phase) {
@@ -113,9 +178,12 @@ async function playToEnd(whisper: Whisper): Promise<void> {
       case 'refute':
         await game().declare(legalClaim())
         break
-      case 'challenge':
-        await game().passChallenge()
+      case 'challenge': {
+        const target = aggression === 'loud' ? challengeTarget() : null
+        if (target === null) await game().passChallenge()
+        else await game().challenge(target)
         break
+      }
       case 'whisper': {
         const target = whisper === 'talk' ? parleyTarget() : null
         if (target === null) {
@@ -173,20 +241,57 @@ describe('판단자가 죽은 채로 완주 (절대 규칙 4)', () => {
     expect(game().fallbackReason).toBe('budget')
   })
 
-  /** 사람이 범인이면 고발을 시민 AI가 한다. 그 경로도 죽은 판단자를 지난다. */
+  /**
+   * 사람이 범인이면 고발을 시민 AI가 한다. 그 경로도 죽은 판단자를 지난다.
+   *
+   * **조건에 맞는 시드를 찾을 때까지 늘린다.** 고정 시드 몇 개에 기대면, 엔진 셋업의
+   * rng 파생 순서가 바뀌는 것만으로 이 테스트가 «무관한 이유로» 깨진다 —
+   * 재는 것은 완주지 시드가 아니다.
+   */
   it('사람이 범인인 판도 끝난다', async () => {
-    for (const seed of SEEDS) {
+    for (let i = 0; i < 40; i += 1) {
       game().reset()
-      await game().start(seed, 0, () => deadDecider('error'))
-      const me = game().view().players.find((p) => p.isMe)
-      if (me?.faction !== 'culprit') continue
+      await game().start(`dead-culprit-${i}`, 0, () => deadDecider('error'))
+      if (game().view().players.find((p) => p.isMe)?.faction !== 'culprit') continue
 
       await playToEnd('skip')
 
       expect(game().view().phase).toBe('over')
+      expect(game().error).toBeNull()
       return
     }
-    throw new Error('시드 중에 사람이 범인인 판이 없다 — 시드를 늘려야 한다')
+    throw new Error('40개 시드 안에 사람이 범인인 판이 없다 — 진영 배정이 깨졌을 수 있다')
+  })
+
+  /**
+   * 능력과 이의제기는 판단자를 거치지 않는 순수 엔진 호출이라 폴백과 무관해 보인다.
+   * 그런데 그 둘이 남기는 것(pending·grants·공개된 패)은 다음 페이즈의 입력이 된다 —
+   * 협잡꾼이 남의 반증을 바꾸고, 밀정이 이의제기를 막고, 변호사가 「거부」를 만든다.
+   * 죽은 판단자 아래에서 그 결합이 판을 세우지 않는지 실제로 눌러서 본다.
+   */
+  it.each(SEEDS)('능력을 쓰고 이의제기를 걸어도 끝난다 — %s', async (seed) => {
+    await game().start(seed, 0, () => deadDecider('error'))
+
+    await playToEnd('talk', 'loud')
+
+    expect(game().view().phase).toBe('over')
+    expect(game().error).toBeNull()
+  })
+
+  /** 위 시나리오가 실제로 능력과 이의제기를 지나갔는지 — 안 눌렸으면 아무것도 재지 않은 것이다. */
+  it('loud 모드는 능력과 이의제기를 실제로 지나간다', async () => {
+    const used: string[] = []
+    for (const seed of SEEDS) {
+      game().reset()
+      await game().start(seed, 0, () => deadDecider('error'))
+      await playToEnd('talk', 'loud')
+
+      if (game().powerUsed()) used.push(`${seed}:power`)
+      if (game().view().rounds.some((r) => r.challenge !== null)) used.push(`${seed}:challenge`)
+    }
+
+    expect(used.some((u) => u.endsWith(':power')), '능력이 한 번도 안 쓰였다').toBe(true)
+    expect(used.some((u) => u.endsWith(':challenge')), '이의제기가 한 번도 없었다').toBe(true)
   })
 
   /**
