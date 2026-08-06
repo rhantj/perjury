@@ -58,3 +58,61 @@ body {
     'Noto Sans KR', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/*
+ * 소리 스위치. 표지·브리핑·게임판 위에 늘 같은 자리로 뜬다.
+ *
+ * 표지의 인장(landing__seal)이 우하단이라 이쪽은 우상단에 앉힌다. 화면 요소가 아니라
+ * «장치»라서 조판에 끼지 않고 모서리에 떠 있는다.
+ */
+.mute {
+  position: fixed;
+  top: clamp(0.75rem, 2vw, 1.25rem);
+  right: clamp(0.75rem, 2vw, 1.25rem);
+  z-index: 60;
+
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--color-surface) 82%, transparent);
+  color: var(--color-muted);
+
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  /* 레이아웃을 움직이지 않는 것만 건드린다. */
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.mute:hover {
+  color: var(--color-lantern);
+  border-color: var(--color-lantern);
+  transform: scale(1.06);
+}
+
+.mute:focus-visible {
+  outline: 2px solid var(--color-lantern);
+  outline-offset: 2px;
+}
+
+/* 꺼진 상태는 «비어 있음»으로 읽혀야 한다 — 켜진 쪽보다 확실히 물러난다. */
+.mute--off {
+  color: color-mix(in oklch, var(--color-muted) 55%, transparent);
+  border-style: dashed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mute {
+    transition: none;
+  }
+  .mute:hover {
+    transform: none;
+  }
+}
