@@ -1,3 +1,7 @@
+/// <reference types="vite/client" />
+// 아래에서 프론트 판단자를 그대로 부르는데 그 경로의 proxy-url.ts가 import.meta.env.DEV를
+// 쓴다(Vite가 정적 치환하는 자리라 손대지 않는다). 이 참조는 프로그램 전체에 퍼지므로
+// 이 파일은 workers/tsconfig.contract.json이라는 «별도 프로그램»에서만 검사한다.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createGame } from '../../src/engine/setup'
 import { viewFor } from '../../src/engine/view'

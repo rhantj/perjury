@@ -2,10 +2,12 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
-    // vite/client는 워커 «코드»가 아니라 테스트 때문에 있다. proxy-contract.test.ts가
-    // 프론트의 판단자를 그대로 불러 워커 응답을 먹이는데, 그 경로에 있는 proxy-url.ts가
-    // import.meta.env.DEV를 쓴다. 그 파일은 Vite가 정적 치환하는 자리라 손대지 않는다.
-    "types": ["@cloudflare/workers-types", "vite/client"]
+    "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  // 계약 테스트만 뺀다. 그 파일이 프론트를 부르느라 vite/client를 끌어오는데,
+  // 그 참조는 **프로그램 전체**에 퍼져 워커 런타임 코드의 import.meta.env 오용까지
+  // 통과시킨다. 배포 사고를 잡으라고 만든 검사(worker:typecheck)의 구멍이 되므로
+  // 프로그램을 나눈다 — 이쪽은 운영 코드만 엄격하게 본다.
+  "exclude": ["src/proxy-contract.test.ts"]
 }

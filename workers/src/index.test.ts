@@ -22,11 +22,14 @@ function fakeKv() {
   } as unknown as KVNamespace
 }
 
-const env = {
-  BUDGET: fakeKv(),
-  ALLOWED_ORIGINS: 'https://example.test',
-  LLM_API_KEY: 'test-key',
-  LLM_MODEL: 'claude-opus-5',
+/** 테스트마다 새로 만든다 — 예산 카운터가 누적되면 실행 순서에 얽힌다(budget.test.ts 관례). */
+function envOf() {
+  return {
+    BUDGET: fakeKv(),
+    ALLOWED_ORIGINS: 'https://example.test',
+    LLM_API_KEY: 'test-key',
+    LLM_MODEL: 'claude-opus-5',
+  }
 }
 
 function viewOf() {
@@ -80,7 +83,7 @@ describe('/decide 응답 계약', () => {
   it('조기 고발 의사를 응답에 싣는다', async () => {
     fetchMock.mockResolvedValue(upstream({ ...TRIPLE, accuseNow: 'yes' }))
 
-    const response = await worker.fetch(decideRequest(), env as never)
+    const response = await worker.fetch(decideRequest(), envOf() as never)
     const body = (await response.json()) as Record<string, unknown>
 
     expect(response.status).toBe(200)
@@ -90,7 +93,7 @@ describe('/decide 응답 계약', () => {
   it('고발하지 않겠다는 답도 그대로 싣는다', async () => {
     fetchMock.mockResolvedValue(upstream({ ...TRIPLE, accuseNow: 'no' }))
 
-    const body = (await (await worker.fetch(decideRequest(), env as never)).json()) as Record<
+    const body = (await (await worker.fetch(decideRequest(), envOf() as never)).json()) as Record<
       string,
       unknown
     >
@@ -102,7 +105,7 @@ describe('/decide 응답 계약', () => {
   it('칸이 없으면 안 하는 것으로 싣는다', async () => {
     fetchMock.mockResolvedValue(upstream(TRIPLE))
 
-    const body = (await (await worker.fetch(decideRequest(), env as never)).json()) as Record<
+    const body = (await (await worker.fetch(decideRequest(), envOf() as never)).json()) as Record<
       string,
       unknown
     >

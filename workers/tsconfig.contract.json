@@ -1,0 +1,10 @@
+{
+  // 워커 ↔ 프론트 계약 테스트 전용. tsconfig.json이 뺀 그 파일을 여기서 검사한다.
+  // vite/client가 필요한 것은 이 파일 하나뿐이고, 그 느슨함을 이 프로그램에 가둔다.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "vite/client"]
+  },
+  "include": ["src/proxy-contract.test.ts"],
+  "exclude": []
+}
