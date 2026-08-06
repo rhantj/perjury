@@ -4,6 +4,8 @@
   --color-text: oklch(92% 0.008 80);
   --color-muted: oklch(62% 0.01 80);
   --color-accent: oklch(66% 0.16 40);
+  /* 강조색 «위에» 얹는 글자색. 강조색을 배경으로 깔면 본문색은 대비가 모자라 읽히지 않는다. */
+  --color-on-accent: oklch(15% 0.02 40);
   --color-line: oklch(32% 0.012 60);
 
   /*
