@@ -141,13 +141,19 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
             const isPicked = picked[card.kind] === card.id
 
             return (
-              <tr key={card.id}>
+              /*
+               * 고른 줄은 «칸»이 아니라 «줄»로 표시한다. 이름 칸에만 색을 물리면
+               * 표가 빽빽해서 지금 뭘 골랐는지 눈으로 찾아야 한다 — 셋을 다 고르는
+               * 동안 시선은 원탁에 가 있으므로, 돌아왔을 때 바로 걸려야 한다.
+               */
+              <tr key={card.id} className={isPicked ? 'nb__row--picked' : undefined}>
                 <th className="nb__label" scope="row">
                   {isNewGroup && <span className="nb__kind">{KIND_LABEL[card.kind]}</span>}
                   {picking ? (
                     <button
                       type="button"
                       className={`nb__pick${isPicked ? ' nb__pick--on' : ''}`}
+                      aria-pressed={isPicked}
                       onClick={() => onPick(card.kind, card.id)}
                     >
                       {label(card.id)}

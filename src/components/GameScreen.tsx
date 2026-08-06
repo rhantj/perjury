@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
+import { playBgm, playSfx, unlock } from '../audio/audio'
+import type { SfxName } from '../audio/audio'
 import { cardLabel, cardNames, participantLabel, seatSlot } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
@@ -91,6 +93,22 @@ interface FlashEvent {
  * 애니메이션 길이와 쌍이다. 한쪽만 고치면 연출이 끝나기 전에 잘리거나, 끝난 뒤에도
  * 빈 화면이 남는다.
  */
+/**
+ * 어떤 알림에 어떤 효과음을 붙이는가.
+ *
+ * 큐에 «넣을 때»가 아니라 화면에 «뜰 때» 울려야 한다 — 앞선 알림이 대기 중이면
+ * 소리만 몇 초 먼저 나가 엉뚱한 장면에 얹힌다. 그래서 runFlashQueue가 이걸 읽는다.
+ *
+ * caught에 위증 효과음을 같이 매는 이유는 그 컷이 «남의 위증이 드러나는» 순간이라서다.
+ * perjury는 내가 거짓 반증을 낼 때만 뜨므로, 이것만 걸면 AI가 걸리는 쪽에는 소리가 없다.
+ */
+const SFX_FOR_FLASH: Partial<Record<FlashEvent['kind'], SfxName>> = {
+  suggest: 'suggest',
+  refute: 'refute',
+  perjury: 'perjury',
+  caught: 'perjury',
+}
+
 const CHALLENGE_CALL_MS = 2000
 const CHALLENGE_BEAT_MS = 520
 const CHALLENGE_RESULT_MS = 2800
@@ -141,6 +159,8 @@ export default function GameScreen() {
     flashBusyRef.current = true
     flashSeqRef.current += 1
     setActiveFlash({ id: flashSeqRef.current, event: next })
+    const sfx = SFX_FOR_FLASH[next.kind]
+    if (sfx) playSfx(sfx)
     window.setTimeout(() => {
       flashBusyRef.current = false
       runFlashQueue()
@@ -177,6 +197,12 @@ export default function GameScreen() {
    * 네트워크를 타지 않고, 프록시가 실패하면 store가 감싸는 폴백이 같은 시드로 받아낸다.
    */
   const open = (next: string) => {
+    /*
+     * 표지의 [게임 시작]이 이 판의 첫 클릭이다. 브라우저는 사용자가 페이지를 한 번
+     * 건드리기 전까지 재생을 거부하므로, 소리를 여는 지점이 여기 말고는 없다.
+     */
+    unlock()
+    playBgm('intro')
     setSeed(next)
     chooseScenario(null)
     /*
@@ -338,10 +364,14 @@ export default function GameScreen() {
         role={role}
         onEnter={(chosen) => {
           chooseScenario(chosen)
+          playBgm('table')
           setStage('play')
           setOpening(true)
         }}
-        onBack={store.reset}
+        onBack={() => {
+          playBgm('intro')
+          store.reset()
+        }}
       />
     )
 
