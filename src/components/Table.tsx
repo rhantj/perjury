@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { cardLabel, participantInitial, participantLabel, suspectTitle } from '../content/labels'
+import {
+  cardLabel,
+  participantInitial,
+  participantLabel,
+  suggestionSentence,
+  suspectTitle,
+} from '../content/labels'
 import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
@@ -490,6 +496,21 @@ function Seat({
             </li>
           ))}
         </ul>
+      )}
+
+      {/*
+        제안 한 문장. 상 한가운데에 카드 석 장이 놓여 있어도 «누가 무엇을 주장했는가»로는
+        읽히지 않는다 — 그림은 물건이고 주장은 문장이다. 제안자 좌석에 커서를 올리면
+        그 석 장을 이어 붙인 말을 좌석 «안쪽»에 덮어 보여준다.
+
+        밖으로 띄우는 말풍선이 아닌 이유는 .seat의 overflow:hidden이다. 밖으로 뻗으면
+        통째로 잘려 화면에 뜨지 않는다 — 반증 카드가 예전에 그렇게 사라졌다(위 주석).
+      */}
+      {isSuggester && live && (
+        <span className="seat__suggestion" tabIndex={0}>
+          <em>이번 제안</em>
+          {suggestionSentence(scenario, live.suggestion)}
+        </span>
       )}
 
       {caught && <span className="seat__badge">위증</span>}

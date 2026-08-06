@@ -39,6 +39,14 @@ export interface Scenario {
   titles: readonly [Title, Title, Title, Title, Title, Title]
   /** 수단 4장. 코드상 kind는 'weapon'이지만 살인사건이 아닌 판도 있어 «수단»으로 읽는다. */
   means: readonly [string, string, string, string]
+  /**
+   * 제안 한 문장을 맺는 말. 「〈범인〉이 〈장소〉에서 〈수단〉으로 __」의 빈칸이다.
+   *
+   * 시나리오가 들고 있는 이유는 사건마다 «무엇을 했는가»가 다르기 때문이다 —
+   * 밀고자 색출에서는 아무도 죽지 않았다. 화면에 「죽였습니다」를 박아 두면
+   * 그 판에서 글이 판을 배신한다.
+   */
+  deed: string
   places: readonly [string, string, string, string, string]
 }
 
@@ -92,6 +100,7 @@ export const SCENARIOS: readonly Scenario[] = [
       },
     ],
     means: ['대리석 문진', '명주 목도리', '아편팅크', '계단'],
+    deed: '죽였습니다',
     places: ['서재', '응접실', '옥상', '마차고', '별관 복도'],
   },
   {
@@ -143,6 +152,7 @@ export const SCENARIOS: readonly Scenario[] = [
       },
     ],
     means: ['전보', '밀서', '암호책', '사진'],
+    deed: '팔아넘겼습니다',
     places: ['인쇄실', '뒷방', '지하 창고', '골목 어귀', '우물가'],
   },
   {
@@ -194,6 +204,7 @@ export const SCENARIOS: readonly Scenario[] = [
       },
     ],
     means: ['아편대', '주사기', '술병', '노끈'],
+    deed: '죽였습니다',
     places: ['골방', '부엌', '뒷문', '다락', '우물'],
   },
   {
@@ -245,6 +256,7 @@ export const SCENARIOS: readonly Scenario[] = [
       },
     ],
     means: ['분장용 백분', '조명줄', '무대칼', '축배잔'],
+    deed: '죽였습니다',
     places: ['분장실', '무대 뒤', '객석', '지하 연습실', '매표소'],
   },
 ]
