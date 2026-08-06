@@ -7,6 +7,7 @@ import type {
   Claim,
   Declaration,
   GameState,
+  PendingPower,
   PlayerId,
   RoundRecord,
   Suggestion,
@@ -166,6 +167,24 @@ export function suggest(
  * 선언 수 검사·카드 검사가 전부 claims만 보면 끝나야 하기 때문이다. 없는 사람은 null이 되고,
  * 선언하지 않은 사람의 대사는 기록이 선언을 따라가므로 그대로 버려진다.
  */
+/**
+ * 이 지목이 «이번 라운드에» 실제로 걸렸는가. 걸렸으면 1회를 쓴 것이므로 거둔다.
+ *
+ * 걸리지 않았으면 남겨 다음 라운드를 기다린다(룰 개편 §2-7). 안 그러면 판당 1회짜리가
+ * 아무 일도 없이 증발한다 — 추첨은 다섯 중 둘만 뽑으므로 대상이 빠질 확률이 3/5다.
+ * 순사·사진사가 power.ts에서 같은 원칙을 지킨다(2-A). 이 둘은 «선언»에 걸리는 능력이라
+ * 선언이 만들어지는 여기에 있다.
+ *
+ * 걸리는 조건이 서로 다르다는 것이 핵심이다.
+ *   refuse-demand(변호사) — 거부하는 것은 «자신»이므로 자기가 뽑혀야 한다
+ *   frame(협잡꾼)        — 조작하는 것은 «남의» 선언이므로 대상이 뽑혀야 한다
+ */
+function spent(pending: PendingPower, responderIds: readonly PlayerId[]): boolean {
+  if (pending.use.kind === 'refuse-demand') return responderIds.includes(pending.ownerId)
+  if (pending.use.kind === 'frame') return responderIds.includes(pending.use.targetId)
+  return false
+}
+
 export function declareAll(
   state: GameState,
   claims: ReadonlyMap<PlayerId, Claim>,
@@ -228,13 +247,7 @@ export function declareAll(
     {
       ...state,
       phase: 'challenge',
-      /*
-       * 선언에 걸리는 능력은 여기서 쓰였다. 「1회」이므로 거둔다 —
-       * 남겨두면 매 라운드 거부하거나 매 라운드 조작하게 된다.
-       */
-      pending: state.pending.filter(
-        (p) => p.use.kind !== 'refuse-demand' && p.use.kind !== 'frame',
-      ),
+      pending: state.pending.filter((p) => !spent(p, record.responderIds)),
       rounds: [...state.rounds.slice(0, -1), { ...record, declarations }],
     },
     declarations,
