@@ -322,6 +322,7 @@ function roundView(value: unknown, index: number) {
       'suggesterId',
       'suggestion',
       'suggestionLine',
+      'responderIds',
       'declarations',
       'challenge',
       'exposed',
@@ -333,6 +334,16 @@ function roundView(value: unknown, index: number) {
   return {
     round: count(obj, 'round', where),
     suggesterId: text(obj, 'suggesterId', where),
+    /*
+     * 이번 라운드에 반증 의무를 진 좌석(추첨 2인). 전체 공개 정보다.
+     *
+     * 없으면 빈 배열로 본다 — findings·powerSpent와 같은 이유의 관용이다.
+     * 이 필드는 그 순서를 «어겼을 때» 무슨 일이 나는지를 실제로 보여줬다. 프론트가 먼저
+     * 올라가서 배포본의 판단 요청이 전부 `허용되지 않은 필드 'responderIds'`로 400을 맞고
+     * 폴백으로 떨어져 있었다. **워커를 먼저 배포하고 프론트를 나중에.**
+     */
+    responderIds:
+      obj['responderIds'] === undefined ? [] : ids(obj, 'responderIds', LIMITS.players, where),
     suggestion: suggestion(obj['suggestion'], `${where}.suggestion`),
     suggestionLine: line(obj, 'suggestionLine', where),
     declarations: list(obj, 'declarations', LIMITS.declarations, where).map((entry, i) => {
