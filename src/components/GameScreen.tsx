@@ -408,6 +408,22 @@ export default function GameScreen() {
   const liveParleys = view.rounds[view.rounds.length - 1]?.parleys.length ?? 0
 
   const picking = (view.phase === 'suggest' || view.phase === 'accuse') && myMove
+
+  /*
+   * 추리표에서 강조할 석 장.
+   *
+   * 고르는 동안은 내가 누른 것을, **확정한 뒤에는 상에 올라간 제안을** 계속 표시한다.
+   * 확정하면서 picked를 비우기 때문에(submit) 예전에는 그 순간 강조가 사라졌는데,
+   * 남들이 반증하는 시간이 정작 「내가 뭘 걸었더라」를 봐야 하는 시간이다.
+   *
+   * 남의 제안도 같은 자리에 표시한다. 상 한가운데 놓인 카드 석 장과 추리표의 세 줄이
+   * 같이 켜져야 «지금 묻고 있는 것»과 «내가 아는 것»을 한눈에 맞춰 볼 수 있다.
+   */
+  const onTable = (() => {
+    const record = view.rounds[view.rounds.length - 1]
+    return record?.round === view.round ? record.suggestion : null
+  })()
+  const marked: Picked = picking ? picked : (onTable ?? {})
   /* 제안 순서가 나에게 왔을 때만 켠다 — 반증·이의제기는 순번이 아니라 동시/선착이라 여기 안 낀다. */
   const isMyTurn = view.phase === 'suggest' && view.players[view.turnIndex]?.isMe === true
 
@@ -555,7 +571,7 @@ export default function GameScreen() {
             view={view}
             scenario={scenario}
             picking={picking}
-            picked={picked}
+            picked={marked}
             onPick={(kind, cardId) => setPicked((p) => ({ ...p, [kind]: cardId }))}
           />
         </main>
