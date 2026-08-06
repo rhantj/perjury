@@ -223,13 +223,19 @@ export function createLlmDecider(
        */
       truthful: payload['truthful'] === true ? true : payload['truthful'] === false ? false : null,
       /*
-       * 조기 고발 의사(3-C-2b). **"yes"만 «함»이고 나머지는 전부 «안 함»이다.**
+       * 조기 고발 의사(3-C-2b). **불리언 true만 «함»이고 나머지는 전부 «안 함»이다.**
+       *
+       * 모델은 "yes"/"no" 문자열로 답하지만 그것을 불리언으로 바꾸는 것은 워커다
+       * (workers/src/llm.ts) — truthful과 같은 길이다. 여기서 문자열과 비교하면
+       * 양쪽이 각자 정합적인 채로 «서로 다른 계약»을 보게 되어 값이 조용히 사라진다.
+       * 실제로 그렇게 죽어 있었고, 그래서 이음매를 태우는 테스트를 따로 뒀다
+       * (workers/src/proxy-contract.test.ts).
        *
        * 옛 워커는 이 칸을 아예 안 준다. 모르는 값을 「고발함」으로 읽으면 배포 순서가
        * 어긋난 그 순간 AI가 아무렇게나 고발해 판이 끝난다 — 되돌릴 수 없는 쪽으로
        * 틀리지 않게 «안 함»으로 닫는다.
        */
-      accuseNow: payload['accuseNow'] === 'yes',
+      accuseNow: payload['accuseNow'] === true,
     }
   }
 

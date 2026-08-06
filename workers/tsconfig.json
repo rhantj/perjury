@@ -2,7 +2,10 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"]
+    // vite/client는 워커 «코드»가 아니라 테스트 때문에 있다. proxy-contract.test.ts가
+    // 프론트의 판단자를 그대로 불러 워커 응답을 먹이는데, 그 경로에 있는 proxy-url.ts가
+    // import.meta.env.DEV를 쓴다. 그 파일은 Vite가 정적 치환하는 자리라 손대지 않는다.
+    "types": ["@cloudflare/workers-types", "vite/client"]
   },
   "include": ["src"]
 }
