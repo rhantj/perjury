@@ -515,13 +515,7 @@ describe('탈락자는 능력을 쓰지 않는다', () => {
     expect(() => usePower(fallen, me, { kind: 'inspect-hand', targetId: idOf(state, 1) })).toThrow()
   })
 
-  /*
-   * 탈락자도 «선언»은 계속하므로, 선언에 걸리는 능력의 대상으로는 유효하다.
-   *
-   * 손패를 직접 캐는 검시관(inspect-hand)까지 열어둘지는 아직 안 정했다 — 그건
-   * 결정 011이 탈락자에게 밀담을 막은 근거(「틀려도 정보원이 하나 생긴다」)와 같은 문이다.
-   * 그래서 여기서는 논란 없는 쪽만 못 박는다.
-   */
+  /** 탈락자도 «선언»은 계속하므로, 선언에 걸리는 능력의 대상으로는 유효하다. */
   it('탈락자를 선언 관련 능력의 대상으로 삼는 것은 막지 않는다', () => {
     const state = afterSuggest(game())
     const fallen: GameState = { ...state, eliminated: [idOf(state, 1)] }
@@ -529,5 +523,27 @@ describe('탈락자는 능력을 쓰지 않는다', () => {
     expect(
       usePower(fallen, idOf(state, 2), { kind: 'verify-claim', targetId: idOf(state, 1) }).pending,
     ).toHaveLength(1)
+  })
+
+  /*
+   * 검시관은 반증과 무관하게 손패에서 한 장을 직접 뽑는데, 탈락자에게도 통한다(결정 011).
+   *
+   * 밀담은 막고 이건 여는 것이 앞뒤가 맞는 이유는 «값»이 다르기 때문이다. 능력은 판당 1회를
+   * 태우고 무작위 1장을 얻지만, 밀담은 판당 여러 번 반복하며 표적 정보를 캔다.
+   * 감추는 것은 손패 «2장이 한꺼번에» 열리는 것이지 한 장이 아니다(§2-5).
+   */
+  it('검시관은 탈락자의 손패도 한 장 캔다', () => {
+    const state = game()
+    const target = state.players[1]
+    if (!target) throw new Error('대상이 없다')
+    const fallen: GameState = { ...state, eliminated: [target.id] }
+
+    const after = usePower(fallen, idOf(state, 0), { kind: 'inspect-hand', targetId: target.id })
+    const grant = after.grants[0]
+
+    if (grant?.finding.kind !== 'hand') throw new Error('finding 종류가 다르다')
+    expect(target.hand).toContain(grant.finding.cardId)
+    // 캔 것은 캔 사람만 안다. 전체 공개인 revealed는 그대로다.
+    expect(after.players[1]?.revealed).toEqual([])
   })
 })

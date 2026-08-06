@@ -310,3 +310,22 @@ describe('탈락자는 이의제기하지 않는다', () => {
     expect(canChallenge({ ...state, eliminated: ['p2'] }, 'p2')).toBe(false)
   })
 })
+
+describe('탈락자도 위증에는 값을 치른다', () => {
+  /*
+   * 탈락자는 반증을 계속하므로 위증도 계속할 수 있다(룰 개편 §2-5). 잡히면 페널티도
+   * 그대로 받는다 — 막으면 벌 없이 거짓을 뿌리는 «처벌 불가 오염원»이 된다.
+   *
+   * 여기서 열리는 것은 «한 장»이다. §2-5가 감추는 것은 손패 2장이 한꺼번에 열려
+   * 판이 즉시 끝나는 것이지 한 장이 아니다(결정 011).
+   */
+  it('탈락자가 위증하다 잡히면 손패 1장은 열린다', () => {
+    const state = staged()
+    const fallen: GameState = { ...state, eliminated: ['p3'] }
+
+    const after = challenge(fallen, 'p2', 'p3')
+
+    expect(after.rounds[0]?.challenge?.success).toBe(true)
+    expect(after.players[3]?.revealed).toHaveLength(1)
+  })
+})
