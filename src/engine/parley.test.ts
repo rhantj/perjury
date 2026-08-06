@@ -3,7 +3,7 @@ import { skipChallenge } from './challenge'
 import { PARLEY_LIMIT, canParley, parley, parleysUsedIn, skipParley } from './parley'
 import { declareAll } from './round'
 import { suggestAll as suggest } from './testing'
-import { createGame } from './setup'
+import { DEFAULT_ROUNDS, createGame } from './setup'
 import { usePower } from './power'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
 
@@ -170,6 +170,20 @@ describe('parley — 판당 횟수 제한 (decisions/009)', () => {
   it('canParley는 한도를 다 쓰면 false다', () => {
     expect(canParley(withPastParleys(atWhisper(), PARLEY_LIMIT - 1))).toBe(true)
     expect(canParley(withPastParleys(atWhisper(), PARLEY_LIMIT))).toBe(false)
+  })
+
+  /*
+   * 위 테스트들은 전부 PARLEY_LIMIT을 «참조»하므로 값이 무엇이든 통과한다.
+   * 그래서 값 자체를 여기서 묶는다 — 이 파일에서 숫자를 검증하는 유일한 자리다.
+   *
+   * 4회차당 1회라는 비율이 근거다(룰 개편 §3-2). 상한을 8에서 24로 올린 08-06에
+   * 밀담을 같이 올리지 않아 8회차당 1회가 됐고, 그때 「정보가 마른다」가 실측으로 나왔다
+   * (24회차를 다 돌고도 200판 전부 혼자서는 못 풀었다).
+   *
+   * **회차만 바꾸면 여기가 터진다. 그게 이 테스트의 목적이다** — 두 값은 따로 정할 수 없다.
+   */
+  it('한도는 회차 상한에 4:1로 묶인다', () => {
+    expect(PARLEY_LIMIT * 4).toBe(DEFAULT_ROUNDS)
   })
 
   /*
