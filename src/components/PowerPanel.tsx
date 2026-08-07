@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { josa, josaOf } from '../content/josa'
 import { cardLabel, participantLabel } from '../content/labels'
 import { cardsOfKind } from '../engine/cards'
 import { needsOf, usableIn } from '../engine/power'
@@ -232,14 +233,24 @@ const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
  */
 function describe(scenario: Scenario, view: GameView, grant: Grant): string {
   const finding = grant.finding
+  /*
+   * 좌석 이름도 카드 이름도 데이터라 받침이 제각각이다. 조사를 박아 두면
+   * 「참가1는」·「참가3는」이 그대로 나간다 — 숫자는 읽는 소리를 따르므로
+   * 1은 「일」, 3은 「삼」이라 둘 다 받침이 있다. 배포본에 그렇게 나가 있었다.
+   */
   switch (finding.kind) {
-    case 'hand':
-      return `${participantLabel(view, finding.targetId)}는 «${cardLabel(scenario, finding.cardId)}»를 쥐고 있다`
-    case 'weapon':
-      return `«${cardLabel(scenario, finding.cardId)}»는 사건의 수단이 ${finding.isSolution ? '맞다' : '아니다'}`
+    case 'hand': {
+      const card = cardLabel(scenario, finding.cardId)
+      const who = participantLabel(view, finding.targetId)
+      return `${josa(who, 'eun')} «${card}»${josaOf(card, 'eul')} 쥐고 있다`
+    }
+    case 'weapon': {
+      const card = cardLabel(scenario, finding.cardId)
+      return `«${card}»${josaOf(card, 'eun')} 사건의 수단이 ${finding.isSolution ? '맞다' : '아니다'}`
+    }
     case 'claim':
       return `${participantLabel(view, finding.targetId)}의 반증은 ${finding.truthful ? '참이었다' : '거짓이었다'}`
     case 'parley':
-      return `밀담에서 ${participantLabel(view, finding.targetId)}는 ${finding.truthful ? '사실을 말했다' : '거짓을 말했다'}`
+      return `밀담에서 ${josa(participantLabel(view, finding.targetId), 'eun')} ${finding.truthful ? '사실을 말했다' : '거짓을 말했다'}`
   }
 }

@@ -5,7 +5,7 @@ import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
 import { playBgm, playSfx, unlock } from '../audio/audio'
 import type { SfxName } from '../audio/audio'
-import { cardLabel, cardNames, participantLabel, seatSlot } from '../content/labels'
+import { cardLabel, cardNames, participantLabel, seatSlot, subjectLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
 import type { Scenario } from '../content/scenarios'
@@ -474,7 +474,9 @@ export default function GameScreen() {
       enqueueFlash({
         kind: 'caught',
         text: `${target} 위증 발각!`,
-        detail: penalty ? `${challenger}이(가) 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
+        detail: penalty
+          ? `${subjectLabel(view, challenge.challengerId)} 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
+          : '더 밝힐 패가 없다',
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
         ms: CHALLENGE_CAUGHT_MS,
       })
@@ -483,8 +485,8 @@ export default function GameScreen() {
         kind: 'wrongCall',
         text: `${challenger}의 오판`,
         detail: penalty
-          ? `${target}은(는) 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
-          : `${target}은(는) 위증이 아니었다`,
+          ? `${josa(target, 'eun')} 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
+          : `${josa(target, 'eun')} 위증이 아니었다`,
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
         ms: CHALLENGE_RESULT_MS,
       })

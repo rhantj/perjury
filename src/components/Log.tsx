@@ -1,5 +1,11 @@
 import { josa } from '../content/josa'
-import { cardLabel, namesAnyCard, participantInitial, participantLabel } from '../content/labels'
+import {
+  cardLabel,
+  namesAnyCard,
+  participantInitial,
+  participantLabel,
+  subjectLabel,
+} from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId } from '../engine/types'
 import type { GameView, RoundView } from '../engine/view'
@@ -40,17 +46,6 @@ function nameOf(view: GameView, id: string): string {
   return participantLabel(view, id)
 }
 
-/**
- * 「누가」에 해당하는 말. 조사까지 붙여 돌려준다.
- *
- * 나 자신은 「나가」가 아니라 **「내가」**다 — 조사 규칙이 아니라 대명사가 통째로 바뀌는
- * 예외라서 josa()로는 못 만든다. 여기서 한 번만 갈라 둔다.
- */
-function subject(view: GameView, id: string): string {
-  const name = nameOf(view, id)
-  return name === '나' ? '내가' : josa(name, 'i')
-}
-
 function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
   const label = (id: CardId) => cardLabel(scenario, id)
 
@@ -61,7 +56,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       face: null,
       quote: round.suggestionLine,
       mine: false,
-      text: `${subject(view, round.suggesterId)} ${label(round.suggestion.suspect)} · ${label(
+      text: `${subjectLabel(view, round.suggesterId)} ${label(round.suggestion.suspect)} · ${label(
         round.suggestion.weapon,
       )} · ${josa(label(round.suggestion.place), 'eul')} 올렸다.`,
     },
@@ -118,7 +113,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       quote: line,
       mine: false,
       text: success
-        ? `${subject(view, challengerId)} ${nameOf(view, targetId)}의 위증을 잡았다 — ${josa(label(cardId), 'eun')} 자신이 갖고 있다.`
+        ? `${subjectLabel(view, challengerId)} ${nameOf(view, targetId)}의 위증을 잡았다 — ${josa(label(cardId), 'eun')} 자신이 갖고 있다.`
         : `${nameOf(view, challengerId)}의 이의제기가 실패했다.`,
     })
     for (const r of reveals) {
@@ -176,7 +171,7 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
       face: null,
       quote: null,
       mine: false,
-      text: `${subject(view, askerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
+      text: `${subjectLabel(view, askerId)} ${josa(nameOf(view, targetId), 'wa')} 따로 이야기했다.`,
     })
     out.push({
       tone: 'parley',

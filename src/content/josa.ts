@@ -67,8 +67,17 @@ function finalOf(word: string): number {
  * (「응접실을」·「응접실이」). 이 한 줄이 로/으로를 다른 조사와 갈라놓는 전부다.
  */
 export function josa(word: string, kind: JosaKind): string {
+  return `${word}${josaOf(word, kind)}`
+}
+
+/**
+ * 조사«만» 돌려준다. 말과 조사 사이에 다른 글자가 끼는 자리에 쓴다 —
+ * 능력 결실 문구는 카드 이름을 «»로 감싸므로(PowerPanel) 조사가 닫는 괄호 뒤로 밀린다.
+ * josa()에 «조명줄»을 통째로 넣으면 마지막 글자가 »라 받침을 못 읽는다.
+ */
+export function josaOf(word: string, kind: JosaKind): string {
   const final = finalOf(word)
   const hasFinal = kind === 'ro' ? final !== 0 && final !== RIEUL : final !== 0
   const pair = PAIRS[kind]
-  return `${word}${hasFinal ? pair[1] : pair[0]}`
+  return hasFinal ? pair[1] : pair[0]
 }

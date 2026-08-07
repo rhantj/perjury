@@ -133,6 +133,20 @@ export function participantLabel(view: GameView, playerId: PlayerId): string {
   return index >= 0 ? `참가${index + 1}` : '참가?'
 }
 
+/**
+ * 「누가」에 해당하는 말. **조사까지 붙여 돌려준다.**
+ *
+ * 나 자신은 「나가」가 아니라 **「내가」**다 — 조사 규칙이 아니라 대명사가 통째로 바뀌는
+ * 예외라서 josa()로는 못 만든다. 여기서 한 번만 갈라 둔다.
+ *
+ * Log의 지역 함수였는데 participantLabel 옆으로 옮겼다. 좌석 이름을 주어로 쓰는 자리가
+ * 기록 말고도 있고(연출 컷), 그쪽은 이 예외를 몰라 「이(가)」로 피해 가 있었다.
+ */
+export function subjectLabel(view: GameView, playerId: PlayerId): string {
+  const name = participantLabel(view, playerId)
+  return name === '나' ? '내가' : josa(name, 'i')
+}
+
 /** 원탁에서 좌석이 앉는 칸. game.css의 grid-template-areas와 이름이 같다. */
 export type SeatSlot = 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'me'
 

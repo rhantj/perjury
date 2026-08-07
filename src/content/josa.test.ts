@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { josa } from './josa'
+import { josa, josaOf } from './josa'
 
 describe('josa — 받침에 따라 갈리는 조사', () => {
   it('받침이 없으면 로·를·가·는', () => {
@@ -59,5 +59,24 @@ describe('josa — 받침에 따라 갈리는 조사', () => {
   it('한글도 숫자도 아니면 받침 없는 쪽으로 본다', () => {
     expect(josa('Kim', 'i')).toBe('Kim가')
     expect(josa('', 'i')).toBe('가')
+  })
+})
+
+/**
+ * 능력 결실 문구는 카드 이름을 «»로 감싼다(PowerPanel의 describe). 조사는 닫는
+ * 괄호 «뒤»에 와야 하는데, josa()에 «조명줄»을 통째로 넣으면 마지막 글자가 »라
+ * 받침을 못 읽고 전부 받침 없는 쪽으로 떨어진다.
+ */
+describe('josaOf — 조사만 떼어 쓴다', () => {
+  it('붙여 쓴 josa와 같은 판단을 한다', () => {
+    expect(josaOf('조명줄', 'eul')).toBe('을')
+    expect(josaOf('서재', 'eul')).toBe('를')
+    expect(josaOf('참가1', 'eun')).toBe('은')
+    expect(josaOf('참가2', 'eun')).toBe('는')
+  })
+
+  it('괄호 뒤에 붙여 온전한 문장이 된다', () => {
+    const card = '조명줄'
+    expect(`«${card}»${josaOf(card, 'eul')} 쥐고 있다`).toBe('«조명줄»을 쥐고 있다')
   })
 })
