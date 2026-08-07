@@ -20,6 +20,13 @@ interface ParleyProps {
    */
   onDone: (targetId: PlayerId, ask: string, reply: string, truthful: boolean | null) => void
   onSkip: () => void
+  /**
+   * 정보상 능력을 아직 쓸 수 있는가. 트리거가 이 자리에 있는 이유는 판정할 «말»이
+   * 여기서 나오기 때문이다 — 능력 패널에서 미리 켜면 무엇을 가려낼지 모른 채 태운다.
+   */
+  detectReady: boolean
+  /** 능력을 건다. 자리를 뜨기 «전»에 걸어야 이번 답이 판정 대상이 된다(engine/parley.ts의 detected). */
+  onDetect: () => void
 }
 
 /** ①~④는 화면 상태다. 엔진은 ⑤에서 처음 불린다(설계 §8). */
@@ -31,7 +38,15 @@ type Step = 'pick' | 'write' | 'waiting' | 'read' | 'failed'
  * **라운드마다 새로 마운트한다**(부르는 쪽이 key={view.round}를 준다). 그래야 지난 라운드의
  * 고른 상대·쓴 말이 남지 않는다. useEffect로 지우는 것보다 상태가 하나 적다.
  */
-export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProps) {
+export default function Parley({
+  view,
+  open,
+  onAsk,
+  onDone,
+  onSkip,
+  detectReady,
+  onDetect,
+}: ParleyProps) {
   const [step, setStep] = useState<Step>('pick')
   const [targetId, setTargetId] = useState<PlayerId | null>(null)
   const [ask, setAsk] = useState('')
@@ -177,13 +192,40 @@ export default function Parley({ view, open, onAsk, onDone, onSkip }: ParleyProp
             <b>{targetName}</b>
             {reply}
           </p>
-          <button
-            type="button"
-            className="btn btn--go"
-            onClick={() => onDone(targetId, ask.trim(), reply, truthful)}
-          >
-            자리를 뜬다
-          </button>
+          <div className="parley__opts">
+            {/*
+              정보상의 발동 자리. 답을 «들은 뒤에» 걸게 두는 것이 요점이다 —
+              밀담 한 번에 판당 한 번뿐인 능력을 붙이는 선택이라, 무슨 말이 나왔는지
+              보고 나서 태울지 정해야 값이 된다.
+
+              거는 것과 자리를 뜨는 것을 한 번에 한다. 엔진에서 판정이 나는 곳은
+              parley()이고 그건 「자리를 뜬다」가 부르므로, 걸어만 두고 화면에 남으면
+              이번 답이 아니라 다음 밀담에 걸린다.
+
+              **결과는 여기 안 뜬다.** 알아낸 것은 「나만 보는 패」의 능력 칸에 쌓인다 —
+              밀담 줄에 찍으면 상대가 보는 화면과 같은 자리라 정보가 새는 것처럼 읽힌다.
+            */}
+            {detectReady && (
+              <button
+                type="button"
+                className="btn btn--go"
+                title="판당 한 번뿐인 정보상 능력을 이 답에 쓴다 — 결과는 「나만 보는 패」에 남는다"
+                onClick={() => {
+                  onDetect()
+                  onDone(targetId, ask.trim(), reply, truthful)
+                }}
+              >
+                情 가려낸다
+              </button>
+            )}
+            <button
+              type="button"
+              className={detectReady ? 'btn' : 'btn btn--go'}
+              onClick={() => onDone(targetId, ask.trim(), reply, truthful)}
+            >
+              자리를 뜬다
+            </button>
+          </div>
         </>
       )}
 
