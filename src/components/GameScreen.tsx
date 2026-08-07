@@ -666,7 +666,13 @@ export default function GameScreen() {
               범인을 지목한다
             </button>
           )}
-          {accusing || iAmOut ? null : view.outcome ? null : !myMove ? (
+          {/*
+            탈락자에게도 «반증 페이즈만» 이 줄을 연다. 잃는 것은 제안·고발·밀담·능력이고
+            반증은 그대로이기 때문이다(룰 개편 §2-5). iAmOut으로 통째로 닫으면
+            엔진은 그 사람의 선언을 계속 기다리는데(ai/flow.ts needsHuman) 낼 버튼이
+            없어서 반증 페이즈에서 판이 영영 멈춘다 — 화면만의 소프트락이었다.
+          */}
+          {accusing || (iAmOut && view.phase !== 'refute') ? null : view.outcome ? null : !myMove ? (
             <Waiting />
           ) : view.phase === 'suggest' ? (
             <button
@@ -685,7 +691,12 @@ export default function GameScreen() {
               view={view}
               scenario={scenario}
               onRefute={handleRefute}
-              onRefuse={role.effect === 'refuse-demand' && !store.powerUsed() ? handleRefuse : null}
+              /* 탈락자는 능력을 잃는다 — 누르면 엔진이 던진다(engine/power.ts). 버튼부터 거둔다. */
+              onRefuse={
+                !iAmOut && role.effect === 'refuse-demand' && !store.powerUsed()
+                  ? handleRefuse
+                  : null
+              }
             />
           ) : view.phase === 'challenge' ? (
             <ChallengeBar

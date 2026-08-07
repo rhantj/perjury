@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGame } from './game'
 import type { Decider, DeciderForRound, FallbackReason } from '../ai/decider'
-import { cardsOfKind } from '../engine/cards'
+import { cardKind, cardsOfKind } from '../engine/cards'
 import { CHALLENGE_LIMIT, challengesUsedIn } from '../engine/challenge'
 import { needsOf, usableIn } from '../engine/power'
 import { PARLEY_LIMIT, parleysUsedIn } from '../engine/parley'
@@ -339,4 +339,63 @@ describe('판단자가 죽은 채로 완주 (절대 규칙 4)', () => {
     const declared = game().view().rounds.flatMap((r) => r.declarations)
     expect(declared.length).toBeGreaterThan(0)
   })
+
+  /**
+   * 조기 고발에 실패한 사람은 **반증만 이어 간다**(룰 개편 §2-5).
+   *
+   * 완주 테스트에 이 경로가 없었다 — playToEnd는 조기 고발을 하지 않으므로 탈락한 좌석을
+   * 한 번도 지나가지 않는다. 그런데 이 상태는 다른 어떤 상태와도 다르다: 엔진이 그 사람의
+   * 선언을 계속 «요구»하면서 나머지 행동은 전부 «던진다». 요구와 금지가 한 좌석에 겹치는
+   * 유일한 자리라, 한쪽만 보고 닫으면 판이 선다.
+   *
+   * 실제로 화면이 그렇게 닫혀 있었다(GameScreen.tsx 액션 바 가드) — 탈락하면 반증 줄까지
+   * 같이 사라져 반증 페이즈에서 판이 영영 멈췄다.
+   */
+  it('조기 고발에 실패해도 반증을 이어 가며 판이 끝난다', async () => {
+    for (let i = 0; i < 40; i += 1) {
+      game().reset()
+      await game().start(`dead-early-${i}`, 0, () => deadDecider('error'))
+      const me = game().view().players.find((p) => p.isMe)
+      // 범인이 외치면 자백이라 판이 그 자리에서 끝난다(engine/progress.ts) — 탈락 경로가 아니다.
+      if (!me || me.faction !== 'citizen') continue
+
+      await game().accuseEarly(wrongAccusation())
+      // 틀린 고발이었는지부터 확인한다. 맞았으면 판이 끝나 재려던 것을 못 잰다.
+      if (game().view().phase === 'over') throw new Error('고발이 맞았다 — wrongAccusation이 틀렸다')
+      expect(game().view().eliminated).toContain(game().view().viewerId)
+
+      const before = declaredByMe()
+      await playToEnd('skip')
+
+      expect(game().view().phase).toBe('over')
+      expect(game().error).toBeNull()
+      // 「반증만 이어 간다」의 실체. 한 번도 안 뽑혔다면 아무것도 증명하지 못한 판이다.
+      expect(declaredByMe(), '탈락 뒤 반증을 한 번도 못 냈다').toBeGreaterThan(before)
+      return
+    }
+    throw new Error('40개 시드 안에 사람이 시민인 판이 없다 — 진영 배정이 깨졌을 수 있다')
+  })
 })
+
+/** 내가 지금까지 낸 선언 수. 탈락 전후를 비교해 «반증이 이어졌는가»를 잰다. */
+function declaredByMe(): number {
+  const view = game().view()
+  return view.rounds.flatMap((r) => r.declarations).filter((d) => d.playerId === view.viewerId)
+    .length
+}
+
+/**
+ * **반드시 틀리는** 고발. 내 손패에 있는 카드는 정답일 수 없다(engine/setup.ts —
+ * 정답 석 장을 빼고 나머지를 나눈다). 그 카드를 제 칸에 박으면 오답이 보장된다.
+ *
+ * 정답을 조회해 «비켜 가는» 방법을 쓰지 않는 이유는, 시민 시야에는 solution이 null이라
+ * (engine/view.ts) 테스트만 아는 정보로 판을 만들게 되기 때문이다.
+ */
+function wrongAccusation(): Suggestion {
+  const me = game().view().players.find((p) => p.isMe)
+  const held = me?.hand?.[0]
+  if (!held) throw new Error('내 손패가 비었다')
+
+  const base = anySuggestion()
+  return { ...base, [cardKind(held)]: held }
+}
