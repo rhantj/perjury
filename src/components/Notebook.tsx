@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { cardLabel, participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import type { Scenario } from '../content/scenarios'
@@ -154,19 +154,35 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
             const sealedAnswer = isSolution(card.id)
 
             return (
-              /*
+              <Fragment key={card.id}>
+                {/*
+                  종류 이름은 «머리 줄»로 따로 세운다. 첫 카드 칸 안에 넣으면
+                  「범인 강도윤」처럼 한 줄에 붙어, 그 줄만 다른 줄보다 넓어지거나
+                  종류가 카드 이름의 일부처럼 읽힌다 — 둘 다 신고된 증상이다.
+                  줄을 나누면 카드 이름이 종류 «아래»로 가고 데이터 줄 높이는 전부 같아진다.
+                */}
+                {isNewGroup && (
+                  <tr className="nb__group">
+                    <th
+                      className="nb__group-label"
+                      colSpan={1 + view.players.length}
+                      scope="colgroup"
+                    >
+                      {KIND_LABEL[card.kind]}
+                    </th>
+                  </tr>
+                )}
+              {/*
                * 고른 줄은 «칸»이 아니라 «줄»로 표시한다. 이름 칸에만 색을 물리면
                * 표가 빽빽해서 지금 뭘 골랐는지 눈으로 찾아야 한다 — 셋을 다 고르는
                * 동안 시선은 원탁에 가 있으므로, 돌아왔을 때 바로 걸려야 한다.
-               */
+               */}
               <tr
-                key={card.id}
                 className={[isPicked ? 'nb__row--picked' : '', sealedAnswer ? 'nb__row--answer' : '']
                   .join(' ')
                   .trim() || undefined}
               >
-                <th className={isNewGroup ? 'nb__label nb__label--top' : 'nb__label'} scope="row">
-                  {isNewGroup && <span className="nb__kind">{KIND_LABEL[card.kind]}</span>}
+                <th className="nb__label" scope="row">
                   {/* 봉인 인장. 범인에게만 뜬다 — 시민 시야에는 solution이 없다. */}
                   {sealedAnswer && (
                     <span className="nb__answer" title="봉인된 정답 — 나만 안다">
@@ -200,7 +216,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                       : info.title
 
                   return (
-                    <td key={player.id} className={isNewGroup ? 'nb__cell-top' : undefined}>
+                    <td key={player.id}>
                       <button
                         type="button"
                         className={`nb__cell nb__cell--${info.className}${known ? ' nb__cell--fixed' : ''}${isSealed ? ' nb__cell--sealed' : ''}`}
@@ -215,6 +231,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                   )
                 })}
               </tr>
+              </Fragment>
             )
           })}
         </tbody>
