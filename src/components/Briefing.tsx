@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { cardLabel, suspectNameAt, suspectTitleFull } from '../content/labels'
+import { isAlwaysOn } from '../content/roles'
 import type { Role } from '../content/roles'
 import { ROLE_ART, ROLE_ART_SIZE } from '../content/role-art'
 import { placeArtFor } from '../content/place-art'
@@ -375,7 +376,12 @@ function RoleAct({
             {/* 이야기는 눌러 두었다가 카드에 손이 닿을 때만 나온다. */}
             <span className="duty__flavor">{role.flavor}</span>
           </span>
-          <span className="duty__once">壹回</span>
+          {/*
+            착석 «전»이라 아직 아무도 쓰지 않았고 아무도 빠지지 않았다 —
+            명패의 다섯 갈래 중 여기서 갈리는 것은 「발동이 있는가」 하나뿐이다.
+            판정은 MyPlate와 같은 것을 쓴다(content/roles.ts). 각자 적으면 갈라진다.
+          */}
+          <span className="duty__once">{isAlwaysOn(role) ? '常時' : '壹回'}</span>
         </section>
 
         <section className="slip">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ROLES, assignRoles, autoShieldSeats } from './roles'
+import { ROLES, assignRoles, autoShieldSeats, isAlwaysOn } from './roles'
 import { cardsOfKind } from '../engine/cards'
 import { buildPowerUse, needsOf } from '../engine/power'
 import type { Role } from './roles'
@@ -194,5 +194,29 @@ describe('직업 — 열 종이 모두 살아 있는가', () => {
       if (spy) expect(shielded).toContain(spy)
       else expect(shielded.size).toBe(0)
     }
+  })
+})
+
+/**
+ * 뱃지는 화면 두 곳에 나온다 — 착석 «전» 브리핑과 착석 «후» 내 명패다.
+ * 발동이 없는 직업을 「壹回」라고 적으면 아직 쓸 것이 남았다는 거짓말이 된다.
+ *
+ * 두 화면이 각자 판정하면 갈라진다. 실제로 갈라져서 브리핑만 거짓말을 하고 있었다 —
+ * 그래서 판정을 여기 한 곳에 두고 양쪽이 부른다.
+ */
+describe('isAlwaysOn — 발동이 없는 직업', () => {
+  it('전화교환수는 상시다', () => {
+    const operator = ROLES.find((role) => role.id === 'operator')
+    expect(operator).toBeDefined()
+    if (operator) expect(isAlwaysOn(operator)).toBe(true)
+  })
+
+  /**
+   * 나머지 아홉은 전부 버튼을 눌러 «쓰는» 능력이다.
+   * 하나라도 여기 걸리면 그 직업의 뱃지가 판 내내 「壹回」에 멈춰 있다는 뜻이다.
+   */
+  it('나머지 직업은 전부 1회용이다', () => {
+    const always = ROLES.filter((role) => isAlwaysOn(role)).map((role) => role.ko)
+    expect(always).toEqual(['전화교환수'])
   })
 })
