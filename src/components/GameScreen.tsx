@@ -83,6 +83,17 @@ interface FlashEvent {
    * 그 한 박자가 있어야 둘이 별개의 사건으로 읽힌다.
    */
   gapMs?: number
+  /**
+   * 이 알림이 «뜨기 전에» 비워 두는 시간. gapMs의 반대쪽이다.
+   *
+   * 「제안하자마자 추첨이 튄다」는 피드백 — 제안 확정과 추첨 컷이 한 박자로 붙어,
+   * 내가 무엇을 제안했는지 원탁에서 확인하기도 전에 화면이 추첨통으로 덮였다.
+   *
+   * gapMs로는 안 된다. 그건 «앞 알림»에 다는 값이라 앞이 이미 끝나 큐가 비어 있으면
+   * 아무 효과가 없는데, 제안 뒤 상태 갱신이 AI 판단을 기다리느라 늦게 오면 정확히
+   * 그 상황이 된다. 늦게 오든 빨리 오든 같은 뜸을 주려면 «뒤 알림»이 들고 있어야 한다.
+   */
+  leadMs?: number
 }
 
 /*
@@ -108,6 +119,14 @@ const SFX_FOR_FLASH: Partial<Record<FlashEvent['kind'], SfxName>> = {
   perjury: 'perjury',
   caught: 'perjury',
 }
+
+/**
+ * 제안이 접수되고 추첨 컷이 뜨기까지의 뜸.
+ *
+ * 이 사이에 화면은 원탁으로 돌아간다 — 내가 무엇을 제안했는지 좌석 위에서 한 번 읽고
+ * 넘어가라는 자리다. 붙여 두면 제안과 추첨이 한 사건으로 뭉쳐 읽힌다.
+ */
+const DRAW_LEAD_MS = 900
 
 const CHALLENGE_CALL_MS = 2000
 const CHALLENGE_BEAT_MS = 520
@@ -184,15 +203,21 @@ export default function GameScreen() {
     if (flashBusyRef.current) return
     const next = flashQueueRef.current.shift()
     if (!next) return
+    // 뜸을 들이는 동안에도 큐는 «바쁘다» — 여기서 풀면 뒤엣것이 먼저 끼어들어 순서가 뒤집힌다.
     flashBusyRef.current = true
-    flashSeqRef.current += 1
-    setActiveFlash({ id: flashSeqRef.current, event: next })
-    const sfx = SFX_FOR_FLASH[next.kind]
-    if (sfx) playSfx(sfx)
-    window.setTimeout(() => {
-      flashBusyRef.current = false
-      runFlashQueue()
-    }, next.ms + (next.gapMs ?? 0))
+    const show = () => {
+      flashSeqRef.current += 1
+      setActiveFlash({ id: flashSeqRef.current, event: next })
+      // 소리는 «뜰 때» 울린다 — 뜸 들이는 동안 먼저 나가면 빈 화면에 소리만 얹힌다.
+      const sfx = SFX_FOR_FLASH[next.kind]
+      if (sfx) playSfx(sfx)
+      window.setTimeout(() => {
+        flashBusyRef.current = false
+        runFlashQueue()
+      }, next.ms + (next.gapMs ?? 0))
+    }
+    if (next.leadMs) window.setTimeout(show, next.leadMs)
+    else show()
   }, [])
   const enqueueFlash = useCallback(
     (event: FlashEvent) => {
@@ -303,7 +328,7 @@ export default function GameScreen() {
         slot: seatSlot(view, p.id),
       }))
 
-    enqueueFlash({ kind: 'draw', text: '반증 추첨', plates, ms: DRAW_CUT_MS })
+    enqueueFlash({ kind: 'draw', text: '반증 추첨', plates, ms: DRAW_CUT_MS, leadMs: DRAW_LEAD_MS })
   }, [view, stage, opening, enqueueFlash])
 
   /*
