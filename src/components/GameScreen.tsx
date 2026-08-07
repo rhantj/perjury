@@ -176,6 +176,16 @@ export default function GameScreen() {
    * 고발은 되돌릴 수 없으므로 «지금 고발을 고르는 중»이라는 상태가 화면에 남아야 한다.
    */
   const [accusing, setAccusing] = useState(false)
+  /**
+   * 고발을 접수하고 **판정을 기다리는 중**인가. 고르는 중(accusing)의 다음 칸이다.
+   *
+   * 페이즈로는 알 수 없어 상태를 따로 둔다 — 조기 고발은 라운드 중간에 외치는 것이라
+   * 판정이 도는 동안에도 view.phase는 제안이거나 밀담 그대로다.
+   *
+   * 없으면 화면이 「다른 사람 추측중」으로 떨어진다. 08-07 배포본에서 고발 판정이
+   * 50초 걸렸고, 그 사이 아무 표시가 없어 멈춘 것으로 보였다 — 새로고침하면 판이 날아간다.
+   */
+  const [judging, setJudging] = useState(false)
   const [seed, setSeed] = useState(newSeed)
   const [stage, setStage] = useState<Stage>('briefing')
   /** 브리핑에서 고른 사건. 카드 표시 이름과 좌석 직함이 여기서 나온다. */
@@ -534,12 +544,25 @@ export default function GameScreen() {
    * 조기 고발 확정. 모드를 «먼저» 닫는 이유는 이 한 번으로 판이 끝나거나(정답)
    * 내가 빠지거나(오답) 하기 때문이다 — 응답을 기다리는 사이 다시 눌리면 안 된다.
    */
-  const callEarly = async () => {
+  /**
+   * 고발을 접수하고 판정을 기다린다. **조기·최종이 같은 길을 탄다** —
+   * 다섯 좌석 판단을 한 번에 부르는 자리라 둘 다 오래 걸리고, 그동안 화면이
+   * 「다른 사람 추측중」으로 떨어지면 멈춘 것으로 읽히는 문제가 똑같다.
+   */
+  const callAccusation = async (call: (a: Suggestion) => Promise<void>) => {
     const accusation = toSuggestion(picked)
     if (!accusation) return
-    setAccusing(false)
-    await store.accuseEarly(accusation)
+    setJudging(true)
+    await call(accusation)
+    setJudging(false)
     setPicked({})
+  }
+
+  const callEarly = async () => {
+    // 고르는 중 모드는 조기 고발에만 있다. 접수 «전에» 닫아 두 번 눌리는 길을 없앤다.
+    if (!toSuggestion(picked)) return
+    setAccusing(false)
+    await callAccusation(store.accuseEarly)
   }
 
   const submit = async (action: (s: Suggestion) => Promise<void>) => {
@@ -742,7 +765,7 @@ export default function GameScreen() {
             없어서 반증 페이즈에서 판이 영영 멈춘다 — 화면만의 소프트락이었다.
           */}
           {accusing || (iAmOut && view.phase !== 'refute') ? null : view.outcome ? null : !myMove ? (
-            <Waiting />
+            <Waiting note={judging ? '고발을 가리는 중' : '다른 사람 추측중'} />
           ) : view.phase === 'suggest' ? (
             <button
               type="button"
@@ -792,7 +815,7 @@ export default function GameScreen() {
               type="button"
               className="btn btn--danger"
               disabled={!toSuggestion(picked)}
-              onClick={() => submit(store.accuse)}
+              onClick={() => callAccusation(store.accuse)}
             >
               최종 고발
             </button>
@@ -922,10 +945,10 @@ function FallbackMark({ reason }: { reason: FallbackReason | null }) {
   )
 }
 
-function Waiting() {
+function Waiting({ note }: { note: string }) {
   return (
     <p className="actions__waiting" role="status">
-      다른 사람 추측중
+      {note}
       {[0, 1, 2].map((i) => (
         <i key={i} style={{ '--i': i } as CSSProperties} aria-hidden="true" />
       ))}
