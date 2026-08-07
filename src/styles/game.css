@@ -79,7 +79,9 @@
   display: flex;
   align-items: baseline;
   gap: 1.25rem;
-  padding: 0.7rem 1.25rem;
+  /* 오른쪽만 넓다 — 그 위에 소리 스위치가 떠 있다(global.css의 --mute-slot). 「記 기록」이 바의
+     마지막 칸이라, 이 여백이 없으면 정확히 스위치 밑으로 들어가 서로 가린다. */
+  padding: 0.7rem var(--mute-slot) 0.7rem 1.25rem;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--tone-line);
   background: var(--tone-panel);
