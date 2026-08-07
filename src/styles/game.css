@@ -172,7 +172,8 @@
    */
   grid-template-columns: minmax(3.4rem, 3.8rem) minmax(0, 1fr) minmax(28rem, 38rem);
   gap: 1.5rem;
-  padding: 1.5rem 1.6rem;
+  /* 위아래는 좁다 — 판이 세로로 넘치지 않게 아끼는 자리이고, 좌우는 여백이 남는다. */
+  padding: 1rem 1.6rem;
   align-items: start;
   /* .screen이 board 트랙을 minmax(0,1fr)로 줄 때 실제로 줄어들려면 이 min-height:0이 있어야 한다 —
      없으면 grid item의 기본 최소 크기(내용 기준)가 트랙보다 커서 화면이 다시 늘어난다. */
@@ -1722,7 +1723,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: 0.55rem;
-  padding: 1.15rem;
+  padding: 0.9rem;
   font-size: 0.9rem;
 }
 .nb__table {
@@ -1759,12 +1760,25 @@
  * 이름 옆에 인라인으로 세우면 열다섯 줄의 높이가 같아진다. 그룹 경계는 아래 테두리가
  * 대신 맡는다 — 테두리는 1px이라 줄 높이를 흔들지 않는다.
  */
-.nb__kind {
-  display: inline-block;
-  margin-right: 0.4rem;
+/*
+ * 종류 머리 줄(범인 / 수단 / 장소). 표를 가로지르는 한 줄이라 카드 이름과 섞이지 않는다.
+ *
+ * 높이를 아끼는 것이 이 규칙의 절반이다 — 줄이 셋 느는 만큼 어딘가에서 돌려받아야
+ * 판이 세로로 넘치지 않는다(.actions·.nb__hint도 같은 이유로 줄였다).
+ */
+.nb__group-label {
+  text-align: left;
+  font-family: var(--font-display);
   font-size: 0.72rem;
-  letter-spacing: 0.16em;
+  font-weight: 400;
+  letter-spacing: 0.22em;
   color: var(--color-accent);
+  padding: 0.5rem 0 0.12rem;
+  border-bottom: 1px solid var(--color-line);
+}
+/* 첫 머리 줄은 열 이름 바로 아래라 위쪽 여백이 필요 없다. */
+.nb__table tbody tr:first-child .nb__group-label {
+  padding-top: 0.1rem;
 }
 .nb__pick {
   border: 0;
@@ -1844,16 +1858,16 @@
   filter: brightness(1.12);
 }
 /*
- * 그룹 경계. 패딩으로 벌리면 그 줄만 높아지므로(위 .nb__kind와 같은 사안) 테두리로 긋는다.
- * 이름 칸과 표 칸이 같이 받아야 선이 표를 가로질러 끊기지 않는다.
+ * 그룹 경계선은 .nb__group-label의 border-bottom이 대신 긋는다 —
+ * 그 줄이 이미 표를 가로지르므로 여기서 또 그으면 선이 두 겹으로 겹친다.
  */
-.nb__cell-top,
-.nb__label--top {
-  border-top: 1px solid var(--color-line);
-}
 .nb__cell {
   width: 100%;
-  height: 1.95rem;
+  /*
+   * 열다섯 줄이라 여기서 0.25rem을 깎으면 표가 60px 줄어든다 — 종류 머리 줄 셋이
+   * 늘어난 만큼을 이걸로 되돌려 받는다. 27px라 포인터 대상 최소치(24px)는 넘긴다.
+   */
+  height: 1.7rem;
   border: 1px solid var(--color-line);
   background: var(--color-bg);
   color: var(--color-text);
@@ -1905,9 +1919,9 @@
   opacity: 0.45;
 }
 .nb__hint {
-  margin: 0.8rem 0 0;
-  font-size: 0.84rem;
-  line-height: 1.6;
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
   color: var(--color-muted);
   /* Notebook.tsx가 pickGuide 문구로 key를 걸어, 단계가 넘어갈 때마다 다시 마운트된다. */
   animation: nb-warning-in 220ms var(--ease-out-expo);
@@ -2226,13 +2240,27 @@
 }
 
 /* ---- 행동 바 ---- */
+/*
+ * 하단 조작 줄.
+ *
+ * grid + justify-items:start였을 때 「범인을 지목한다」와 「제안 확정」이 «세로로» 쌓여
+ * 이 줄만 109px를 먹었다(배포본 실측). 그만큼 원탁이 밀려 세로 스크롤이 났다 —
+ * 「상하스크롤 없이 다 보이게」 피드백의 절반이 여기였다.
+ *
+ * flex로 눕히면 56px다. 버튼이 둘뿐이라 한 줄에 들어가고, 늘어나면 wrap이 받는다.
+ * 오류만 제 줄을 차지한다 — 버튼 옆에 끼면 읽기 전에 눈이 버튼으로 간다.
+ */
 .actions {
   grid-area: actions;
   background: var(--color-surface);
-  padding: 0.85rem 1.25rem;
-  display: grid;
-  justify-items: start;
+  padding: 0.6rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+}
+.actions__error {
+  flex-basis: 100%;
 }
 .actions__row {
   display: flex;
