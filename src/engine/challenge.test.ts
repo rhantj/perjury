@@ -278,24 +278,28 @@ describe('shield — 밀정', () => {
  * 자격(누가 밀정인가)은 엔진이 모른다 — 직업은 콘텐츠다. 부르는 쪽이 좌석 집합만 넘기고
  * 엔진은 「이 좌석은 자동으로 막을 자격이 있다」로만 읽는다.
  */
+/*
+ * 고발자가 p2에서 제안자 p0으로 바뀐 것 말고는 팀원이 세운 그대로다(§2-4).
+ * 「잡히지 않았으면」만 weak()를 쓴다 — 제안자가 미끼를 못 쥐어 실패하는 판이다.
+ */
 describe('shield — 자동 발동', () => {
   const spies = new Set(['p3'])
 
   it('미리 켜지 않아도 잡히는 순간 막는다', () => {
-    const after = challenge(staged(), 'p2', 'p3', null, spies)
+    const after = challenge(staged(), 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
   })
 
   it('자동으로 막았으면 능력이 소진된다', () => {
-    const after = challenge(staged(), 'p2', 'p3', null, spies)
+    const after = challenge(staged(), 'p0', 'p3', null, spies)
 
     expect(after.powersUsed).toContain('p3')
   })
 
   /** 어차피 실패할 이의제기까지 태우면 판당 1회짜리가 헛되이 사라진다. */
   it('잡히지 않았으면 능력이 소진되지 않는다', () => {
-    const after = challenge(staged(), 'p4', 'p3', null, spies)
+    const after = challenge(weak(), 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
     expect(after.powersUsed).not.toContain('p3')
@@ -303,13 +307,13 @@ describe('shield — 자동 발동', () => {
 
   it('이미 능력을 쓴 밀정은 자동으로 막지 못한다', () => {
     const spent: GameState = { ...staged(), powersUsed: ['p3'] }
-    const after = challenge(spent, 'p2', 'p3', null, spies)
+    const after = challenge(spent, 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
   })
 
   it('자격이 없는 좌석은 자동으로 막지 못한다', () => {
-    const after = challenge(staged(), 'p2', 'p3', null, new Set(['p5']))
+    const after = challenge(staged(), 'p0', 'p3', null, new Set(['p5']))
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
   })
@@ -317,7 +321,7 @@ describe('shield — 자동 발동', () => {
   /** 미리 켜 둔 보호가 있으면 그쪽이 먼저 나간다 — 한 사건에 값을 두 번 치르지 않는다. */
   it('미리 켠 보호가 있으면 그것만 소모한다', () => {
     const shielded = usePower(staged(), 'p3', { kind: 'shield' })
-    const after = challenge(shielded, 'p2', 'p3', null, spies)
+    const after = challenge(shielded, 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
     expect(after.pending).toHaveLength(0)
