@@ -53,8 +53,14 @@ export function needsHuman(state: GameState): boolean {
       /*
        * 이의제기는 제안자만 한다(룰 개편 §2-4). 제안자가 아닐 때도 사람을 기다리면
        * 화면이 낼 버튼도 없이 멈춘다 — 추첨(1-A)에서 겪은 것과 같은 종류의 정지다.
+       *
+       * 자격까지 같이 본다. 횟수를 다 썼거나 손패가 전부 열렸으면 대상 버튼이 전부
+       * 비활성인 화면에서 「넘어가기」만 기다리게 되는데, AI 제안자였다면 offerChallenge가
+       * 묻지도 않고 넘긴다. 사람만 한 번 더 누르게 할 이유가 없다 — 두 경로를 같은 기준으로 둔다.
        */
-      return !out && lastRound(state).suggesterId === human.id
+      return (
+        !out && lastRound(state).suggesterId === human.id && ruleAllowsChallenge(state, human.id)
+      )
     case 'accuse':
       return human.faction === 'citizen' && !out
     case 'whisper':
@@ -147,8 +153,9 @@ function canChallenge(state: GameState, challengerId: PlayerId, targetId: Player
  *
  * 예전에는 5좌석 전원에게 병렬로 물었다. 좌석 순서를 지키려고 답을 다 모은 뒤 훑는
  * 구조였는데, §2-4가 후보를 하나로 줄이면서 그 기계장치가 통째로 필요 없어졌다.
- * **판당 호출이 약 180회에서 66회로 준다** — 이의제기 120회가 그대로 사라진다.
- * 실측으로 확인한 값이다(session-resume 2026-08-07).
+ * **판당 호출이 180회에서 80회로 준다** — 이의제기가 판당 120회에서 20회가 된다.
+ * 구현 뒤에 다시 세어 확인한 값이다(session-resume 2026-08-07).
+ * 워커 캡 400 기준으로 하루 2판이 5판이 된다.
  *
  * except는 이미 넘긴 사람이다 — 사람이 «넘어가기»를 누른 뒤에는 다시 묻지 않는다.
  * 제안자가 사람이면 그 한 명이 곧 후보이므로, 넘긴 순간 이 페이즈는 끝난다.

@@ -65,7 +65,14 @@ export function challengesUsedIn(
   return rounds.filter((r) => r.challenge?.challengerId === playerId).length
 }
 
-/** 지금 이의제기를 걸 수 있는가. 화면이 버튼을 막을 때와 엔진이 거절할 때가 같은 기준을 쓴다. */
+/**
+ * 지금 이의제기를 걸 수 있는가 — **사람 자격**만 본다(대상은 challenge가 따로 검사한다).
+ *
+ * 부르는 곳은 `ai/flow.ts`다. `needsHuman`이 사람을 세울지, `offerChallenge`가 판단자에게
+ * 물을지를 이 한 기준으로 정하므로, 두 경로가 갈라지지 않는다.
+ * **ChallengeBar는 이걸 부르지 않는다** — 남은 횟수를 숫자로 내걸어야 해서 `challengesUsedIn`을
+ * 직접 센다. 그 줄이 서는 것 자체가 `needsHuman`을 통과한 뒤라 지금은 어긋나지 않는다.
+ */
 export function canChallenge(state: GameState, playerId: PlayerId): boolean {
   const player = state.players.find((p) => p.id === playerId)
   if (!player) return false
