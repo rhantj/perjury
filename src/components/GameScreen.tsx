@@ -319,7 +319,54 @@ export default function GameScreen() {
   }, [view?.round, view?.players.length, enqueueFlash])
 
   /*
+   * 판에서 빠지는 순간.
+   *
+   * 탈락은 «틀린 조기 고발» 하나뿐이라(engine/progress.ts의 accuseEarly에서만 목록이 는다)
+   * 이 목록이 늘었다는 사실만으로 사유가 확정된다 — 따로 들고 다닐 것이 없다.
+   *
+   * 좌석 뱃지만으로는 이 사건이 안 읽힌다는 피드백. 되돌릴 수 없는 갈림길인데
+   * 화면이 조용히 지나가서, 왜 갑자기 버튼이 사라졌는지 모른 채 남은 판을 보냈다.
+   *
+   * 첫 렌더에서 한 번 «비교 기준만» 잡고 빠진다. 이걸 안 하면 판을 이어받는 순간
+   * 이미 빠진 사람들의 컷이 한꺼번에 큐에 쌓인다.
+   *
+   * ---- 이 훅은 «반드시» 아래 추첨 훅보다 위에 있어야 한다 ----
+   *
+   * 고발이 접수되면 엔진은 그 자리에서 AI 차례까지 밀고 나가므로, 탈락과 다음 제안이
+   * **한 커밋에 실려** 온다. 그러면 두 훅이 같은 시점에 큐에 넣고, 순서를 가르는 것은
+   * 선언 순서뿐이다. 아래에 두었을 때 「반증 추첨」이 먼저 나가 고발 실패 컷이 4.0초
+   * 뒤에 떴다(배포본 실측: draw 마운트 62893 → ousted 66891). 내가 판에서 빠진 사건이
+   * 다음 라운드 진행보다 뒤에 오면 무슨 일이 일어난 건지 읽히지 않는다.
+   *
+   * 큐에 «먼저 넣기»로 푸는 이유는, 우선순위 인자를 만들면 부르는 곳이 하나뿐인데도
+   * 모든 알림이 그 값을 신경 써야 하기 때문이다. 순서가 중요한 지점은 여기 하나다.
+   */
+  const seenOutRef = useRef<readonly string[] | null>(null)
+  useEffect(() => {
+    if (!view || stage !== 'play') return
+    const prev = seenOutRef.current
+    seenOutRef.current = view.eliminated
+    if (prev === null) return
+
+    for (const id of view.eliminated) {
+      if (prev.includes(id)) continue
+      const mine = id === view.viewerId
+      enqueueFlash({
+        kind: 'ousted',
+        text: mine ? '고발 실패' : `${participantLabel(view, id)} 고발 실패`,
+        detail: mine
+          ? '판에서 빠진다 — 남은 판은 반증만 이어 간다'
+          : '판에서 빠졌다 — 남은 판은 반증만 이어 간다',
+        ms: OUSTED_MS,
+      })
+    }
+  }, [view, stage, enqueueFlash])
+
+  /*
    * 제안이 나오면 반증 추첨 컷을 큐에 넣는다.
+   *
+   * **위 탈락 훅보다 아래에 있어야 한다** — 같은 커밋에서 둘 다 걸릴 때 순서를 가르는
+   * 것이 선언 순서다. 자세한 사정은 그쪽 주석에 적었다.
    *
    * 라운드가 아니라 «라운드 기록이 생겼는가»로 감지한다 — 기록은 제안이 접수돼야
    * 만들어지므로(engine/round.ts suggest), 라운드가 넘어간 직후 아직 아무도 제안하지
@@ -433,39 +480,6 @@ export default function GameScreen() {
       ms: 1800,
     })
   }, [view, stage, opening, enqueueFlash])
-
-  /*
-   * 판에서 빠지는 순간.
-   *
-   * 탈락은 «틀린 조기 고발» 하나뿐이라(engine/progress.ts의 accuseEarly에서만 목록이 는다)
-   * 이 목록이 늘었다는 사실만으로 사유가 확정된다 — 따로 들고 다닐 것이 없다.
-   *
-   * 좌석 뱃지만으로는 이 사건이 안 읽힌다는 피드백. 되돌릴 수 없는 갈림길인데
-   * 화면이 조용히 지나가서, 왜 갑자기 버튼이 사라졌는지 모른 채 남은 판을 보냈다.
-   *
-   * 첫 렌더에서 한 번 «비교 기준만» 잡고 빠진다. 이걸 안 하면 판을 이어받는 순간
-   * 이미 빠진 사람들의 컷이 한꺼번에 큐에 쌓인다.
-   */
-  const seenOutRef = useRef<readonly string[] | null>(null)
-  useEffect(() => {
-    if (!view || stage !== 'play') return
-    const prev = seenOutRef.current
-    seenOutRef.current = view.eliminated
-    if (prev === null) return
-
-    for (const id of view.eliminated) {
-      if (prev.includes(id)) continue
-      const mine = id === view.viewerId
-      enqueueFlash({
-        kind: 'ousted',
-        text: mine ? '고발 실패' : `${participantLabel(view, id)} 고발 실패`,
-        detail: mine
-          ? '판에서 빠진다 — 남은 판은 반증만 이어 간다'
-          : '판에서 빠졌다 — 남은 판은 반증만 이어 간다',
-        ms: OUSTED_MS,
-      })
-    }
-  }, [view, stage, enqueueFlash])
 
   if (!store.state || !view)
     return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
