@@ -50,7 +50,11 @@ export function needsHuman(state: GameState): boolean {
        */
       return lastRound(state).responderIds.includes(human.id)
     case 'challenge':
-      return !out
+      /*
+       * 이의제기는 제안자만 한다(룰 개편 §2-4). 제안자가 아닐 때도 사람을 기다리면
+       * 화면이 낼 버튼도 없이 멈춘다 — 추첨(1-A)에서 겪은 것과 같은 종류의 정지다.
+       */
+      return !out && lastRound(state).suggesterId === human.id
     case 'accuse':
       return human.faction === 'citizen' && !out
     case 'whisper':
@@ -138,42 +142,39 @@ function canChallenge(state: GameState, challengerId: PlayerId, targetId: Player
 /**
  * 이의제기 기회를 돌린다. **먼저 잡는 사람 하나만 성립한다.**
  *
- * **묻는 것은 병렬로, 고르는 것은 좌석 순서로** 나눈다.
- * 순차로 물으면 «먼저»가 좌석 순서로 정해져 결과는 맞지만, 판단자가 원격이면
- * 5명 × 10초로 라운드마다 1분 넘게 멈춘 것처럼 보인다.
- * 그렇다고 도착 순서로 채택하면 같은 판이 네트워크 운에 따라 다르게 끝난다 —
- * 그래서 답을 «다 모은 뒤» 좌석 순서로 훑는다. 결과는 순차와 완전히 같다.
+ * **묻는 사람은 제안자 하나뿐이다**(룰 개편 §2-4). 반증 카드가 제안자에게만 보이므로
+ * (1-B) 나머지 좌석은 「내가 쥔 카드를 냈다」를 판정할 자료가 없다.
  *
- * 대가: 앞 좌석이 잡아도 뒷사람 몫까지 이미 호출했으므로 비용이 나간다(라운드당 약 $0.01).
- * 조기 종료로 아끼는 것보다 «멈춘 것처럼 보이지 않는 것»이 크다고 봤다.
+ * 예전에는 5좌석 전원에게 병렬로 물었다. 좌석 순서를 지키려고 답을 다 모은 뒤 훑는
+ * 구조였는데, §2-4가 후보를 하나로 줄이면서 그 기계장치가 통째로 필요 없어졌다.
+ * **판당 호출이 약 180회에서 66회로 준다** — 이의제기 120회가 그대로 사라진다.
+ * 실측으로 확인한 값이다(session-resume 2026-08-07).
  *
- * except는 이미 넘긴 사람이다 — 사람이 «넘어가기»를 누른 뒤에는 사람을 건너뛴다.
+ * except는 이미 넘긴 사람이다 — 사람이 «넘어가기»를 누른 뒤에는 다시 묻지 않는다.
+ * 제안자가 사람이면 그 한 명이 곧 후보이므로, 넘긴 순간 이 페이즈는 끝난다.
  */
 async function offerChallenge(
   state: GameState,
   decider: Decider,
   except: PlayerId | null,
 ): Promise<GameState> {
-  // 탈락자는 이의제기를 잃었다(룰 개편 §2-5). 물어봐야 엔진이 버리므로 판단자를 부르지 않는다.
-  const askable = state.players.filter(
-    (player) => player.id !== except && !state.eliminated.includes(player.id),
-  )
-  const answers = await Promise.all(
-    askable.map(async (player) => ({
-      player,
-      spoken: await decider.chooseChallengeTarget(viewFor(state, player.id)),
-    })),
-  )
-
-  // Promise.all은 «입력 순서»로 결과를 돌려준다. askable이 좌석 순서이므로 이 순회가 곧 좌석 순서다.
-  // 밀정의 보호는 지목당하는 순간 저절로 펼쳐진다. 자격은 배정표를 아는 이쪽이 만들어 넘긴다.
-  const shielded = autoShieldSeats(state.seed, state.players)
-  for (const { player, spoken } of answers) {
-    if (spoken.value && canChallenge(state, player.id, spoken.value)) {
-      return challenge(state, player.id, spoken.value, spoken.line, shielded)
-    }
+  const suggesterId = lastRound(state).suggesterId
+  /*
+   * 자격을 «묻기 전에» 본다. 횟수를 다 썼거나 손패가 다 열렸거나 탈락했으면 어차피
+   * 엔진이 거절하므로, 호출을 내보내는 것 자체가 낭비다.
+   * (탈락자 배제도 여기 포함된다 — canChallenge가 eliminated를 본다.)
+   */
+  if (suggesterId === except || !ruleAllowsChallenge(state, suggesterId)) {
+    return skipChallenge(state)
   }
-  // 안 잡기로 한 사람들의 대사는 버린다 — 하지 않은 행동에는 기록할 자리가 없다.
+
+  const spoken = await decider.chooseChallengeTarget(viewFor(state, suggesterId))
+  if (spoken.value && canChallenge(state, suggesterId, spoken.value)) {
+    // 밀정의 보호는 지목당하는 순간 저절로 펼쳐진다. 자격은 배정표를 아는 이쪽이 만들어 넘긴다.
+    const shielded = autoShieldSeats(state.seed, state.players)
+    return challenge(state, suggesterId, spoken.value, spoken.line, shielded)
+  }
+  // 안 잡기로 했을 때의 대사는 버린다 — 하지 않은 행동에는 기록할 자리가 없다.
   return skipChallenge(state)
 }
 

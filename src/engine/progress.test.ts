@@ -237,9 +237,10 @@ describe('한 판 완주', () => {
         ...p,
         characterId: `s${i + 1}`,
         hand: [
-          ['s2', 'p4'],
+          // 제안자 p0이 미끼 p1을 쥔다 — 이의제기는 제안자만 한다(룰 개편 §2-4).
+          ['p1', 'p4'],
           ['w1', 'p3'],
-          ['p1', 'w2'],
+          ['s2', 'w2'],
           ['s3', 's4'],
           ['w3', 'p2'],
           ['s5', 's1'],
@@ -249,7 +250,7 @@ describe('한 판 완주', () => {
 
     const claims = new Map<PlayerId, Claim>([
       ['p1', { kind: 'refute', cardId: 'w1' }],
-      ['p2', { kind: 'refute', cardId: 'p1' }],
+      ['p2', { kind: 'pass' }],
       ['p3', { kind: 'refute', cardId: 'p1' }],
       ['p4', { kind: 'pass' }],
       ['p5', { kind: 'refute', cardId: 's1' }],
@@ -257,7 +258,7 @@ describe('한 판 완주', () => {
 
     const afterChallenge = challenge(
       declareAll(suggest(staged, 'p0', SUGGESTION), claims),
-      'p2',
+      'p0',
       'p3',
     )
     const second = nextRound(afterChallenge)

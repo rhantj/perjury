@@ -70,6 +70,9 @@ export function canChallenge(state: GameState, playerId: PlayerId): boolean {
   const player = state.players.find((p) => p.id === playerId)
   if (!player) return false
   if (state.eliminated.includes(playerId)) return false
+  // 라운드가 없으면 제안도 없다. 제안자 전용이므로 그 상태에서는 아무도 못 건다(§2-4).
+  const record = state.rounds[state.rounds.length - 1]
+  if (!record || record.suggesterId !== playerId) return false
   return challengesUsed(state, playerId) < CHALLENGE_LIMIT && hiddenHand(player).length > 0
 }
 
@@ -141,6 +144,17 @@ export function challenge(
    */
   if (state.eliminated.includes(challengerId)) {
     throw new Error(`탈락자는 이의제기할 수 없다: ${challengerId}`)
+  }
+  /*
+   * **제안자 전용** (룰 개편 §2-4). 1-B로 반증 카드는 제안자에게만 보인다
+   * (`view.ts`가 남의 refute에서 cardId를 null로 지운다). 나머지 좌석에게 열어 두면
+   * 증명할 자료가 없는 채로 거는 «찍기»가 되고, 실패 페널티만 무작위로 굴러간다.
+   *
+   * 대신 제안자에게는 새 수가 생긴다 — 자기 손패를 제안에 «미끼»로 섞어 위증을 낚는 것이다.
+   * 탈락자 가드가 위에 남아 있는 것은 겹쳐 막으려는 것이다(결정 011 §3).
+   */
+  if (currentRound(state).suggesterId !== challengerId) {
+    throw new Error(`이의제기는 제안자만 할 수 있다: ${challengerId}`)
   }
   if (challengesUsed(state, challengerId) >= CHALLENGE_LIMIT) {
     throw new Error(`이의제기는 판당 ${CHALLENGE_LIMIT}회까지다: ${challengerId}`)
