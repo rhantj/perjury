@@ -64,6 +64,18 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
   const self = view.players.find((p) => p.isMe)
   const myHand = self?.hand ?? []
 
+  /*
+   * 봉인된 정답. **범인 진영에게만 채워져 있다**(engine/view.ts) — 시민에게는 null이라
+   * 아래 표시가 통째로 사라진다. 화면에서 진영을 따로 묻지 않는 이유가 이것이다.
+   *
+   * 내 패 패널에도 같은 정보가 있지만, 추리하는 동안 눈이 머무는 곳은 이 표다.
+   * 매번 패널을 열어 대조하게 두면 「무엇을 감춰야 하는가」가 손에 잡히지 않는다.
+   */
+  const solution = view.solution
+  const isSolution = (cardId: CardId): boolean =>
+    solution !== null &&
+    (solution.suspect === cardId || solution.weapon === cardId || solution.place === cardId)
+
   /* 세 칸을 한 번에 안내하지 않고 지금 뭘 골라야 하는지 한 단계씩만 짚어준다. */
   const pickGuide = !picked.suspect
     ? '범인을 선택하세요'
@@ -139,6 +151,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
             const isNewGroup = card.kind !== lastKind
             lastKind = card.kind
             const isPicked = picked[card.kind] === card.id
+            const sealedAnswer = isSolution(card.id)
 
             return (
               /*
@@ -146,9 +159,20 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                * 표가 빽빽해서 지금 뭘 골랐는지 눈으로 찾아야 한다 — 셋을 다 고르는
                * 동안 시선은 원탁에 가 있으므로, 돌아왔을 때 바로 걸려야 한다.
                */
-              <tr key={card.id} className={isPicked ? 'nb__row--picked' : undefined}>
+              <tr
+                key={card.id}
+                className={[isPicked ? 'nb__row--picked' : '', sealedAnswer ? 'nb__row--answer' : '']
+                  .join(' ')
+                  .trim() || undefined}
+              >
                 <th className="nb__label" scope="row">
                   {isNewGroup && <span className="nb__kind">{KIND_LABEL[card.kind]}</span>}
+                  {/* 봉인 인장. 범인에게만 뜬다 — 시민 시야에는 solution이 없다. */}
+                  {sealedAnswer && (
+                    <span className="nb__answer" title="봉인된 정답 — 나만 안다">
+                      封
+                    </span>
+                  )}
                   {picking ? (
                     <button
                       type="button"
