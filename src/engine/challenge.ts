@@ -109,6 +109,16 @@ export function challenge(
   challengerId: PlayerId,
   targetId: PlayerId,
   line: string | null = null,
+  /**
+   * 미리 켜 두지 않아도 «지목당하는 순간» 보호가 저절로 펼쳐지는 좌석(밀정).
+   *
+   * 자격을 엔진이 판단하지 않고 집합으로 받는 이유는 직업이 룰이 아니라 콘텐츠이기
+   * 때문이다 — 여기서 배정표를 조회하면 content → engine 한 방향 의존이 뒤집힌다.
+   * 부르는 쪽이 `assignRoles`로 만들어 넘기고, 엔진은 「막을 자격이 있다」로만 읽는다.
+   *
+   * 기본값이 빈 집합인 것은 안전한 방향이다 — 안 넘기면 보호가 «없는» 쪽으로 틀린다.
+   */
+  autoShield: ReadonlySet<PlayerId> = new Set(),
 ): GameState {
   if (state.phase !== 'challenge') throw new Error(`이의제기 페이즈가 아니다: ${state.phase}`)
   if (challengerId === targetId) throw new Error('자기 자신에게 이의제기할 수 없다')
@@ -157,7 +167,14 @@ export function challenge(
   const shield = caught
     ? state.pending.find((p) => p.ownerId === targetId && p.use.kind === 'shield')
     : undefined
-  const success = caught && !shield
+  /*
+   * 미리 켜 두지 않은 밀정. **잡혔을 때만** 태운다 — 어차피 실패할 이의제기까지
+   * 삼키면 판당 1회짜리가 아무것도 막지 않은 채 사라진다(위 shield와 같은 이유).
+   * 미리 켠 보호가 있으면 그쪽이 먼저 나간다. 한 사건에 값을 두 번 치르지 않는다.
+   */
+  const autoShielded =
+    caught && !shield && autoShield.has(targetId) && !state.powersUsed.includes(targetId)
+  const success = caught && !shield && !autoShielded
 
   // 상황에서 시드를 파생시킨다. 함수는 순수하게 두면서 판은 재현 가능하게 유지한다.
   const rng = createRng(`${state.seed}:challenge:${record.round}:${challengerId}:${targetId}`)
@@ -178,7 +195,12 @@ export function challenge(
 
   return closeRound(
     // 쓴 보호는 여기서 거둔다. 「위증 1회」이므로 라운드가 아니라 한 번 막는 것으로 끝난다.
-    shield ? { ...state, pending: state.pending.filter((p) => p !== shield) } : state,
+    // 자동 발동은 대기에 없으므로 거둘 것이 없고, 대신 소진 표시를 여기서 찍는다.
+    shield
+      ? { ...state, pending: state.pending.filter((p) => p !== shield) }
+      : autoShielded
+        ? { ...state, powersUsed: [...state.powersUsed, targetId] }
+        : state,
     record,
     { challengerId, targetId, cardId, success, reveals, line },
     applyReveals(state, reveals),
