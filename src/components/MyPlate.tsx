@@ -9,6 +9,7 @@ import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
 import { weaponArtFor } from '../content/weapon-art'
 import { cardKind } from '../engine/cards'
+import { usableIn } from '../engine/power'
 import type { CardId, CardKind } from '../engine/types'
 import type { GameView } from '../engine/view'
 
@@ -88,6 +89,22 @@ export default function MyPlate({
    * 아니다) 호버 상태를 JS로 들고, 탭↔패널 사이를 오갈 때 끊기지 않게 살짝
    * 닫힘을 지연시킨다.
    */
+  /*
+   * 쓸 수 있는 능력이 남아 있는가. 「직업 능력을 못 썼다」는 피드백에서 나왔다 —
+   * 발동은 이 탭을 열어야 나오는데 탭에는 아무 신호가 없어서, 판이 끝날 때까지
+   * 능력이 있다는 사실 자체를 모르고 지나간다.
+   *
+   * 밀정·전화교환수는 뺀다. 둘은 «켜는» 능력이 아니라 저절로 도는 것이라
+   * (engine/challenge.ts의 autoShield, 결정 007의 회선) 여기서 부르면
+   * 「눌러야 할 것이 남았다」는 거짓 신호가 된다.
+   */
+  const powerReady =
+    !powerUsed &&
+    role.effect !== null &&
+    role.effect !== 'shield' &&
+    role.effect !== 'eavesdrop' &&
+    usableIn(role.effect, view)
+
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<number | null>(null)
 
@@ -109,8 +126,10 @@ export default function MyPlate({
     <div className="plate-flyout">
       <button
         type="button"
-        className="plate-flyout__tab"
-        aria-label="나만 보는 패 열기"
+        className={`plate-flyout__tab${powerReady ? ' plate-flyout__tab--ready' : ''}`}
+        aria-label={
+          powerReady ? '나만 보는 패 열기 — 쓸 수 있는 직업 능력이 있다' : '나만 보는 패 열기'
+        }
         onMouseEnter={openNow}
         onMouseLeave={scheduleClose}
         onFocus={openNow}

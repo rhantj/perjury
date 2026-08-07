@@ -243,6 +243,40 @@
 }
 
 /*
+ * 아직 안 쓴 능력이 있다는 표시.
+ *
+ * 발동은 이 탭을 열어야 나오는데 탭에 신호가 없어서, 판이 끝날 때까지 능력이 있다는
+ * 사실 자체를 모르고 지나간다는 피드백이 있었다. 탭을 열게 만드는 것이 이 점의 일이다.
+ *
+ * 점을 따로 얹는 이유는 글자색만 바꾸면 hover와 구별이 안 되기 때문이다.
+ * 깜빡임은 opacity만 건드린다 — 레이아웃을 움직이지 않는다.
+ */
+.plate-flyout__tab--ready {
+  border-color: var(--color-accent);
+}
+.plate-flyout__tab--ready::after {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: -0.2rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: plate-ready-pulse 1800ms var(--ease-in-out) infinite;
+}
+@keyframes plate-ready-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate-flyout__tab--ready::after {
+    animation: none;
+  }
+}
+
+/*
  * body로 포탈되므로 .board > *의 z-index:1 쌓임 맥락 밖에서 뜬다 — 이 z-index는
  * 이제 «그 맥락을 벗어났는지」가 아니라 body 직속 다른 오버레이(round-flash 등)
  * 사이의 순서만 정하면 된다.
@@ -313,8 +347,18 @@
   line-height: 1;
   color: oklch(94% 0.008 84);
 }
+/*
+ * 범인 쪽 「범인」 글자.
+ *
+ * 인장색(--color-seal)을 그대로 쓰면 L 54%가 L 11% 패널 위에 앉아 거의 안 읽힌다 —
+ * 시민 쪽은 L 94%라 같은 자리에서 밝기가 갈렸다. 인장색은 작은 도장·테두리에서는
+ * 통하지만 2.3rem 글자의 «본문»으로는 어둡다.
+ *
+ * 색상(hue 27)은 그대로 두고 밝기만 올린다. 붉은색이 범인을 가리키는 신호라 색을
+ * 바꾸면 뜻이 사라지고, 밝기만 올리면 신호는 남은 채 읽히기만 한다.
+ */
 .plate--culprit .plate__faction {
-  color: var(--color-seal);
+  color: oklch(78% 0.15 27);
 }
 
 .plate__who {
@@ -1668,12 +1712,20 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/*
+ * 그룹 이름(범인·수단·장소). 예전에는 display:block에 세로 패딩 0.7rem이라
+ * **각 그룹 첫 줄에만** 높이가 붙었다 — 그 줄을 고르면 띠(.nb__row--picked > th)가
+ * 세 줄에서만 길게 늘어져, 같은 표 안에서 줄 높이가 둘로 갈렸다.
+ *
+ * 이름 옆에 인라인으로 세우면 열다섯 줄의 높이가 같아진다. 그룹 경계는 아래 테두리가
+ * 대신 맡는다 — 테두리는 1px이라 줄 높이를 흔들지 않는다.
+ */
 .nb__kind {
-  display: block;
+  display: inline-block;
+  margin-right: 0.4rem;
   font-size: 0.72rem;
   letter-spacing: 0.16em;
   color: var(--color-accent);
-  padding: 0.55rem 0 0.15rem;
 }
 .nb__pick {
   border: 0;
@@ -1752,8 +1804,13 @@
   color: var(--color-on-accent);
   filter: brightness(1.12);
 }
-.nb__cell-top {
-  padding-top: 0.7rem;
+/*
+ * 그룹 경계. 패딩으로 벌리면 그 줄만 높아지므로(위 .nb__kind와 같은 사안) 테두리로 긋는다.
+ * 이름 칸과 표 칸이 같이 받아야 선이 표를 가로질러 끊기지 않는다.
+ */
+.nb__cell-top,
+.nb__label--top {
+  border-top: 1px solid var(--color-line);
 }
 .nb__cell {
   width: 100%;
