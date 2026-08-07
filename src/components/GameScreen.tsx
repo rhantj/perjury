@@ -112,6 +112,12 @@ const SFX_FOR_FLASH: Partial<Record<FlashEvent['kind'], SfxName>> = {
 const CHALLENGE_CALL_MS = 2000
 const CHALLENGE_BEAT_MS = 520
 const CHALLENGE_RESULT_MS = 2800
+/**
+ * 발각만 따로 길다. 위증을 «내는» 순간(perjury)이 아니라 그것이 «들통나는» 순간이
+ * 판을 뒤집는 사건이라, 두 컷의 무게를 여기서 뒤집었다 — perjury는 900ms로 줄였다.
+ * game.css의 .action-flash--caught 애니메이션 길이와 쌍이다.
+ */
+const CHALLENGE_CAUGHT_MS = 3400
 
 /**
  * 제안 회차를 «바퀴»로 접는다. 여섯이 한 번씩 돌면 1라운드다(룰 개편 §3-1).
@@ -206,7 +212,11 @@ export default function GameScreen() {
     const byKind: Record<typeof kind, FlashEvent> = {
       suggest: { kind: 'suggest', text: '제안', ms: 700 },
       refute: { kind: 'refute', text: '반증합니다', ms: 650 },
-      perjury: { kind: 'perjury', text: '위증!!!', ms: 1900 },
+      /*
+       * 잠잠하게 둔다. 이건 «아직 아무도 모르는» 한 수라, 화면을 터뜨리면 판에서 가장
+       * 큰 사건처럼 읽힌다. 정말 큰일이 나는 자리는 이게 들통나는 caught 쪽이다.
+       */
+      perjury: { kind: 'perjury', text: '위증', ms: 900 },
     }
     enqueueFlash(byKind[kind])
   }
@@ -343,7 +353,7 @@ export default function GameScreen() {
         text: `${target} 위증 발각!`,
         detail: penalty ? `${challenger}이(가) 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다` : '더 밝힐 패가 없다',
         art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: CHALLENGE_RESULT_MS,
+        ms: CHALLENGE_CAUGHT_MS,
       })
     } else {
       enqueueFlash({

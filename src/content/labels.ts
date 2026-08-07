@@ -76,6 +76,23 @@ export function cardNames(scenario: Scenario): Record<CardId, string> {
 }
 
 /**
+ * 이 말이 카드 이름을 대고 있는가.
+ *
+ * **비공개 반증의 마지막 구멍을 막는 검사다.** 엔진은 카드를 이미 가리지만(engine/view.ts),
+ * LLM이 쓴 대사는 자유 텍스트라 그 안에서 «넥타이는 내 손에 있소»처럼 새어 나온다.
+ * 워커 프롬프트에서도 막지만 그건 모델이 지키기를 «바라는» 것이라 보장이 아니다 —
+ * 카드가 안 보이는 시야에서는 이 검사에 걸린 대사를 통째로 버린다(Table·Log).
+ *
+ * 엔진 기본 이름과 사건별 표시 이름을 둘 다 본다. 모델에는 표시 이름을 넘기지만
+ * 기본 이름을 부르는 응답이 섞여 들어오므로, 한쪽만 보면 그쪽으로 샌다.
+ */
+export function namesAnyCard(scenario: Scenario, text: string): boolean {
+  return CARDS.some(
+    (card) => text.includes(cardLabel(scenario, card.id)) || text.includes(card.name),
+  )
+}
+
+/**
  * 용의자의 직함. 이름은 고정이고 직함만 사건을 따라간다 —
  * 같은 «강도윤»이 저택에서는 장남이고 극장에서는 주연이다.
  */

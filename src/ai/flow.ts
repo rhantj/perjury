@@ -1,4 +1,4 @@
-import { assignRoles } from '../content/roles'
+import { assignRoles, autoShieldSeats } from '../content/roles'
 import {
   canChallenge as ruleAllowsChallenge,
   challenge,
@@ -166,9 +166,11 @@ async function offerChallenge(
   )
 
   // Promise.all은 «입력 순서»로 결과를 돌려준다. askable이 좌석 순서이므로 이 순회가 곧 좌석 순서다.
+  // 밀정의 보호는 지목당하는 순간 저절로 펼쳐진다. 자격은 배정표를 아는 이쪽이 만들어 넘긴다.
+  const shielded = autoShieldSeats(state.seed, state.players)
   for (const { player, spoken } of answers) {
     if (spoken.value && canChallenge(state, player.id, spoken.value)) {
-      return challenge(state, player.id, spoken.value, spoken.line)
+      return challenge(state, player.id, spoken.value, spoken.line, shielded)
     }
   }
   // 안 잡기로 한 사람들의 대사는 버린다 — 하지 않은 행동에는 기록할 자리가 없다.

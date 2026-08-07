@@ -143,7 +143,8 @@ export const ROLES: readonly Role[] = [
     ko: '밀정',
     hanja: '密偵',
     side: 'culprit',
-    power: '자기 위증 1회는 이의제기를 당해도 실패 처리된다.',
+    // 발동을 고르지 않는다 — 지목당하는 순간 저절로 나간다(autoShieldSeats).
+    power: '이의제기를 당하면 저절로 한 번 막는다 — 그 위증은 발각되지 않는다.',
     flavor: '뒤를 봐주는 자가 있다. 한 번은 빠져나간다.',
     effect: 'shield',
   },
@@ -197,4 +198,23 @@ export function assignRoles(
   }
 
   return assigned
+}
+
+/**
+ * 이의제기를 당하면 «저절로» 보호가 펼쳐지는 좌석.
+ *
+ * 밀정의 능력은 미리 켜 둘 이유가 없다 — 언제 지목당할지 모르는 채로 선불로 태우면
+ * 대개 아무 일 없는 라운드에서 사라지고, 정작 잡히는 순간에는 남아 있지 않다.
+ * 그래서 「쓴다」는 선택을 없애고 잡히는 그 순간에만 값을 치르게 한다(engine/challenge.ts).
+ *
+ * **엔진에 두지 않는다.** 엔진은 직업을 모른다 — 자격만 집합으로 건네받는다.
+ */
+export function autoShieldSeats(
+  seed: string,
+  players: readonly { id: PlayerId; faction: Faction; isHuman?: boolean }[],
+): ReadonlySet<PlayerId> {
+  const roles = assignRoles(seed, players)
+  return new Set(
+    players.filter((player) => roles[player.id]?.effect === 'shield').map((player) => player.id),
+  )
 }

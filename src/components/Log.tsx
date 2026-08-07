@@ -1,5 +1,5 @@
 import { josa } from '../content/josa'
-import { cardLabel, participantInitial, participantLabel } from '../content/labels'
+import { cardLabel, namesAnyCard, participantInitial, participantLabel } from '../content/labels'
 import type { Scenario } from '../content/scenarios'
 import type { CardId } from '../engine/types'
 import type { GameView, RoundView } from '../engine/view'
@@ -68,11 +68,19 @@ function lines(view: GameView, scenario: Scenario, round: RoundView): Line[] {
   ]
 
   for (const d of round.declarations) {
+    /*
+     * 카드를 볼 자격이 없는 시야(cardId가 null)에서는 카드 이름이 섞인 대사를 버린다.
+     * 모델이 쓴 자유 텍스트라 «넥타이는 내 손에 있소»처럼 엔진이 가린 것이 그대로 샌다 —
+     * 좌석(Table.tsx)과 같은 처방이고, 같은 이유로 여기도 필요하다.
+     */
+    const hiddenRefute = d.claim.kind === 'refute' && d.claim.cardId === null
+    const quote = d.line && hiddenRefute && namesAnyCard(scenario, d.line) ? null : d.line
+
     const said = (tone: string, text: string): Line => ({
       tone,
       who: nameOf(view, d.playerId),
       face: participantInitial(view, d.playerId),
-      quote: d.line,
+      quote,
       mine: d.playerId === view.viewerId,
       text,
     })

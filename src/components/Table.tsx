@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import {
   cardLabel,
+  namesAnyCard,
   participantInitial,
   participantLabel,
   seatSlot,
@@ -337,12 +338,26 @@ function Seat({
    * 반증 대사는 say와 같은 revealed 조건을 탄다. 순차 공개 중에 대사만 먼저 뜨면 순서가 깨진다.
    */
   const challengeLLMLine = live?.challenge?.challengerId === player.id ? live.challenge.line : null
+  /*
+   * 반증 대사에서 카드 이름이 새는 것을 막는다.
+   *
+   * 반증에 쓴 카드는 제안자에게만 보인다(engine/view.ts의 claimFor). 그런데 대사는
+   * 모델이 쓴 자유 텍스트라 «넥타이는 내 손에 있소»처럼 그 카드를 소리내어 말해 버리고,
+   * 그러면 엔진이 가린 것이 좌석 옆 한 줄로 통째로 새어 전원에게 읽힌다.
+   * cardId가 null이라는 것이 곧 «이 시야는 카드를 볼 자격이 없다»이므로,
+   * 그때 카드 이름이 섞인 대사는 버리고 고정 문구(say)로 떨어뜨린다.
+   */
+  const hiddenRefute = declaration?.claim.kind === 'refute' && declaration.claim.cardId === null
+  const declarationLLMLine =
+    declaration?.line && hiddenRefute && namesAnyCard(scenario, declaration.line)
+      ? null
+      : (declaration?.line ?? null)
   const spoken = reaction
     ? // 판정 반응이 있으면 LLM 대사를 덮는다 — 그쪽은 판정 «이전»에 쓰인 말이라,
       // 들통난 사람이 방금 한 거짓말을, 헛짚은 사람이 빗나간 지목을 계속 말하게 된다.
       null
     : (challengeLLMLine ??
-      (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declaration?.line ?? null : null))
+      (isSuggester ? (live?.suggestionLine ?? null) : revealed ? declarationLLMLine : null))
 
   const art = suspectArtFor(player.characterId)
   /*

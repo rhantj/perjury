@@ -62,6 +62,22 @@ export default function PowerPanel({
     )
   }
 
+  /*
+   * 밀정은 «켜는» 능력이 아니다 — 이의제기를 당하는 그 순간 저절로 펼쳐진다
+   * (engine/challenge.ts의 autoShield). 버튼을 두면 언제 지목당할지 모르는 채로
+   * 선불로 태우게 되고, 대개 아무 일 없는 라운드에서 사라진다.
+   * 아직 안 쓴 동안은 «대기 중»만 적고, 쓰고 나면 아래 소진 분기가 받는다.
+   */
+  if (role.effect === 'shield' && !used) {
+    return (
+      <div className="power">
+        <p className="power__waiting">
+          뒤를 봐주는 자가 붙어 있다 — 이의제기를 당하면 한 번 저절로 막는다
+        </p>
+      </div>
+    )
+  }
+
   if (used) {
     return (
       <div className="power power--spent">
@@ -157,7 +173,8 @@ const ASK: Partial<Record<NonNullable<Role['effect']>, string>> = {
 
 /** 알려줄 사실이 «원래» 없는 능력. 기다린다고 쓰면 오지 않을 답을 기다리게 된다. */
 const SPENT: Partial<Record<NonNullable<Role['effect']>, string>> = {
-  shield: '뒤를 봐주는 자가 붙었다',
+  // 자동 발동이라 「썼다」가 곧 「한 번 막았다」다(engine/challenge.ts).
+  shield: '이의제기를 한 번 막았다 — 뒤를 봐주던 자는 이제 없다',
   // 결과는 좌석 배지로 전체에 뜬다. 여기서 다시 알려줄 것이 없다.
   photograph: '촬영해 두었다 — 다음 라운드에 거짓을 말하면 드러난다',
   // 결과는 기록에 남아 전원이 읽는다. 여기서 다시 알려줄 것이 없다.

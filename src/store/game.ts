@@ -5,7 +5,7 @@ import { advanceToHuman, declareWithHuman, needsHuman, passChallenge } from '../
 import { powerLookup } from '../ai/power-brief'
 import type { PowerLookup } from '../ai/power-brief'
 import { createRuleDecider, ruleDeciderForRound } from '../ai/rule-decider'
-import { assignRoles } from '../content/roles'
+import { assignRoles, autoShieldSeats } from '../content/roles'
 import type { Role } from '../content/roles'
 import { challenge } from '../engine/challenge'
 import { parley, skipParley } from '../engine/parley'
@@ -261,7 +261,12 @@ export const useGame = create<GameStore>((set, get) => {
 
     suggest: (suggestion) => apply((s) => suggest(s, humanId(s), suggestion)),
     declare: (claim) => apply((s, deciders) => declareWithHuman(s, claim, deciders)),
-    challenge: (targetId) => apply((s) => challenge(s, humanId(s), targetId)),
+    /*
+     * 밀정의 보호는 미리 켜지 않아도 지목당하는 순간 저절로 펼쳐진다 —
+     * 자격은 엔진이 모르므로(직업은 콘텐츠다) 배정표를 아는 여기서 만들어 넘긴다.
+     */
+    challenge: (targetId) =>
+      apply((s) => challenge(s, humanId(s), targetId, null, autoShieldSeats(s.seed, s.players))),
     passChallenge: () => apply((s, deciders) => passChallenge(s, deciders)),
     accuse: (accusation) => apply((s) => accuse(s, accusation, humanId(s))),
     /*

@@ -26,6 +26,15 @@ export function powerLookup(roles: Readonly<Record<PlayerId, Role>>): PowerLooku
   return (viewerId) => {
     const role = roles[viewerId]
     if (!role || role.effect === null) return null
+    /*
+     * 밀정은 «쓰겠다»고 고를 것이 없다 — 이의제기를 당하는 순간 저절로 펼쳐진다
+     * (engine/challenge.ts의 autoShield). 사람 화면에서도 버튼을 없앴으므로(PowerPanel),
+     * 여기서도 내주지 않아야 사람과 AI가 같은 룰로 움직인다.
+     *
+     * 안 내주면 프롬프트에 능력 문단 자체가 안 붙는다 — 쓸 수 없는 능력을 설명하면
+     * 모델이 그걸 쓰겠다는 응답을 만들고, 그 응답은 엔진이 조용히 버린다(flow.ts의 withPowers).
+     */
+    if (role.effect === 'shield') return null
     return { text: role.power, needs: needsOf(role.effect) }
   }
 }
