@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { cardLabel } from '../content/labels'
 import { placeArtFor } from '../content/place-art'
 import { ROLE_ART, ROLE_ART_SIZE } from '../content/role-art'
+import { isAlwaysOn } from '../content/roles'
 import type { Role } from '../content/roles'
 import type { Scenario } from '../content/scenarios'
 import { suspectArtFor } from '../content/suspect-art'
@@ -78,7 +79,7 @@ export default function MyPlate({
   const me = view.players.find((p) => p.isMe)
   const culprit = me?.faction === 'culprit'
   /** 발동이 없는 직업. 「몇 번 남았나」를 말할 것이 없다. */
-  const always = role.effect === 'eavesdrop'
+  const always = isAlwaysOn(role)
   const hand = me?.hand ?? []
   const solution = view.solution
   const label = (id: CardId) => cardLabel(scenario, id)
@@ -111,7 +112,7 @@ export default function MyPlate({
     !powerUsed &&
     role.effect !== null &&
     role.effect !== 'shield' &&
-    role.effect !== 'eavesdrop' &&
+    !isAlwaysOn(role) &&
     usableIn(role.effect, view)
 
   const [open, setOpen] = useState(false)
