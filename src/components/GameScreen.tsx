@@ -71,6 +71,13 @@ interface FlashEvent {
    * 앞선 알림이 큐에서 대기하는 사이 라운드가 넘어가 다음 판의 추첨이 그려진다.
    */
   plates?: readonly Plate[]
+  /**
+   * 이 추첨이 어느 회차의 것인가. draw 전용 — 컷이 끝나야 그 회차의 좌석 테두리가 켜진다.
+   *
+   * plates와 같은 이유로 굳혀 담는다. 컷이 큐에서 대기하는 사이 AI 차례가 돌아
+   * view.round가 앞서 나가므로, 끝난 뒤에 view에서 읽으면 다음 회차를 가리킨다.
+   */
+  drawRound?: number
   /** 이의제기로 공개된 카드 그림. caught·wrongCall 전용 — 있으면 문구와 함께 카드 실물을 크게 띄운다. */
   art?: string
   /** CSS 애니메이션 길이와 맞춘다 — 다 안 끝났는데 다음 알림이 겹쳐 뜨는 걸 이걸로 막는다. */
@@ -393,8 +400,34 @@ export default function GameScreen() {
         slot: seatSlot(view, p.id),
       }))
 
-    enqueueFlash({ kind: 'draw', text: '반증 추첨', plates, ms: DRAW_CUT_MS, leadMs: DRAW_LEAD_MS })
+    enqueueFlash({
+      kind: 'draw',
+      text: '반증 추첨',
+      plates,
+      drawRound: record.round,
+      ms: DRAW_CUT_MS,
+      leadMs: DRAW_LEAD_MS,
+    })
   }, [view, stage, opening, enqueueFlash])
+
+  /*
+   * 추첨 컷이 «끝난» 회차. 좌석 테두리(seat--drawn)와 「籤 호명」 뱃지가 이 값에 걸린다.
+   *
+   * 라운드 기록이 생기는 즉시 켜면 그 변화가 통째로 베일 뒤에서 일어난다 — 명패가 자리로
+   * 날아가는 걸 보고 컷이 걷혔는데 원탁은 이미 다 바뀌어 있어서, 뽑기와 좌석이 한 동작으로
+   * 이어지지 않는다. 명패가 좌석에 닿는 순간(game.css의 draw-plate-pick 100% = 컷의 끝)에 켠다.
+   *
+   * 컷이 실제로 화면에 뜬 뒤부터 재므로 큐에서 기다린 시간은 세지 않는다.
+   */
+  const [drawnRound, setDrawnRound] = useState(0)
+  useEffect(() => {
+    const event = activeFlash?.event
+    if (event?.kind !== 'draw') return
+    const round = event.drawRound
+    if (round === undefined) return
+    const timer = window.setTimeout(() => setDrawnRound(round), event.ms)
+    return () => window.clearTimeout(timer)
+  }, [activeFlash])
 
   /*
    * 이의제기 결과(성공·실패 둘 다)를 화면 전체로 띄운다. 이전에는 성공(위증 확정)만
@@ -699,7 +732,7 @@ export default function GameScreen() {
 
           <div className="stage">
             {/* picked를 그대로 넘겨 «고르는 즉시» 그 카드가 상에 올라가게 한다. */}
-            <Table view={view} scenario={scenario} draft={picked} />
+            <Table view={view} scenario={scenario} draft={picked} drawnRound={drawnRound} />
 
             {/*
               라운드마다, 그리고 밀담 한 건이 끝날 때마다 새로 마운트한다 —
