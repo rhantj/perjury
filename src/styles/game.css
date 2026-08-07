@@ -1848,6 +1848,47 @@
   padding: 0.12rem 0.2rem;
 }
 /*
+ * 소거로 «내가» 도달한 정답. 봉인 정답(封, 붉은 인장)과 색을 갈라 놓는다 —
+ * 범인은 두 표시를 한 화면에서 같이 보게 되는데, 같은 색이면 남이 준 답과
+ * 내가 세어서 얻은 답이 구별되지 않는다. 이쪽은 등불색이다.
+ */
+.nb__row--deduced > th,
+.nb__row--deduced > td {
+  background: color-mix(in oklch, var(--color-lantern) 10%, transparent);
+}
+.nb__row--deduced > .nb__label {
+  box-shadow: inset 3px 0 0 var(--color-lantern);
+}
+/* 고른 줄이 이긴다 — .nb__row--answer와 같은 이유다. */
+.nb__row--deduced.nb__row--picked > th,
+.nb__row--deduced.nb__row--picked > td {
+  background: color-mix(in oklch, var(--color-accent) 13%, transparent);
+}
+.nb__deduced {
+  display: inline-block;
+  margin-right: 0.3rem;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--color-lantern);
+  border: 1px solid var(--color-lantern);
+  border-radius: 0.1rem;
+  padding: 0.12rem 0.2rem;
+  /* 줄이 «닫히는» 순간이라 한 번 짚어준다. 레이아웃은 건드리지 않는다. */
+  animation: nb-deduced-in 420ms var(--ease-out-expo);
+}
+@keyframes nb-deduced-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/*
  * 고른 칸의 hover. 이걸 안 두면 위의 `.nb__pick:hover`가 이긴다 —
  * 의사클래스가 붙어 명시도가 한 단계 높기 때문이다. 그러면 글자색이 강조색이 되는데
  * 배경도 강조색이라 **고른 카드 이름이 커서를 올린 동안 사라진다.**
@@ -1924,13 +1965,6 @@
   line-height: 1.5;
   color: var(--color-muted);
   /* Notebook.tsx가 pickGuide 문구로 key를 걸어, 단계가 넘어갈 때마다 다시 마운트된다. */
-  animation: nb-warning-in 220ms var(--ease-out-expo);
-}
-.nb__warning {
-  margin: 0.8rem 0 0;
-  font-size: 0.84rem;
-  line-height: 1.6;
-  color: oklch(72% 0.15 27);
   animation: nb-warning-in 220ms var(--ease-out-expo);
 }
 @keyframes nb-warning-in {
