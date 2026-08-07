@@ -71,13 +71,20 @@ body {
   right: clamp(0.75rem, 2vw, 1.25rem);
   z-index: 60;
 
-  width: 2.5rem;
+  /*
+   * 동그란 한자 하나였을 때 «이게 뭐냐»는 물음이 나왔다 — 장치인지 장식인지 안 읽힌 것이다.
+   * 글자를 붙이려면 가로가 필요해 원에서 알약으로 바꾼다. 모서리에 떠 있는 «장치»라는
+   * 성격은 그대로고, 자리(top/right)와 z-index도 건드리지 않는다.
+   */
   height: 2.5rem;
+  padding: 0 0.85rem;
   display: grid;
-  place-items: center;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0.4rem;
 
   border: 1px solid var(--color-line);
-  border-radius: 50%;
+  border-radius: 1.25rem;
   background: color-mix(in oklch, var(--color-surface) 82%, transparent);
   color: var(--color-muted);
 
@@ -100,6 +107,17 @@ body {
 .mute:focus-visible {
   outline: 2px solid var(--color-lantern);
   outline-offset: 2px;
+}
+
+.mute__mark {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+/* 글자는 표시가 아니라 «이름표»다 — 한자보다 물러나야 장치의 얼굴이 한자로 남는다. */
+.mute__cap {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
 }
 
 /* 꺼진 상태는 «비어 있음»으로 읽혀야 한다 — 켜진 쪽보다 확실히 물러난다. */

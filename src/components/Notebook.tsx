@@ -165,7 +165,7 @@ export default function Notebook({ view, scenario, picking, picked, onPick }: Pr
                   .join(' ')
                   .trim() || undefined}
               >
-                <th className="nb__label" scope="row">
+                <th className={isNewGroup ? 'nb__label nb__label--top' : 'nb__label'} scope="row">
                   {isNewGroup && <span className="nb__kind">{KIND_LABEL[card.kind]}</span>}
                   {/* 봉인 인장. 범인에게만 뜬다 — 시민 시야에는 solution이 없다. */}
                   {sealedAnswer && (

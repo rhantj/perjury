@@ -313,8 +313,18 @@
   line-height: 1;
   color: oklch(94% 0.008 84);
 }
+/*
+ * 범인 쪽 「범인」 글자.
+ *
+ * 인장색(--color-seal)을 그대로 쓰면 L 54%가 L 11% 패널 위에 앉아 거의 안 읽힌다 —
+ * 시민 쪽은 L 94%라 같은 자리에서 밝기가 갈렸다. 인장색은 작은 도장·테두리에서는
+ * 통하지만 2.3rem 글자의 «본문»으로는 어둡다.
+ *
+ * 색상(hue 27)은 그대로 두고 밝기만 올린다. 붉은색이 범인을 가리키는 신호라 색을
+ * 바꾸면 뜻이 사라지고, 밝기만 올리면 신호는 남은 채 읽히기만 한다.
+ */
 .plate--culprit .plate__faction {
-  color: var(--color-seal);
+  color: oklch(78% 0.15 27);
 }
 
 .plate__who {
@@ -1654,12 +1664,20 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/*
+ * 그룹 이름(범인·수단·장소). 예전에는 display:block에 세로 패딩 0.7rem이라
+ * **각 그룹 첫 줄에만** 높이가 붙었다 — 그 줄을 고르면 띠(.nb__row--picked > th)가
+ * 세 줄에서만 길게 늘어져, 같은 표 안에서 줄 높이가 둘로 갈렸다.
+ *
+ * 이름 옆에 인라인으로 세우면 열다섯 줄의 높이가 같아진다. 그룹 경계는 아래 테두리가
+ * 대신 맡는다 — 테두리는 1px이라 줄 높이를 흔들지 않는다.
+ */
 .nb__kind {
-  display: block;
+  display: inline-block;
+  margin-right: 0.4rem;
   font-size: 0.72rem;
   letter-spacing: 0.16em;
   color: var(--color-accent);
-  padding: 0.55rem 0 0.15rem;
 }
 .nb__pick {
   border: 0;
@@ -1738,8 +1756,13 @@
   color: var(--color-on-accent);
   filter: brightness(1.12);
 }
-.nb__cell-top {
-  padding-top: 0.7rem;
+/*
+ * 그룹 경계. 패딩으로 벌리면 그 줄만 높아지므로(위 .nb__kind와 같은 사안) 테두리로 긋는다.
+ * 이름 칸과 표 칸이 같이 받아야 선이 표를 가로질러 끊기지 않는다.
+ */
+.nb__cell-top,
+.nb__label--top {
+  border-top: 1px solid var(--color-line);
 }
 .nb__cell {
   width: 100%;

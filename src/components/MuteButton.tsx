@@ -29,7 +29,12 @@ export default function MuteButton() {
       title={muted ? '소리 켜기' : '소리 끄기'}
     >
       {/* 표지의 檢, 추첨통의 籤과 같은 계열로 맞춘다 — 이모지는 이 화면의 활자와 붙지 않는다. */}
-      <span aria-hidden="true">{muted ? '默' : '音'}</span>
+      <span className="mute__mark" aria-hidden="true">{muted ? '默' : '音'}</span>
+      {/*
+        한자 한 글자만 두었더니 «이게 뭐냐»는 물음이 나왔다 — 장치인지 장식인지 안 읽힌 것이다.
+        title은 커서를 올려 기다려야 뜨므로 처음 보는 사람에게는 없는 것과 같다.
+      */}
+      <span className="mute__cap" aria-hidden="true">{muted ? '무음' : '소리'}</span>
     </button>
   )
 }
