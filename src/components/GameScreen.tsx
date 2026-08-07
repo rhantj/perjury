@@ -60,6 +60,7 @@ interface FlashEvent {
     | 'challengeCall'
     | 'wrongCall'
     | 'draw'
+    | 'ousted'
   text: string
   /** 주 문구 아래 작게 붙는 보조 문구. */
   detail?: string
@@ -137,6 +138,13 @@ const CHALLENGE_RESULT_MS = 2800
  * game.css의 .action-flash--caught 애니메이션 길이와 쌍이다.
  */
 const CHALLENGE_CAUGHT_MS = 3400
+
+/**
+ * 고발 실패로 판에서 빠지는 컷. 발각(3400ms) 다음으로 길다 —
+ * 되돌릴 수 없는 데다, 남은 판을 어떻게 보내야 하는지(반증만)까지 읽혀야 하기 때문이다.
+ * game.css의 .action-flash--ousted 애니메이션 길이와 쌍이다.
+ */
+const OUSTED_MS = 3200
 
 /**
  * 제안 회차를 «바퀴»로 접는다. 여섯이 한 번씩 돌면 1라운드다(룰 개편 §3-1).
@@ -415,6 +423,39 @@ export default function GameScreen() {
       ms: 1800,
     })
   }, [view, stage, opening, enqueueFlash])
+
+  /*
+   * 판에서 빠지는 순간.
+   *
+   * 탈락은 «틀린 조기 고발» 하나뿐이라(engine/progress.ts의 accuseEarly에서만 목록이 는다)
+   * 이 목록이 늘었다는 사실만으로 사유가 확정된다 — 따로 들고 다닐 것이 없다.
+   *
+   * 좌석 뱃지만으로는 이 사건이 안 읽힌다는 피드백. 되돌릴 수 없는 갈림길인데
+   * 화면이 조용히 지나가서, 왜 갑자기 버튼이 사라졌는지 모른 채 남은 판을 보냈다.
+   *
+   * 첫 렌더에서 한 번 «비교 기준만» 잡고 빠진다. 이걸 안 하면 판을 이어받는 순간
+   * 이미 빠진 사람들의 컷이 한꺼번에 큐에 쌓인다.
+   */
+  const seenOutRef = useRef<readonly string[] | null>(null)
+  useEffect(() => {
+    if (!view || stage !== 'play') return
+    const prev = seenOutRef.current
+    seenOutRef.current = view.eliminated
+    if (prev === null) return
+
+    for (const id of view.eliminated) {
+      if (prev.includes(id)) continue
+      const mine = id === view.viewerId
+      enqueueFlash({
+        kind: 'ousted',
+        text: mine ? '고발 실패' : `${participantLabel(view, id)} 고발 실패`,
+        detail: mine
+          ? '판에서 빠진다 — 남은 판은 반증만 이어 간다'
+          : '판에서 빠졌다 — 남은 판은 반증만 이어 간다',
+        ms: OUSTED_MS,
+      })
+    }
+  }, [view, stage, enqueueFlash])
 
   if (!store.state || !view)
     return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
