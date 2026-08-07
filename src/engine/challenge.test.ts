@@ -9,19 +9,32 @@ import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
 const SUGGESTION: Suggestion = { suspect: 's1', weapon: 'w1', place: 'p1' }
 
 /**
- * p3이 p1로 거짓 반증한다. p1은 p2가 쥐고 있으므로 p2는 증명할 수 있다.
- * p4는 p1이 없어서 이의제기해도 실패한다.
+ * **이의제기는 제안자만 한다**(룰 개편 §2-4). 그래서 배치가 예전과 반대다 —
+ * 예전에는 「증명할 수 있는 제3자」를 세웠는데, 이제 증명할 수 있어야 하는 것은 제안자다.
+ *
+ * p0이 제안자이고 자기 손패의 p1을 **미끼로** 제안에 섞는다. p3이 그 p1로 거짓 반증하면
+ * p0이 잡는다. §2-4가 열어준 바로 그 수다.
  */
 const HANDS: CardId[][] = [
-  ['s2', 'p4'], // p0 제안자
+  ['p1', 'p4'], // p0 제안자 — p1이 미끼다
   ['w1', 'p3'], // p1
-  ['p1', 'w2'], // p2 — 증명 가능
+  ['s2', 'w2'], // p2
   ['s3', 's4'], // p3 — 위증자
-  ['w3', 'p2'], // p4 — 증명 불가
+  ['w3', 'p2'], // p4
   ['s5', 's1'], // p5
 ]
 
-function staged(): GameState {
+/** 제안자가 미끼를 «안» 든 배치. 이의제기가 실패하는 쪽을 볼 때 쓴다. */
+const WEAK_HANDS: CardId[][] = [
+  ['s2', 'p4'], // p0 제안자 — p1이 없다
+  ['w1', 'p3'],
+  ['p1', 'w2'], // p2가 대신 들었다
+  ['s3', 's4'], // p3 — 여전히 위증자다(자기가 안 든 카드를 냈다)
+  ['w3', 'p2'],
+  ['s5', 's1'],
+]
+
+function stagedWith(hands: readonly (readonly CardId[])[]): GameState {
   const base = createGame({ seed: 'fixture' })
   const withHands: GameState = {
     ...base,
@@ -29,19 +42,33 @@ function staged(): GameState {
     players: base.players.map((p, i) => ({
       ...p,
       characterId: `s${i + 1}`,
-      hand: HANDS[i] ?? [],
+      hand: hands[i] ?? [],
     })),
   }
 
+  /* 제안된 3장(s1·w1·p1) 중 «자기가 든 것»으로만 반증한다 — 아니면 그 자체가 위증이 된다. */
+  const held = (i: number, card: CardId): Claim =>
+    (hands[i] ?? []).includes(card) ? { kind: 'refute', cardId: card } : { kind: 'pass' }
+
   const claims = new Map<PlayerId, Claim>([
-    ['p1', { kind: 'refute', cardId: 'w1' }],
-    ['p2', { kind: 'refute', cardId: 'p1' }],
-    ['p3', { kind: 'refute', cardId: 'p1' }], // 위증
+    ['p1', held(1, 'w1')],
+    ['p2', held(2, 'p1')],
+    ['p3', { kind: 'refute', cardId: 'p1' }], // 위증 — p3은 p1을 든 적이 없다
     ['p4', { kind: 'pass' }],
-    ['p5', { kind: 'refute', cardId: 's1' }],
+    ['p5', held(5, 's1')],
   ])
 
   return declareAll(suggest(withHands, 'p0', SUGGESTION), claims)
+}
+
+/** 제안자 p0이 미끼를 쥔 판. 이의제기가 성공한다. */
+function staged(): GameState {
+  return stagedWith(HANDS)
+}
+
+/** 제안자 p0이 미끼를 못 쥔 판. 이의제기가 실패한다. */
+function weak(): GameState {
+  return stagedWith(WEAK_HANDS)
 }
 
 function revealedOf(state: GameState, id: PlayerId): readonly CardId[] {
@@ -50,13 +77,13 @@ function revealedOf(state: GameState, id: PlayerId): readonly CardId[] {
 
 describe('challenge — 성공', () => {
   it('근거 카드를 쥐고 있으면 성공한다', () => {
-    const after = challenge(staged(), 'p2', 'p3')
+    const after = challenge(staged(), 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
   })
 
   it('위증자의 손패 1장이 공개된다', () => {
-    const after = challenge(staged(), 'p2', 'p3')
+    const after = challenge(staged(), 'p0', 'p3')
     const revealed = revealedOf(after, 'p3')
 
     expect(revealed).toHaveLength(1)
@@ -64,29 +91,29 @@ describe('challenge — 성공', () => {
   })
 
   it('고발자도 근거 카드를 공개한다', () => {
-    const after = challenge(staged(), 'p2', 'p3')
+    const after = challenge(staged(), 'p0', 'p3')
 
-    expect(revealedOf(after, 'p2')).toEqual(['p1'])
+    expect(revealedOf(after, 'p0')).toEqual(['p1'])
   })
 })
 
 describe('challenge — 실패', () => {
   it('근거 카드가 없으면 실패한다', () => {
-    const after = challenge(staged(), 'p4', 'p3')
+    const after = challenge(weak(), 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
   })
 
   it('고발자의 손패 1장이 공개된다', () => {
-    const after = challenge(staged(), 'p4', 'p3')
-    const revealed = revealedOf(after, 'p4')
+    const after = challenge(weak(), 'p0', 'p3')
+    const revealed = revealedOf(after, 'p0')
 
     expect(revealed).toHaveLength(1)
-    expect(HANDS[4]).toContain(revealed[0])
+    expect(WEAK_HANDS[0]).toContain(revealed[0])
   })
 
   it('실패하면 대상은 아무것도 잃지 않는다', () => {
-    const after = challenge(staged(), 'p4', 'p3')
+    const after = challenge(weak(), 'p0', 'p3')
 
     expect(revealedOf(after, 'p3')).toEqual([])
   })
@@ -94,43 +121,69 @@ describe('challenge — 실패', () => {
 
 describe('challenge — 재현성', () => {
   it('같은 상황이면 항상 같은 카드가 공개된다', () => {
-    const a = challenge(staged(), 'p2', 'p3')
-    const b = challenge(staged(), 'p2', 'p3')
+    const a = challenge(staged(), 'p0', 'p3')
+    const b = challenge(staged(), 'p0', 'p3')
 
     expect(revealedOf(b, 'p3')).toEqual(revealedOf(a, 'p3'))
   })
 
-  it('고발자가 다르면 공개되는 카드도 달라질 수 있다', () => {
-    const from2 = challenge(staged(), 'p2', 'p3').rounds[0]?.challenge
-    const from5 = challenge(staged(), 'p5', 'p3').rounds[0]?.challenge
+  /*
+   * 예전에는 「고발자가 다르면 공개 카드도 다르다」를 여기서 봤다. §2-4로 한 라운드의
+   * 고발자가 제안자 하나뿐이 되어 그 비교가 성립하지 않는다. 고발자가 기록에 남는 것은
+   * 「이의제기 기록이 남는다」가, 고발자별 rng는 「횟수는 사람마다 따로 센다」가 잡는다.
+   */
+})
 
-    expect(from2?.challengerId).toBe('p2')
-    expect(from5?.challengerId).toBe('p5')
+/*
+ * 룰 개편 §2-4. 1-B로 반증 카드가 제안자에게만 보이므로, 나머지 좌석은 「내가 쥔 카드를
+ * 냈다」를 판정할 자료가 없다. 그 상태로 열어 두면 이의제기가 증명이 아니라 찍기가 된다.
+ *
+ * 예산에도 걸린다 — 매 라운드 5좌석에게 물어서 판당 120회였고, 그것이 한 판 180회의 3분의 2다.
+ */
+describe('challenge — 제안자 전용 (룰 개편 §2-4)', () => {
+  it('제안자가 아니면 이의제기할 수 없다', () => {
+    expect(() => challenge(staged(), 'p2', 'p3')).toThrow(/제안자/)
+  })
+
+  it('canChallenge도 제안자에게만 참이다', () => {
+    const state = staged()
+
+    expect(canChallenge(state, 'p0')).toBe(true)
+    expect(canChallenge(state, 'p2')).toBe(false)
   })
 })
 
 describe('challenge — 룰 검증', () => {
   it('침묵 선언에는 이의제기할 수 없다', () => {
-    expect(() => challenge(staged(), 'p2', 'p4')).toThrow()
+    expect(() => challenge(staged(), 'p0', 'p4')).toThrow()
   })
 
   it('자기 자신에게는 이의제기할 수 없다', () => {
-    expect(() => challenge(staged(), 'p3', 'p3')).toThrow()
+    expect(() => challenge(staged(), 'p0', 'p0')).toThrow(/자기 자신/)
   })
 
-  it('선언하지 않은 제안자는 이의제기 대상이 아니다', () => {
-    expect(() => challenge(staged(), 'p2', 'p0')).toThrow()
+  /* 추첨에서 빠진 좌석은 선언이 없다. §2-4 뒤에도 이 가드는 남는다. */
+  it('선언하지 않은 사람은 이의제기 대상이 아니다', () => {
+    const base = staged()
+    const record = base.rounds[0]
+    if (!record) throw new Error('라운드가 없다')
+    const silent: GameState = {
+      ...base,
+      rounds: [{ ...record, declarations: record.declarations.filter((d) => d.playerId !== 'p5') }],
+    }
+
+    expect(() => challenge(silent, 'p0', 'p5')).toThrow(/선언하지 않은/)
   })
 
   it('이의제기 페이즈가 아니면 할 수 없다', () => {
     const before = suggest(createGame({ seed: 'x' }), 'p0', SUGGESTION)
-    expect(() => challenge(before, 'p2', 'p3')).toThrow()
+    expect(() => challenge(before, 'p0', 'p3')).toThrow()
   })
 })
 
 describe('challenge — 상태 전이', () => {
   it('이의제기 후 밀담 페이즈로 넘어간다', () => {
-    expect(challenge(staged(), 'p2', 'p3').phase).toBe('whisper')
+    expect(challenge(staged(), 'p0', 'p3').phase).toBe('whisper')
   })
 
   it('건너뛰어도 밀담 페이즈로 넘어간다', () => {
@@ -142,16 +195,16 @@ describe('challenge — 상태 전이', () => {
 
   it('원본 상태를 바꾸지 않는다', () => {
     const before = staged()
-    challenge(before, 'p2', 'p3')
+    challenge(before, 'p0', 'p3')
 
     expect(before.phase).toBe('challenge')
     expect(revealedOf(before, 'p3')).toEqual([])
   })
 
   it('이의제기 기록이 남는다', () => {
-    const record = challenge(staged(), 'p2', 'p3').rounds[0]?.challenge
+    const record = challenge(staged(), 'p0', 'p3').rounds[0]?.challenge
 
-    expect(record?.challengerId).toBe('p2')
+    expect(record?.challengerId).toBe('p0')
     expect(record?.targetId).toBe('p3')
     expect(record?.cardId).toBe('p1')
     expect(record?.reveals).toHaveLength(2)
@@ -160,27 +213,27 @@ describe('challenge — 상태 전이', () => {
 
 describe('이의제기 대사', () => {
   it('이의제기 대사가 기록에 남는다', () => {
-    const record = challenge(staged(), 'p2', 'p3', '거짓말이오').rounds[0]?.challenge
+    const record = challenge(staged(), 'p0', 'p3', '거짓말이오').rounds[0]?.challenge
 
     expect(record?.line).toBe('거짓말이오')
   })
 
   it('대사를 주지 않으면 null이다', () => {
-    expect(challenge(staged(), 'p2', 'p3').rounds[0]?.challenge?.line).toBeNull()
+    expect(challenge(staged(), 'p0', 'p3').rounds[0]?.challenge?.line).toBeNull()
   })
 })
 
 describe('shield — 밀정', () => {
-  /** p2가 p1을 쥐고 있으니 평소라면 p3의 위증이 잡힌다. */
+  /** 제안자 p0이 미끼 p1을 쥐고 있으니 평소라면 p3의 위증이 잡힌다. */
   it('보호가 없으면 위증이 잡힌다', () => {
-    const after = challenge(staged(), 'p2', 'p3')
+    const after = challenge(staged(), 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
   })
 
   it('보호가 걸려 있으면 카드가 잡혀도 실패한다', () => {
     const shielded = usePower(staged(), 'p3', { kind: 'shield' })
-    const after = challenge(shielded, 'p2', 'p3')
+    const after = challenge(shielded, 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
   })
@@ -188,23 +241,23 @@ describe('shield — 밀정', () => {
   /** 실패한 이의제기의 벌칙은 고발자가 받는다. 옳게 잡고도 손해를 보는 것이 이 능력이다. */
   it('막힌 이의제기의 벌칙은 고발자에게 간다', () => {
     const shielded = usePower(staged(), 'p3', { kind: 'shield' })
-    const after = challenge(shielded, 'p2', 'p3')
+    const after = challenge(shielded, 'p0', 'p3')
 
-    expect(revealedOf(after, 'p2')).toHaveLength(1)
+    expect(revealedOf(after, 'p0')).toHaveLength(1)
     expect(revealedOf(after, 'p3')).toHaveLength(0)
   })
 
   it('한 번 막으면 소진된다', () => {
     const shielded = usePower(staged(), 'p3', { kind: 'shield' })
-    const after = challenge(shielded, 'p2', 'p3')
+    const after = challenge(shielded, 'p0', 'p3')
 
     expect(after.pending).toHaveLength(0)
   })
 
   /** 어차피 실패할 이의제기까지 막아주면 보호가 헛되이 사라진다. */
   it('잡히지 않았으면 보호가 남는다', () => {
-    const shielded = usePower(staged(), 'p3', { kind: 'shield' })
-    const after = challenge(shielded, 'p4', 'p3')
+    const shielded = usePower(weak(), 'p3', { kind: 'shield' })
+    const after = challenge(shielded, 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
     expect(after.pending).toHaveLength(1)
@@ -212,7 +265,7 @@ describe('shield — 밀정', () => {
 
   it('남의 보호는 나를 지켜주지 않는다', () => {
     const shielded = usePower(staged(), 'p5', { kind: 'shield' })
-    const after = challenge(shielded, 'p2', 'p3')
+    const after = challenge(shielded, 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
     expect(after.pending).toHaveLength(1)
@@ -225,24 +278,28 @@ describe('shield — 밀정', () => {
  * 자격(누가 밀정인가)은 엔진이 모른다 — 직업은 콘텐츠다. 부르는 쪽이 좌석 집합만 넘기고
  * 엔진은 「이 좌석은 자동으로 막을 자격이 있다」로만 읽는다.
  */
+/*
+ * 고발자가 p2에서 제안자 p0으로 바뀐 것 말고는 팀원이 세운 그대로다(§2-4).
+ * 「잡히지 않았으면」만 weak()를 쓴다 — 제안자가 미끼를 못 쥐어 실패하는 판이다.
+ */
 describe('shield — 자동 발동', () => {
   const spies = new Set(['p3'])
 
   it('미리 켜지 않아도 잡히는 순간 막는다', () => {
-    const after = challenge(staged(), 'p2', 'p3', null, spies)
+    const after = challenge(staged(), 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
   })
 
   it('자동으로 막았으면 능력이 소진된다', () => {
-    const after = challenge(staged(), 'p2', 'p3', null, spies)
+    const after = challenge(staged(), 'p0', 'p3', null, spies)
 
     expect(after.powersUsed).toContain('p3')
   })
 
   /** 어차피 실패할 이의제기까지 태우면 판당 1회짜리가 헛되이 사라진다. */
   it('잡히지 않았으면 능력이 소진되지 않는다', () => {
-    const after = challenge(staged(), 'p4', 'p3', null, spies)
+    const after = challenge(weak(), 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
     expect(after.powersUsed).not.toContain('p3')
@@ -250,13 +307,13 @@ describe('shield — 자동 발동', () => {
 
   it('이미 능력을 쓴 밀정은 자동으로 막지 못한다', () => {
     const spent: GameState = { ...staged(), powersUsed: ['p3'] }
-    const after = challenge(spent, 'p2', 'p3', null, spies)
+    const after = challenge(spent, 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
   })
 
   it('자격이 없는 좌석은 자동으로 막지 못한다', () => {
-    const after = challenge(staged(), 'p2', 'p3', null, new Set(['p5']))
+    const after = challenge(staged(), 'p0', 'p3', null, new Set(['p5']))
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
   })
@@ -264,7 +321,7 @@ describe('shield — 자동 발동', () => {
   /** 미리 켜 둔 보호가 있으면 그쪽이 먼저 나간다 — 한 사건에 값을 두 번 치르지 않는다. */
   it('미리 켠 보호가 있으면 그것만 소모한다', () => {
     const shielded = usePower(staged(), 'p3', { kind: 'shield' })
-    const after = challenge(shielded, 'p2', 'p3', null, spies)
+    const after = challenge(shielded, 'p0', 'p3', null, spies)
 
     expect(after.rounds[0]?.challenge?.success).toBe(false)
     expect(after.pending).toHaveLength(0)
@@ -302,15 +359,15 @@ function withEmptyHiddenHand(state: GameState, id: PlayerId): GameState {
 
 describe('challenge — 횟수 제한 (decisions/008)', () => {
   it('두 번까지는 할 수 있다', () => {
-    expect(() => challenge(withPastChallenges(staged(), 'p2', 1), 'p2', 'p3')).not.toThrow()
+    expect(() => challenge(withPastChallenges(staged(), 'p0', 1), 'p0', 'p3')).not.toThrow()
   })
 
   it('세 번째는 거절한다', () => {
-    expect(() => challenge(withPastChallenges(staged(), 'p2', 2), 'p2', 'p3')).toThrow()
+    expect(() => challenge(withPastChallenges(staged(), 'p0', 2), 'p0', 'p3')).toThrow()
   })
 
   it('횟수는 사람마다 따로 센다 — 남이 두 번 썼다고 내가 못 하는 게 아니다', () => {
-    expect(() => challenge(withPastChallenges(staged(), 'p4', 2), 'p2', 'p3')).not.toThrow()
+    expect(() => challenge(withPastChallenges(staged(), 'p4', 2), 'p0', 'p3')).not.toThrow()
   })
 })
 
@@ -320,25 +377,25 @@ describe('challenge — 자격 조건 (decisions/008)', () => {
    * 페널티가 없기 때문이다. 값이 없는 행동은 남발되므로 아예 막는다.
    */
   it('공개되지 않은 손패가 없으면 거절한다', () => {
-    expect(() => challenge(withEmptyHiddenHand(staged(), 'p4'), 'p4', 'p3')).toThrow()
+    expect(() => challenge(withEmptyHiddenHand(weak(), 'p0'), 'p0', 'p3')).toThrow()
   })
 
   it('성공할 수 있는 사람이라도 패가 다 열렸으면 못 한다', () => {
-    // p2는 p1을 쥐고 있어 원래는 성공하지만, 증명하려면 낼 카드가 있어야 한다.
-    expect(() => challenge(withEmptyHiddenHand(staged(), 'p2'), 'p2', 'p3')).toThrow()
+    // p0은 미끼 p1을 쥐고 있어 원래는 성공하지만, 증명하려면 낼 카드가 있어야 한다.
+    expect(() => challenge(withEmptyHiddenHand(staged(), 'p0'), 'p0', 'p3')).toThrow()
   })
 })
 
 describe('challenge — 공개 카드 중복 (decisions/008)', () => {
   it('이미 공개된 카드를 증명에 써도 revealed에 두 번 쌓이지 않는다', () => {
-    // p2의 증명 카드 p1이 이미 공개돼 있는 상황을 만든다.
+    // 제안자 p0의 증명 카드 p1이 이미 공개돼 있는 상황을 만든다.
     const base = staged()
     const seeded: GameState = {
       ...base,
-      players: base.players.map((p) => (p.id === 'p2' ? { ...p, revealed: ['p1'] } : p)),
+      players: base.players.map((p) => (p.id === 'p0' ? { ...p, revealed: ['p1'] } : p)),
     }
-    const after = challenge(seeded, 'p2', 'p3')
-    const revealed = revealedOf(after, 'p2')
+    const after = challenge(seeded, 'p0', 'p3')
+    const revealed = revealedOf(after, 'p0')
 
     expect(revealed.filter((c) => c === 'p1')).toHaveLength(1)
     expect(new Set(revealed).size).toBe(revealed.length)
@@ -352,16 +409,16 @@ describe('탈락자는 이의제기하지 않는다', () => {
    */
   it('탈락한 사람은 이의제기할 수 없다', () => {
     const state = staged()
-    const fallen: GameState = { ...state, eliminated: ['p2'] }
+    const fallen: GameState = { ...state, eliminated: ['p0'] }
 
-    expect(() => challenge(fallen, 'p2', 'p3')).toThrow()
+    expect(() => challenge(fallen, 'p0', 'p3')).toThrow(/탈락자/)
   })
 
   it('화면이 보는 자격에서도 빠진다', () => {
     const state = staged()
 
-    expect(canChallenge(state, 'p2')).toBe(true)
-    expect(canChallenge({ ...state, eliminated: ['p2'] }, 'p2')).toBe(false)
+    expect(canChallenge(state, 'p0')).toBe(true)
+    expect(canChallenge({ ...state, eliminated: ['p0'] }, 'p0')).toBe(false)
   })
 })
 
@@ -377,7 +434,7 @@ describe('탈락자도 위증에는 값을 치른다', () => {
     const state = staged()
     const fallen: GameState = { ...state, eliminated: ['p3'] }
 
-    const after = challenge(fallen, 'p2', 'p3')
+    const after = challenge(fallen, 'p0', 'p3')
 
     expect(after.rounds[0]?.challenge?.success).toBe(true)
     expect(revealedOf(after, 'p3')).toHaveLength(1)

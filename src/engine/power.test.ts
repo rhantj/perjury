@@ -546,4 +546,45 @@ describe('탈락자는 능력을 쓰지 않는다', () => {
     // 캔 것은 캔 사람만 안다. 전체 공개인 revealed는 그대로다.
     expect(after.players[1]?.revealed).toEqual([])
   })
+
+  /*
+   * 결정 011의 미결 #1을 여기서 닫는다 — **살아서 걸어둔 지목은 탈락 뒤에도 결실한다.**
+   *
+   * §2-5의 「직업 능력 — 잃는다」는 «새로 거는 것»을 잃는다는 뜻이고, 그것은 위
+   * 「탈락한 사람은 능력을 발동할 수 없다」가 이미 막는다. 이미 쏜 화살까지 거두면
+   * §2-7이 없애려던 «운으로 증발하는 능력»이 탈락이라는 이름으로 되살아난다.
+   *
+   * 가른 것은 «누가 손해를 보는가»다. 두 능력의 결과가 가는 곳이 다르다.
+   *   순사(verify-claim) — 결과가 grants, 즉 주인만 본다. 탈락자는 쓸 데가 없으니 무해하다.
+   *   사진사(photograph) — 결과가 record.exposed, 즉 **전체 공개**다. 거두면 잡혔어야 할
+   *     위증자가 «무관한 사람이 탈락했다»는 이유로 빠져나간다. 산 사람들의 판이 흔들린다.
+   *
+   * 되돌리려면 power.ts의 settlePending에서 pending.ownerId가 eliminated에 있으면
+   * 결실 없이 거두게 한다. 그때 이 두 테스트가 터진다.
+   */
+  it('탈락 전에 걸어둔 촬영은 탈락 뒤에도 위증을 공개한다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const first = afterSuggest(base)
+    const owner = idOf(first, 1)
+    const armed = usePower(first, owner, { kind: 'photograph', targetId: idOf(first, 2) })
+
+    // 좌석1이 2라운드 제안자다. 제안을 마친 «뒤»에 떨어뜨려야 결실 시점이 탈락 뒤가 된다.
+    const second = afterSuggest(nextRound(skipChallenge(declareAll(armed, allPass(armed)))))
+    const fallen: GameState = { ...second, eliminated: [owner] }
+    const done = declareAll(fallen, allPass(fallen))
+
+    expect(done.rounds[1]?.exposed).toEqual([idOf(done, 2)])
+    expect(done.pending).toHaveLength(0)
+  })
+
+  it('탈락 전에 걸어둔 순사 지목도 그대로 통보된다', () => {
+    const base = withHands(game(), [[], [], ['w1'], [], [], []])
+    const state = afterSuggest(base)
+    const owner = idOf(state, 1)
+    const armed = usePower(state, owner, { kind: 'verify-claim', targetId: idOf(state, 2) })
+
+    const done = declareAll({ ...armed, eliminated: [owner] }, allPass(armed))
+
+    expect(findingsFor(done, owner)).toHaveLength(1)
+  })
 })

@@ -3,7 +3,7 @@ import { skipChallenge } from './challenge'
 import { PARLEY_LIMIT, canParley, parley, parleysUsedIn, skipParley } from './parley'
 import { declareAll } from './round'
 import { suggestAll as suggest } from './testing'
-import { createGame } from './setup'
+import { DEFAULT_ROUNDS, createGame } from './setup'
 import { usePower } from './power'
 import type { CardId, Claim, GameState, PlayerId, Suggestion } from './types'
 
@@ -173,6 +173,23 @@ describe('parley — 판당 횟수 제한 (decisions/009)', () => {
   })
 
   /*
+   * 위 테스트들은 전부 PARLEY_LIMIT을 «참조»하므로 값이 무엇이든 통과한다.
+   * 그래서 값 자체를 여기서 묶는다 — 이 파일에서 숫자를 검증하는 유일한 자리다.
+   *
+   * 4회차당 1회라는 비율이 근거다(룰 개편 §3-2). 상한을 8에서 24로 올린 08-06에
+   * 밀담을 같이 올리지 않아 8회차당 1회가 됐고, 그때 「정보가 마른다」가 실측으로 나왔다
+   * (24회차를 다 돌고도 200판 전부 혼자서는 못 풀었다).
+   *
+   * **회차만 바꾸면 여기가 터진다. 그게 이 테스트의 목적이다** — 두 값은 따로 정할 수 없다.
+   */
+  it('한도는 회차 상한에 4:1로 묶인다', () => {
+    expect(
+      PARLEY_LIMIT * 4,
+      '밀담은 4회차당 1회다. 회차를 바꿨다면 결정 009를 먼저 고치고 여기로 온다',
+    ).toBe(DEFAULT_ROUNDS)
+  })
+
+  /*
    * 한도가 밀담 페이즈를 막으면 판이 그 자리에 선다. 나가는 문은 반드시 열려 있어야 한다 —
    * 이의제기 때 같은 종류의 사고를 배포본에서 겪었다(ai/flow.ts 주석 참고).
    */
@@ -188,7 +205,7 @@ describe('parley — 판당 횟수 제한 (decisions/009)', () => {
 
 /**
  * 회선이 늘어도 판당 예산은 그대로다(결정 010). 전화교환수의 능력은 «몰아 쓸 자유»지
- * «총량이 느는 것»이 아니다 — 라운드로 세면 그 좌석만 판당 여섯 번 말하게 된다.
+ * «총량이 느는 것»이 아니다 — 라운드로 세면 그 좌석만 판당 열두 번 말하게 된다.
  */
 describe('parley — 회선 증가와 판당 예산', () => {
   /** 전화교환수 자리. 라운드당 두 회선으로 판을 연다. */

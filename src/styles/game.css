@@ -494,6 +494,20 @@
   padding: 0.12rem 0.4rem;
 }
 
+/*
+ * 대기(待機)는 «아직 살아 있는 패»다. 다 쓴 것(已使)과 달리 색을 빼지 않고,
+ * 등불색으로 바꿔 「기다리는 중」임을 남은 상태(壹回)와도 구분한다.
+ * 색만 건드린다 — 내 패는 판이 도는 내내 떠 있어서 레이아웃이 흔들리면 안 된다.
+ *
+ * **.plate__once 뒤에 둔다.** 명시도가 같아서 앞에 두면 기반 규칙이 덮어 버린다 —
+ * 게다가 저쪽은 border 단축이라 border-color까지 통째로 되돌린다. 처음에 그렇게 넣었고
+ * 글자만 바뀌고 색은 壹回와 똑같은 채로 빌드·테스트가 전부 통과했다.
+ */
+.plate__once--waiting {
+  color: var(--color-lantern);
+  border-color: color-mix(in oklch, var(--color-lantern) 55%, transparent);
+}
+
 .plate__cards {
   /* .held의 clamp(...,10cqw,...)가 이 폭을 기준으로 삼는다. */
   container-type: inline-size;

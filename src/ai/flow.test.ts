@@ -59,6 +59,42 @@ describe('needsHuman — 개입 지점', () => {
    * 이게 없으면 판이 멈춘다. 예전 규칙은 「제안자가 아니면 사람 차례」였는데, 추첨에서
    * 빠진 라운드에도 그대로 두면 화면이 낼 버튼도 없이 사람의 선언을 기다린다.
    */
+  /*
+   * 위와 같은 종류의 정지를 이의제기에서도 막는다(룰 개편 §2-4).
+   * 이의제기는 제안자만 하므로, 제안자가 아닌 라운드에 사람을 세우면 낼 버튼이 없다.
+   */
+  it('제안자가 아니면 이의제기 페이즈에서 사람을 기다리지 않는다', () => {
+    const initial = createGame({ seed: 'challenge-wait', humanIndex: 3 })
+    const suggesterId = initial.players[initial.turnIndex]?.id
+    if (!suggesterId) throw new Error('제안자가 없다')
+    expect(suggesterId).not.toBe('p3')
+    const opened = suggest(initial, suggesterId, { suspect: 's1', weapon: 'w1', place: 'p1' })
+
+    expect(needsHuman({ ...opened, phase: 'challenge' })).toBe(false)
+  })
+
+  it('제안자면 이의제기 페이즈에서 사람을 기다린다', () => {
+    const initial = createGame({ seed: 'challenge-wait', humanIndex: 0 })
+    const suggesterId = initial.players[initial.turnIndex]?.id
+    if (suggesterId !== 'p0') throw new Error('사람이 제안자가 아니다')
+    const opened = suggest(initial, suggesterId, { suspect: 's1', weapon: 'w1', place: 'p1' })
+
+    expect(needsHuman({ ...opened, phase: 'challenge' })).toBe(true)
+  })
+
+  /* 자격이 없으면 사람도 세우지 않는다 — AI 제안자였다면 묻지도 않고 넘기는 자리다. */
+  it('제안자라도 손패가 다 열렸으면 기다리지 않는다', () => {
+    const initial = createGame({ seed: 'challenge-wait', humanIndex: 0 })
+    const opened = suggest(initial, 'p0', { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const spent: GameState = {
+      ...opened,
+      phase: 'challenge',
+      players: opened.players.map((p) => (p.id === 'p0' ? { ...p, revealed: [...p.hand] } : p)),
+    }
+
+    expect(needsHuman(spent)).toBe(false)
+  })
+
   it('추첨에서 빠지면 반증 페이즈에서 사람을 기다리지 않는다', () => {
     const initial = createGame({ seed: 'refute', humanIndex: 3 })
     const suggesterId = initial.players[initial.turnIndex]?.id
@@ -229,12 +265,15 @@ describe('이의제기 — 성립하지 않는 지목', () => {
     expect(next.rounds[next.rounds.length - 1]?.challenge?.targetId).toBe(first.id)
   })
 
-  /**
-   * 묻는 것은 병렬이어도 «먼저 잡는 사람»은 좌석 순서로 정해야 한다.
-   * 응답 도착 순서로 정하면 같은 판이 네트워크 운에 따라 다르게 끝난다.
+  /*
+   * 예전에는 여기서 「여럿이 잡으려 하면 앞 좌석이 가져간다」를 봤다. 5좌석에게 병렬로 묻고
+   * 답을 다 모은 뒤 좌석 순서로 훑는 구조였기 때문이다. §2-4로 후보가 제안자 하나가 되면서
+   * 그 규칙이 성립하지 않는다 — 남겨두면 「후보가 하나라서」 초록인 빈 테스트가 된다.
+   *
+   * 대신 그 자리에 **후보가 정말 하나인지**를 둔다. 이것이 예산 절감의 근거이기도 하다.
    */
-  it('여럿이 잡으려 하면 앞 좌석이 가져간다 — 응답 순서가 아니라', async () => {
-    const game = createGame({ seed: 'challenge-order', humanIndex: 1 })
+  it('제안자 말고는 아무에게도 묻지 않는다', async () => {
+    const game = createGame({ seed: 'challenge-only-suggester', humanIndex: 1 })
     const suggester = playerAt(game, game.turnIndex)
     const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
     const responders = suggested.players.filter((p) => p.id !== suggester.id)
@@ -248,25 +287,53 @@ describe('이의제기 — 성립하지 않는 지목', () => {
     )
     const state = declareAll(suggested, claims)
 
-    /** 전원이 같은 대상을 지목한다. 뒷좌석일수록 «빨리» 답한다. */
-    const seatOf = new Map(state.players.map((p, index) => [p.id, index]))
+    const asked: PlayerId[] = []
     const decider: Decider = {
       chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
       chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
-      chooseChallengeTarget: (view) =>
-        new Promise((resolve) => {
-          const seat = seatOf.get(view.viewerId) ?? 0
-          setTimeout(() => resolve(silent(target.id)), (state.players.length - seat) * 5)
-        }),
+      chooseChallengeTarget: (view) => {
+        asked.push(view.viewerId)
+        return Promise.resolve(silent(null))
+      },
       chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
       speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
     }
 
     const next = await stepAi(state, decider)
 
-    // 대상 본인은 자기를 못 잡으므로, 그를 제외한 가장 앞 좌석이 잡아야 한다.
-    const expected = state.players.find((p) => p.id !== target.id)
-    expect(next.rounds[next.rounds.length - 1]?.challenge?.challengerId).toBe(expected?.id)
+    expect(asked).toEqual([suggester.id])
+    expect(next.phase).toBe('whisper')
+  })
+
+  /*
+   * 사람이 제안자일 때 「넘어가기」를 누르면 후보가 소진된다 — 예전에는 나머지 좌석에게
+   * 기회가 넘어갔지만 §2-4 뒤로는 그 자리에서 끝나야 한다. 아무도 안 넘기면 판이 갇힌다.
+   */
+  it('사람 제안자가 넘기면 아무에게도 묻지 않고 라운드가 넘어간다', async () => {
+    const game = createGame({ seed: 'challenge-human-pass', humanIndex: 0 })
+    const suggester = playerAt(game, game.turnIndex)
+    expect(suggester.isHuman).toBe(true)
+    const suggested = suggest(game, suggester.id, { suspect: 's1', weapon: 'w1', place: 'p1' })
+    const responders = suggested.players.filter((p) => p.id !== suggester.id)
+    const claims = new Map<PlayerId, Claim>(responders.map((p) => [p.id, { kind: 'pass' }]))
+    const state = declareAll(suggested, claims)
+
+    let asked = 0
+    const decider: Decider = {
+      chooseSuggestion: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseClaim: () => Promise.reject(new Error('부르면 안 된다')),
+      chooseChallengeTarget: () => {
+        asked += 1
+        return Promise.resolve(silent(null))
+      },
+      chooseAccusation: () => Promise.reject(new Error('부르면 안 된다')),
+      speakInParley: () => Promise.reject(new Error('부르면 안 된다')),
+    }
+
+    const next = await passChallenge(state, () => decider)
+
+    expect(asked).toBe(0)
+    expect(next.phase).toBe('whisper')
   })
 })
 

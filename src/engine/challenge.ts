@@ -65,11 +65,21 @@ export function challengesUsedIn(
   return rounds.filter((r) => r.challenge?.challengerId === playerId).length
 }
 
-/** 지금 이의제기를 걸 수 있는가. 화면이 버튼을 막을 때와 엔진이 거절할 때가 같은 기준을 쓴다. */
+/**
+ * 지금 이의제기를 걸 수 있는가 — **사람 자격**만 본다(대상은 challenge가 따로 검사한다).
+ *
+ * 부르는 곳은 `ai/flow.ts`다. `needsHuman`이 사람을 세울지, `offerChallenge`가 판단자에게
+ * 물을지를 이 한 기준으로 정하므로, 두 경로가 갈라지지 않는다.
+ * **ChallengeBar는 이걸 부르지 않는다** — 남은 횟수를 숫자로 내걸어야 해서 `challengesUsedIn`을
+ * 직접 센다. 그 줄이 서는 것 자체가 `needsHuman`을 통과한 뒤라 지금은 어긋나지 않는다.
+ */
 export function canChallenge(state: GameState, playerId: PlayerId): boolean {
   const player = state.players.find((p) => p.id === playerId)
   if (!player) return false
   if (state.eliminated.includes(playerId)) return false
+  // 라운드가 없으면 제안도 없다. 제안자 전용이므로 그 상태에서는 아무도 못 건다(§2-4).
+  const record = state.rounds[state.rounds.length - 1]
+  if (!record || record.suggesterId !== playerId) return false
   return challengesUsed(state, playerId) < CHALLENGE_LIMIT && hiddenHand(player).length > 0
 }
 
@@ -141,6 +151,17 @@ export function challenge(
    */
   if (state.eliminated.includes(challengerId)) {
     throw new Error(`탈락자는 이의제기할 수 없다: ${challengerId}`)
+  }
+  /*
+   * **제안자 전용** (룰 개편 §2-4). 1-B로 반증 카드는 제안자에게만 보인다
+   * (`view.ts`가 남의 refute에서 cardId를 null로 지운다). 나머지 좌석에게 열어 두면
+   * 증명할 자료가 없는 채로 거는 «찍기»가 되고, 실패 페널티만 무작위로 굴러간다.
+   *
+   * 대신 제안자에게는 새 수가 생긴다 — 자기 손패를 제안에 «미끼»로 섞어 위증을 낚는 것이다.
+   * 탈락자 가드가 위에 남아 있는 것은 겹쳐 막으려는 것이다(결정 011 §3).
+   */
+  if (currentRound(state).suggesterId !== challengerId) {
+    throw new Error(`이의제기는 제안자만 할 수 있다: ${challengerId}`)
   }
   if (challengesUsed(state, challengerId) >= CHALLENGE_LIMIT) {
     throw new Error(`이의제기는 판당 ${CHALLENGE_LIMIT}회까지다: ${challengerId}`)

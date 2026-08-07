@@ -29,6 +29,14 @@ interface Props {
    * 발동 패널은 조건이 안 맞으면 버튼이 사라지므로, 직업 카드 자체가 상태를 들고 있어야 한다.
    */
   powerUsed: boolean
+  /**
+   * 걸어는 뒀는데 아직 안 걸렸는가(룰 개편 §2-7). powerUsed와 «함께» 참일 수 있다 —
+   * 지목한 순간부터 재사용은 막히지만 효과는 대상이 뽑히는 라운드까지 기다린다.
+   *
+   * 이 둘을 안 나누면 대기 중인 능력이 다 쓴 것으로 보인다. 사진사가 가장 크게 어긋난다 —
+   * 대상이 안 뽑히면 여러 라운드를 기다리는데 화면은 이미 끝난 패라고 말한다.
+   */
+  powerWaiting: boolean
 }
 
 const KIND_LABEL: Record<CardKind, string> = {
@@ -50,9 +58,18 @@ function artFor(scenario: Scenario, id: CardId): string | undefined {
  * 범인 진영에게는 봉인된 정답도 여기 붙는다. 브리핑에서 한 번 보여주고 마는 것이 아니라
  * 판이 도는 내내 손 닿는 곳에 있어야 «감추는 쪽»의 플레이가 가능하다.
  */
-export default function MyPlate({ view, scenario, role, powerSlot, powerUsed }: Props) {
+export default function MyPlate({
+  view,
+  scenario,
+  role,
+  powerSlot,
+  powerUsed,
+  powerWaiting,
+}: Props) {
   const me = view.players.find((p) => p.isMe)
   const culprit = me?.faction === 'culprit'
+  /** 발동이 없는 직업. 「몇 번 남았나」를 말할 것이 없다. */
+  const always = role.effect === 'eavesdrop'
   const hand = me?.hand ?? []
   const solution = view.solution
   const label = (id: CardId) => cardLabel(scenario, id)
@@ -118,8 +135,11 @@ export default function MyPlate({ view, scenario, role, powerSlot, powerUsed }: 
       {/*
         쓴 능력은 카드째로 물러난다. 「壹回」가 「已使」로 바뀌는 것만으로는 글자가 작아
         눈에 안 걸리므로, 초상과 글자에서 색을 빼 «다 쓴 패»로 읽히게 한다.
+
+        **대기 중에는 물러나지 않는다**(§2-7). 아직 효과가 남아 있는 패라서,
+        여기서 색을 빼면 화면이 「끝난 일」이라고 거짓말한다.
       */}
-      <div className={`plate__who${powerUsed ? ' plate__who--spent' : ''}`}>
+      <div className={`plate__who${powerUsed && !powerWaiting && !always ? ' plate__who--spent' : ''}`}>
         <img
           className="plate__art"
           src={ROLE_ART[role.id]}
@@ -133,7 +153,17 @@ export default function MyPlate({ view, scenario, role, powerSlot, powerUsed }: 
             <em>{role.hanja}</em>
           </span>
           <span className="plate__power">{role.power}</span>
-          <span className="plate__once">{powerUsed ? '已使' : '壹回'}</span>
+          {/*
+            네 상태다 — 상시 / 안 씀 / 걸어뒀지만 아직 안 걸림 / 다 걸림.
+            가운데 둘을 빠뜨리면 거짓이 된다.
+
+            전화교환수는 발동이 없다. 회선이 하나 늘어난 채로 판이 시작되므로(결정 007)
+            usePower를 한 번도 부르지 않고, 그래서 판 내내 「壹回」에 멈춘다 —
+            바로 아래 패널이 「已 회선 개통」이라고 적혀 있는데 뱃지만 「한 번 남았다」였다.
+          */}
+          <span className={`plate__once${powerWaiting ? ' plate__once--waiting' : ''}`}>
+            {always ? '常時' : powerWaiting ? '待機' : powerUsed ? '已使' : '壹回'}
+          </span>
         </span>
       </div>
 

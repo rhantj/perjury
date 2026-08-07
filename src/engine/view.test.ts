@@ -48,6 +48,29 @@ function afterDeclarations(): GameState {
   return declareAll(suggest(staged(), 'p0', SUGGESTION), claims)
 }
 
+/**
+ * 이의제기가 «성공»한 상태. §2-4로 이의제기는 제안자만 하므로, 제안자 p0이 증명 카드를
+ * 쥐고 있어야 한다. 손패 배치를 여기서만 바꾸고 staged()는 그대로 둔다 —
+ * 다른 테스트가 p0의 손패를 ['s2','p4']로 못 박아 두고 있다.
+ */
+function afterCaught(): GameState {
+  const base = staged()
+  const swapped: GameState = {
+    ...base,
+    players: base.players.map((p) =>
+      p.id === 'p0' ? { ...p, hand: ['p1', 'p4'] } : p.id === 'p2' ? { ...p, hand: ['s2', 'w2'] } : p,
+    ),
+  }
+  const claims = new Map<PlayerId, Claim>([
+    ['p1', { kind: 'refute', cardId: 'w1' }],
+    ['p2', { kind: 'pass' }],
+    ['p3', { kind: 'refute', cardId: 'p1' }], // 위증
+    ['p4', { kind: 'pass' }],
+    ['p5', { kind: 'refute', cardId: 's1' }],
+  ])
+  return challenge(declareAll(suggest(swapped, 'p0', SUGGESTION), claims), 'p0', 'p3')
+}
+
 describe('viewFor — 손패', () => {
   it('내 손패는 보인다', () => {
     const view = viewFor(staged(), 'p0')
@@ -64,7 +87,7 @@ describe('viewFor — 손패', () => {
   })
 
   it('공개된 카드는 모두에게 보인다', () => {
-    const after = challenge(afterDeclarations(), 'p2', 'p3')
+    const after = afterCaught()
     const view = viewFor(after, 'p0')
     const target = view.players.find((p) => p.id === 'p3')
 
@@ -134,8 +157,7 @@ describe('viewFor — 위증 여부', () => {
   })
 
   it('이의제기 결과는 전부 공개된다', () => {
-    const after = challenge(afterDeclarations(), 'p2', 'p3')
-    const record = viewFor(after, 'p4').rounds[0]?.challenge
+    const record = viewFor(afterCaught(), 'p4').rounds[0]?.challenge
 
     expect(record?.success).toBe(true)
     expect(record?.targetId).toBe('p3')
