@@ -282,6 +282,13 @@ function Seat({
    */
   const shot = live?.exposed.includes(player.id) ?? false
   /*
+   * 고발에 실패해 판에서 빠진 좌석. 탈락 경로는 이것 하나뿐이다(engine/progress.ts).
+   *
+   * live가 아니라 view에서 읽는다 — 라운드에 매인 상태(제안·추첨·발각)와 달리
+   * 이건 판이 끝날 때까지 안 풀리므로, 라운드가 넘어가도 표시가 남아 있어야 한다.
+   */
+  const out = view.eliminated.includes(player.id)
+  /*
    * 신문기자가 공개한 진위는 여기 그리지 않는다. 그가 새기는 곳은 «지난» 라운드이고
    * 이 좌석은 진행 중인 라운드(live)만 그리므로, 배지가 뜰 수 있는 순간이 없다.
    * 그 정보는 기록(Log)에 남는다.
@@ -404,6 +411,8 @@ function Seat({
         isSuggester ? 'seat--suggester' : '',
         /* 제안자와 겹치지 않는다(제안자는 후보에서 빠진다). 그래도 순서상 뒤에 둬 색이 명확하다. */
         isDrawn ? 'seat--drawn' : '',
+        /* 맨 뒤다 — 빠진 좌석이라는 사실이 그 라운드의 어떤 상태보다 위에서 읽혀야 한다. */
+        out ? 'seat--out' : '',
       ]
         .join(' ')
         .trim()}
@@ -466,6 +475,16 @@ function Seat({
         */}
         {isDrawn && <span className="seat__draw-badge">籤 반증</span>}
         {shot && <span className="seat__shot-badge">寫 발각</span>}
+        {/*
+          「고발 실패로 빠졌고 반증만 한다」를 한 칸에 담는다. 뱃지 하나로 줄이는 이유는
+          여기가 차례·제안·추첨과 같은 줄이라, 문장을 늘리면 다른 상태를 밀어내기 때문이다.
+          나머지 설명은 커서를 올렸을 때 나온다.
+        */}
+        {out && (
+          <span className="seat__out-badge" title="고발에 실패해 판에서 빠졌다 — 제안·고발·밀담·능력을 잃고 반증만 이어 간다">
+            退 반증만
+          </span>
+        )}
       </span>
 
       <span className="seat__id">
