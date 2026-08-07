@@ -243,6 +243,40 @@
 }
 
 /*
+ * 아직 안 쓴 능력이 있다는 표시.
+ *
+ * 발동은 이 탭을 열어야 나오는데 탭에 신호가 없어서, 판이 끝날 때까지 능력이 있다는
+ * 사실 자체를 모르고 지나간다는 피드백이 있었다. 탭을 열게 만드는 것이 이 점의 일이다.
+ *
+ * 점을 따로 얹는 이유는 글자색만 바꾸면 hover와 구별이 안 되기 때문이다.
+ * 깜빡임은 opacity만 건드린다 — 레이아웃을 움직이지 않는다.
+ */
+.plate-flyout__tab--ready {
+  border-color: var(--color-accent);
+}
+.plate-flyout__tab--ready::after {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: -0.2rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: plate-ready-pulse 1800ms var(--ease-in-out) infinite;
+}
+@keyframes plate-ready-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate-flyout__tab--ready::after {
+    animation: none;
+  }
+}
+
+/*
  * body로 포탈되므로 .board > *의 z-index:1 쌓임 맥락 밖에서 뜬다 — 이 z-index는
  * 이제 «그 맥락을 벗어났는지」가 아니라 body 직속 다른 오버레이(round-flash 등)
  * 사이의 순서만 정하면 된다.
