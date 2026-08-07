@@ -38,6 +38,13 @@ interface Props {
    * 대상이 안 뽑히면 여러 라운드를 기다리는데 화면은 이미 끝난 패라고 말한다.
    */
   powerWaiting: boolean
+  /**
+   * 조기 고발에 실패해 판에서 빠졌는가. 능력은 그 순간 통째로 사라진다(룰 개편 §2-5).
+   *
+   * powerUsed로 뭉치면 거짓이 된다 — 「다 썼다」와 「쓰지도 못하고 잃었다」는 다른 일이고,
+   * 아래 발동 패널이 둘을 다른 문구로 받는다(PowerPanel의 out).
+   */
+  out: boolean
 }
 
 const KIND_LABEL: Record<CardKind, string> = {
@@ -66,6 +73,7 @@ export default function MyPlate({
   powerSlot,
   powerUsed,
   powerWaiting,
+  out,
 }: Props) {
   const me = view.players.find((p) => p.isMe)
   const culprit = me?.faction === 'culprit'
@@ -99,6 +107,7 @@ export default function MyPlate({
    * 「눌러야 할 것이 남았다」는 거짓 신호가 된다.
    */
   const powerReady =
+    !out &&
     !powerUsed &&
     role.effect !== null &&
     role.effect !== 'shield' &&
@@ -158,7 +167,10 @@ export default function MyPlate({
         **대기 중에는 물러나지 않는다**(§2-7). 아직 효과가 남아 있는 패라서,
         여기서 색을 빼면 화면이 「끝난 일」이라고 거짓말한다.
       */}
-      <div className={`plate__who${powerUsed && !powerWaiting && !always ? ' plate__who--spent' : ''}`}>
+      {/* 빠진 뒤에는 상시 능력(常時)도 같이 죽는다 — always 예외를 여기서는 두지 않는 이유다. */}
+      <div
+        className={`plate__who${out || (powerUsed && !powerWaiting && !always) ? ' plate__who--spent' : ''}`}
+      >
         <img
           className="plate__art"
           src={ROLE_ART[role.id]}
@@ -180,8 +192,14 @@ export default function MyPlate({
             usePower를 한 번도 부르지 않고, 그래서 판 내내 「壹回」에 멈춘다 —
             바로 아래 패널이 「已 회선 개통」이라고 적혀 있는데 뱃지만 「한 번 남았다」였다.
           */}
-          <span className={`plate__once${powerWaiting ? ' plate__once--waiting' : ''}`}>
-            {always ? '常時' : powerWaiting ? '待機' : powerUsed ? '已使' : '壹回'}
+          {/*
+            빠진 것이 «맨 앞»에 온다. 상시든 대기든 판에서 나간 순간 전부 무효라
+            뒤에 두면 「常時」나 「待機」가 남아 아직 쓸 것이 있다고 말한다.
+          */}
+          <span
+            className={`plate__once${out ? ' plate__once--lost' : powerWaiting ? ' plate__once--waiting' : ''}`}
+          >
+            {out ? '失效' : always ? '常時' : powerWaiting ? '待機' : powerUsed ? '已使' : '壹回'}
           </span>
         </span>
       </div>

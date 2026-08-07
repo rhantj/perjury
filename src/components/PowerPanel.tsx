@@ -18,6 +18,14 @@ interface PowerPanelProps {
   findings: readonly Grant[]
   /** 사람이 조작할 수 있는 때인가. AI가 판단 중이면 false다. */
   enabled: boolean
+  /**
+   * 조기 고발에 실패해 판에서 빠졌는가. 그러면 남은 능력은 영영 못 쓴다(룰 개편 §2-5).
+   *
+   * `enabled`로 대신하지 않는 이유는 «못 쓰는 이유»가 다르기 때문이다 — enabled는
+   * 「지금은 남의 차례」라 곧 풀리지만, 이쪽은 판이 끝날 때까지 안 풀린다.
+   * 버튼만 흐리게 두면 기다리면 열리는 줄 알고 판 내내 이 패널을 다시 연다.
+   */
+  out: boolean
   onUse: (intent: PowerIntent) => void
 }
 
@@ -37,11 +45,27 @@ export default function PowerPanel({
   used,
   findings,
   enabled,
+  out,
   onUse,
 }: PowerPanelProps) {
   const [picking, setPicking] = useState(false)
 
   if (role.effect === null) return null
+  /*
+   * 판에서 빠졌으면 남은 능력은 끝이다 — 엔진이 이미 막고 있고(engine/power.ts),
+   * 화면이 버튼을 계속 보여주면 눌러도 오류만 돌아온다. 아래의 어떤 분기보다 먼저 온다:
+   * 밀정·변호사처럼 «아직 안 썼을 때 아무것도 안 그리는» 직업이 있어서, 그 뒤에 두면
+   * 하필 그 직업들만 아무 설명 없이 빈 자리가 된다.
+   *
+   * 이미 쓴 경우는 지나간다 — 그때 «무엇을 알아냈는지»는 빠진 뒤에도 계속 봐야 한다.
+   */
+  if (out && !used)
+    return (
+      <div className="power power--spent">
+        <span className="power__mark">失 능력 상실</span>
+        <p className="power__waiting">고발에 실패해 판에서 빠졌다 — 남은 능력은 쓸 수 없다</p>
+      </div>
+    )
   /*
    * 반증 요구 거부는 반증 줄의 버튼으로 쓴다 — 쓰는 순간이 곧 선언하는 순간이라
    * 패널에서 미리 켜두면 두 번 조작하게 된다. 쓴 뒤의 표시는 여기 남긴다.

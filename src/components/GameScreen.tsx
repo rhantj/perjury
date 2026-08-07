@@ -604,6 +604,7 @@ export default function GameScreen() {
             role={role}
             powerUsed={store.powerUsed()}
             powerWaiting={store.powerWaiting()}
+            out={iAmOut}
             powerSlot={
               <PowerPanel
                 view={view}
@@ -612,6 +613,7 @@ export default function GameScreen() {
                 used={store.powerUsed()}
                 findings={view.findings}
                 enabled={myMove}
+                out={iAmOut}
                 onUse={store.usePower}
               />
             }

@@ -547,6 +547,16 @@
  * 게다가 저쪽은 border 단축이라 border-color까지 통째로 되돌린다. 처음에 그렇게 넣었고
  * 글자만 바뀌고 색은 壹回와 똑같은 채로 빌드·테스트가 전부 통과했다.
  */
+/*
+ * 실효(失效)는 «잃은 패»다. 다 쓴 것(已使)과도 다르다 — 저쪽은 값을 치르고 얻은 것이
+ * 있지만 이쪽은 쓰지도 못하고 사라졌다. 인장색으로 물려 그 손실이 눈에 걸리게 한다.
+ * .plate__once--waiting과 같은 이유로 기반 규칙 «뒤»에 둔다(명시도 동률).
+ */
+.plate__once--lost {
+  color: var(--color-seal);
+  border-color: color-mix(in oklch, var(--color-seal) 60%, transparent);
+}
+
 .plate__once--waiting {
   color: var(--color-lantern);
   border-color: color-mix(in oklch, var(--color-lantern) 55%, transparent);
