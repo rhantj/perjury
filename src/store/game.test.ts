@@ -270,6 +270,40 @@ describe('능력 발동', () => {
     expect(game().powerUsed()).toBe(true)
   })
 
+  /*
+   * 「已使」와 「아직 안 걸렸다」는 다른 상태다(룰 개편 §2-7).
+   * 화면이 powersUsed(지목 시점)만 보면 대기 중인 능력이 다 쓴 것으로 보인다.
+   * 변호사가 특히 문제다 — 다 썼다고 읽고 있는데 나중에 거부 버튼이 나타난다.
+   */
+  it('걸어만 두고 아직 안 걸린 능력은 대기로 읽힌다', async () => {
+    await game().start('power-s5', 0)
+    expect(game().role().effect).toBe('photograph')
+    const target = game().view().players.find((p) => !p.isMe)
+    if (!target) throw new Error('상대가 없다')
+
+    game().usePower({ targetId: target.id })
+
+    expect(game().powerUsed()).toBe(true)
+    expect(game().powerWaiting()).toBe(true)
+  })
+
+  it('그 자리에서 답이 나오는 능력은 대기가 아니다', async () => {
+    await game().start('power-s3', 0)
+    const target = game().view().players.find((p) => !p.isMe)
+    if (!target) throw new Error('상대가 없다')
+
+    game().usePower({ targetId: target.id })
+
+    expect(game().powerUsed()).toBe(true)
+    expect(game().powerWaiting()).toBe(false)
+  })
+
+  it('아직 안 쓴 능력은 대기가 아니다', async () => {
+    await game().start('power-s5', 0)
+
+    expect(game().powerWaiting()).toBe(false)
+  })
+
   it('약제사는 수단 카드의 정답 여부를 확인한다', async () => {
     await game().start('power-s23', 0)
 

@@ -66,6 +66,18 @@ interface GameStore {
   /** 내 능력이 이미 소진됐는가. 능력은 한 판에 한 번뿐이다. */
   powerUsed: () => boolean
   /**
+   * 걸어는 뒀는데 **아직 안 걸렸는가**. 「다 썼다」와 다른 상태다(룰 개편 §2-7).
+   *
+   * 추첨제에서 지목한 대상이 안 뽑히면 능력은 소모되지 않고 대기한다. 그런데 재사용은
+   * 그 순간부터 막히므로, powerUsed 하나로는 그 둘이 같은 얼굴이 된다.
+   * 변호사가 특히 어긋난다 — 화면이 「다 썼다」로 읽히는데 나중에 거부 버튼이 나타난다.
+   *
+   * **GameView에 싣지 않고 state에서 읽는다.** 시야에 필드를 더하면 그 뷰가 그대로 워커로
+   * 가고, 화이트리스트를 넓혀 «워커부터» 배포해야 한다(08-06에 세 번 빠진 사고다).
+   * 이 값은 화면 문구를 고르는 데만 쓰고 판단에는 안 쓰므로 에이전트가 알 이유도 없다.
+   */
+  powerWaiting: () => boolean
+  /**
    * 내 능력을 발동한다. **종류를 인자로 받지 않는다** — 좌석에 배정된 직업에서 나온다.
    * 화면이 종류를 정하게 두면 화면 버그가 곧 룰 위반이 된다(작업 규칙 2).
    *
@@ -232,6 +244,13 @@ export const useGame = create<GameStore>((set, get) => {
     powerUsed: () => {
       const state = get().state
       return state !== null && state.powersUsed.includes(humanId(state))
+    },
+
+    powerWaiting: () => {
+      const state = get().state
+      if (state === null) return false
+      const me = humanId(state)
+      return state.pending.some((p) => p.ownerId === me)
     },
 
     usePower: (intent) => {

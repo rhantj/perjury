@@ -578,6 +578,7 @@ export default function GameScreen() {
             scenario={scenario}
             role={role}
             powerUsed={store.powerUsed()}
+            powerWaiting={store.powerWaiting()}
             powerSlot={
               <PowerPanel
                 view={view}
