@@ -273,7 +273,8 @@ describe('능력 발동', () => {
   /*
    * 「已使」와 「아직 안 걸렸다」는 다른 상태다(룰 개편 §2-7).
    * 화면이 powersUsed(지목 시점)만 보면 대기 중인 능력이 다 쓴 것으로 보인다.
-   * 변호사가 특히 문제다 — 다 썼다고 읽고 있는데 나중에 거부 버튼이 나타난다.
+   * 사진사·순사·협잡꾼·밀정·정보상이 걸린다. 변호사는 발동 직후 스스로 선언해 바로 거둬지므로
+   * 대기에 머무르지 않는다 — 이 목록을 「능력 = 전부 대기」로 넓혀 읽지 않는다.
    */
   it('걸어만 두고 아직 안 걸린 능력은 대기로 읽힌다', async () => {
     await game().start('power-s5', 0)
@@ -289,6 +290,7 @@ describe('능력 발동', () => {
 
   it('그 자리에서 답이 나오는 능력은 대기가 아니다', async () => {
     await game().start('power-s3', 0)
+    expect(game().role().effect).toBe('inspect-hand')
     const target = game().view().players.find((p) => !p.isMe)
     if (!target) throw new Error('상대가 없다')
 
@@ -301,6 +303,34 @@ describe('능력 발동', () => {
   it('아직 안 쓴 능력은 대기가 아니다', async () => {
     await game().start('power-s5', 0)
 
+    expect(game().powerWaiting()).toBe(false)
+  })
+
+  /*
+   * 판이 끝나면 더 걸릴 일이 없다. 「기다리는 중」으로 남겨두면 결과 화면이 거짓말한다.
+   *
+   * 밀정(shield)으로 잡는다. 이 능력은 **자기 위증이 이의제기에 잡힐 때만** 소모되므로,
+   * 안 잡히면 pending이 끝까지 남는다 — 「영영 안 걸리고 판이 끝나는」 경우를 실제로 만든다.
+   * 사진사로는 안 된다. 24회차를 도는 동안 대상이 언젠가 선언해 대기가 저절로 풀린다.
+   */
+  it('판이 끝나면 대기도 끝난다', async () => {
+    await game().start('power-s0', 0)
+    expect(game().role().effect).toBe('shield')
+
+    game().usePower({})
+    expect(game().powerWaiting()).toBe(true)
+
+    for (let i = 0; i < 300 && game().view().phase !== 'over'; i += 1) {
+      const view = game().view()
+      if (view.phase === 'suggest') await game().suggest(SUGGESTION)
+      else if (view.phase === 'refute') await game().declare({ kind: 'pass' })
+      else if (view.phase === 'challenge') await game().passChallenge()
+      else if (view.phase === 'whisper') await game().skipParley()
+      else if (view.phase === 'accuse') await game().accuse(SUGGESTION)
+      else break
+    }
+
+    expect(game().view().phase).toBe('over')
     expect(game().powerWaiting()).toBe(false)
   })
 

@@ -390,16 +390,6 @@
   opacity: 0.7;
 }
 /*
- * 대기(待機)는 «아직 살아 있는 패»다. 다 쓴 것(已使)과 달리 색을 빼지 않고,
- * 등불색으로 바꿔 「기다리는 중」임을 남은 상태(壹回)와도 구분한다.
- * 색만 건드린다 — 내 패는 판이 도는 내내 떠 있어서 레이아웃이 흔들리면 안 된다.
- */
-.plate__once--waiting {
-  color: var(--color-lantern);
-  border-color: oklch(80% 0.15 70 / 0.55);
-}
-
-/*
  * 직업 능력 발동. 「壹回」 뱃지 바로 아래 붙어 «한 번뿐인 패»라는 것이 한눈에 읽히게 한다.
  * 움직임은 transform·opacity만 쓴다 — 내 패는 판이 도는 내내 떠 있어서 레이아웃이 흔들리면 안 된다.
  */
@@ -502,6 +492,20 @@
   color: var(--color-accent);
   border: 1px solid oklch(46% 0.09 50 / 0.6);
   padding: 0.12rem 0.4rem;
+}
+
+/*
+ * 대기(待機)는 «아직 살아 있는 패»다. 다 쓴 것(已使)과 달리 색을 빼지 않고,
+ * 등불색으로 바꿔 「기다리는 중」임을 남은 상태(壹回)와도 구분한다.
+ * 색만 건드린다 — 내 패는 판이 도는 내내 떠 있어서 레이아웃이 흔들리면 안 된다.
+ *
+ * **.plate__once 뒤에 둔다.** 명시도가 같아서 앞에 두면 기반 규칙이 덮어 버린다 —
+ * 게다가 저쪽은 border 단축이라 border-color까지 통째로 되돌린다. 처음에 그렇게 넣었고
+ * 글자만 바뀌고 색은 壹回와 똑같은 채로 빌드·테스트가 전부 통과했다.
+ */
+.plate__once--waiting {
+  color: var(--color-lantern);
+  border-color: color-mix(in oklch, var(--color-lantern) 55%, transparent);
 }
 
 .plate__cards {

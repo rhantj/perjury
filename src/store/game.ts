@@ -70,7 +70,9 @@ interface GameStore {
    *
    * 추첨제에서 지목한 대상이 안 뽑히면 능력은 소모되지 않고 대기한다. 그런데 재사용은
    * 그 순간부터 막히므로, powerUsed 하나로는 그 둘이 같은 얼굴이 된다.
-   * 변호사가 특히 어긋난다 — 화면이 「다 썼다」로 읽히는데 나중에 거부 버튼이 나타난다.
+   *
+   * 걸리는 직업은 순사·사진사·협잡꾼·밀정·정보상 다섯이다. 변호사는 아니다 —
+   * GameScreen의 handleRefuse가 발동 직후 곧바로 선언하므로 그 자리에서 거둬진다.
    *
    * **GameView에 싣지 않고 state에서 읽는다.** 시야에 필드를 더하면 그 뷰가 그대로 워커로
    * 가고, 화이트리스트를 넓혀 «워커부터» 배포해야 한다(08-06에 세 번 빠진 사고다).
@@ -249,6 +251,8 @@ export const useGame = create<GameStore>((set, get) => {
     powerWaiting: () => {
       const state = get().state
       if (state === null) return false
+      // 판이 끝나면 더 걸릴 것이 없다. 결실 못 한 대기는 그 시점에 「다 씀」으로 읽는다.
+      if (state.phase === 'over') return false
       const me = humanId(state)
       return state.pending.some((p) => p.ownerId === me)
     },
