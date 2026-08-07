@@ -77,6 +77,11 @@ interface Props {
    * GameScreen의 picked를 그대로 받는다 — 여기서 상태를 따로 들면 두 벌이 어긋난다.
    */
   draft?: Partial<Record<CardKind, CardId>>
+  /**
+   * 추첨 컷이 끝난 회차(GameScreen이 잰다). 이 회차의 좌석에만 「뽑혔다」 표시가 켜진다 —
+   * 명패가 자리로 날아가 «닿은 뒤»에 테두리가 변해야 두 연출이 한 동작으로 읽힌다.
+   */
+  drawnRound: number
 }
 
 /** 상에 올라가는 순서. 확정 제안의 카드 순서(범인·수단·장소)와 같아야 «같은 자리»로 읽힌다. */
@@ -90,7 +95,7 @@ const DRAFT_SLOTS = [
  * 원탁. 격자로 늘어놓으면 «명단»이고, 둘러앉혀야 «자리»가 된다 —
  * 내가 저 다섯을 마주 보고 있다는 배치 자체가 이 게임의 구도다.
  */
-export default function Table({ view, scenario, draft }: Props) {
+export default function Table({ view, scenario, draft, drawnRound }: Props) {
   const record = view.rounds[view.rounds.length - 1]
   /*
    * 원탁 가운데는 «지금 걸려 있는 제안»의 자리다. 고발로 넘어가면 걸려 있는 제안이 없다.
@@ -169,6 +174,7 @@ export default function Table({ view, scenario, draft }: Props) {
         label={label}
         revealed={!hasDeclaration || revealedIds.has(player.id)}
         revealing={activeRevealId === player.id}
+        drawSettled={live !== null && live.round === drawnRound}
       />
     )
   }
@@ -258,6 +264,7 @@ function Seat({
   label,
   revealed,
   revealing,
+  drawSettled,
 }: {
   view: GameView
   player: PlayerView
@@ -270,11 +277,18 @@ function Seat({
   revealed: boolean
   /** 지금 이 좌석이 스포트라이트를 받는 차례인가. */
   revealing: boolean
+  /** 이번 회차 추첨 컷이 끝났는가. 끝나기 전에는 뽑힌 표시를 켜지 않는다. */
+  drawSettled: boolean
 }) {
   const declaration = live?.declarations.find((d) => d.playerId === player.id)
   const isSuggester = live?.suggesterId === player.id
-  /** 이번 라운드 추첨에 뽑혔는가. 전체 공개다(engine/view.ts). */
-  const isDrawn = live?.responderIds.includes(player.id) ?? false
+  /*
+   * 이번 라운드 추첨에 뽑혔는가. 전체 공개다(engine/view.ts).
+   *
+   * drawSettled를 함께 본다 — 추첨 컷이 도는 동안 켜면 테두리가 베일 뒤에서 바뀌어,
+   * 컷이 걷혔을 때 원탁에서는 아무 일도 일어나지 않는다. 명패가 자리에 닿은 뒤에 켠다.
+   */
+  const isDrawn = drawSettled && (live?.responderIds.includes(player.id) ?? false)
   const caught = live?.challenge?.targetId === player.id && live.challenge.success
   /*
    * 사진사에게 잡힌 위증. 이의제기와 같은 «들켰다» 처리를 받되 배지가 따로다 —
