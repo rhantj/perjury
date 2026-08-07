@@ -72,6 +72,19 @@ export default function PowerPanel({
    */
   if (role.effect === 'refuse-demand' && !used) return null
   /*
+   * 정보상도 같다 — 판정할 «말»이 밀담 줄에서 나오므로 트리거를 그쪽에 뒀다(Parley의 「情 가려낸다」).
+   * 여기에 버튼을 함께 두면 무엇을 가려낼지 모른 채 선불로 태울 수 있고, 트리거가 둘이 된다.
+   * 쓴 뒤의 결과(참·거짓)는 아래 소진 분기가 findings로 받는다.
+   */
+  if (role.effect === 'detect-lie' && !used)
+    return (
+      <div className="power">
+        <p className="power__waiting">
+          밀담에서 상대의 답을 들은 뒤 「情 가려낸다」로 쓴다 — 그 말의 참·거짓만 알 수 있다
+        </p>
+      </div>
+    )
+  /*
    * 전화교환수는 사람 자리에서 «발동하는» 능력이 아니다 — 사람은 이미 모든 밀담에 끼어 있어
    * 엿들을 것이 없고, 대신 회선이 하나 늘어난 채로 판이 시작된다(결정 007).
    * 이 패널은 사람 자리에만 그려지므로 버튼 대신 상태만 적는다.

@@ -745,6 +745,12 @@ export default function GameScreen() {
               onAsk={store.askParley}
               onDone={store.parley}
               onSkip={store.skipParley}
+              /*
+               * 정보상만 밀담 줄에 발동 버튼이 붙는다. 탈락자는 능력을 잃으므로
+               * 누르면 엔진이 던진다 — 변호사의 「답변 거부」와 같은 이유로 버튼부터 거둔다.
+               */
+              detectReady={!iAmOut && role.effect === 'detect-lie' && !store.powerUsed()}
+              onDetect={() => store.usePower({})}
             />
           </div>
 
