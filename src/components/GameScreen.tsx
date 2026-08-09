@@ -308,22 +308,23 @@ export default function GameScreen() {
    */
   const view = store.state ? store.view() : null
 
-  /*
-   * 바퀴가 바뀔 때마다 큐에 신문 알림을 넣는다. 1라운드는 착석 컷이 이미 시작을 알린다.
+  /* ================================================================
+   * 알림 훅은 «사건이 일어나는 순서»대로 선언한다
    *
-   * **회차가 아니라 바퀴로 센다.** 회차마다 띄우면 24제안 = 23번이라 알림이 판을 덮는다.
-   * 바퀴로 접으면 세 번(2·3·4라운드)만 뜨고, 그 세 번이 실제로 국면이 바뀌는 지점이다.
-   */
-  const lastLapRef = useRef(0)
-  useEffect(() => {
-    if (!view) return
-    const lap = lapOf(view.round, view.players.length)
-    if (lap === lastLapRef.current) return
-    lastLapRef.current = lap
-    if (lap > 1) {
-      enqueueFlash({ kind: 'round', text: `제${lap}회 신문`, ms: 1000 })
-    }
-  }, [view?.round, view?.players.length, enqueueFlash])
+   * 엔진은 사람을 기다릴 때까지 밀고 나가므로(ai/flow.ts runToHuman) 한 라운드의
+   * 여러 사건이 **한 커밋에 실려** 온다. 그러면 훅들이 같은 시점에 큐에 넣고,
+   * 순서를 가르는 것은 오직 «선언 순서»다. 그래서 아래 순서가 곧 연출 순서다.
+   *
+   *   1. ousted        고발 실패 — 판에서 빠지는 사건. 무엇보다 먼저 읽혀야 한다
+   *   2. challenge     위증 의심 → 발각·오판. 지나가는 라운드의 «결론»
+   *   3. round         제N회 신문 — 새 바퀴의 시작
+   *   4. draw          반증 추첨 — 새 라운드의 진행
+   *   5. myTurn        당신의 차례다 — 진행이 나에게 넘어온 뒤
+   *
+   * 순서를 바꾸려면 이 목록과 훅 위치를 **같이** 옮긴다. 우선순위 인자를 두지 않는
+   * 이유는 challengeCall→결과처럼 «한 훅이 연달아 넣는 쌍»이 있어서다 — 값으로
+   * 정렬하면 그 쌍이 갈라지고, 갈라지면 결과가 예고보다 먼저 뜬다.
+   * ================================================================ */
 
   /*
    * 판에서 빠지는 순간.
@@ -337,16 +338,9 @@ export default function GameScreen() {
    * 첫 렌더에서 한 번 «비교 기준만» 잡고 빠진다. 이걸 안 하면 판을 이어받는 순간
    * 이미 빠진 사람들의 컷이 한꺼번에 큐에 쌓인다.
    *
-   * ---- 이 훅은 «반드시» 아래 추첨 훅보다 위에 있어야 한다 ----
-   *
-   * 고발이 접수되면 엔진은 그 자리에서 AI 차례까지 밀고 나가므로, 탈락과 다음 제안이
-   * **한 커밋에 실려** 온다. 그러면 두 훅이 같은 시점에 큐에 넣고, 순서를 가르는 것은
-   * 선언 순서뿐이다. 아래에 두었을 때 「반증 추첨」이 먼저 나가 고발 실패 컷이 4.0초
-   * 뒤에 떴다(배포본 실측: draw 마운트 62893 → ousted 66891). 내가 판에서 빠진 사건이
-   * 다음 라운드 진행보다 뒤에 오면 무슨 일이 일어난 건지 읽히지 않는다.
-   *
-   * 큐에 «먼저 넣기»로 푸는 이유는, 우선순위 인자를 만들면 부르는 곳이 하나뿐인데도
-   * 모든 알림이 그 값을 신경 써야 하기 때문이다. 순서가 중요한 지점은 여기 하나다.
+   * **이 훅이 목록 맨 위인 근거** — 아래(추첨 다음)에 두었을 때 「반증 추첨」이 먼저
+   * 나가 고발 실패 컷이 4.0초 뒤에 떴다(배포본 실측: draw 마운트 62893 → ousted 66891).
+   * 내가 판에서 빠진 사건이 다음 라운드 진행보다 뒤에 오면 무슨 일이 일어난 건지 읽히지 않는다.
    */
   const seenOutRef = useRef<readonly string[] | null>(null)
   useEffect(() => {
@@ -370,10 +364,97 @@ export default function GameScreen() {
   }, [view, stage, enqueueFlash])
 
   /*
-   * 제안이 나오면 반증 추첨 컷을 큐에 넣는다.
+   * 이의제기 결과(성공·실패 둘 다)를 화면 전체로 띄운다. 이전에는 성공(위증 확정)만
+   * 다뤘는데, 실패했을 때(내가 위증을 의심했지만 틀려서 내 패가 대신 열리는 순간)의
+   * 연출은 좌석 위 작은 팝업뿐이라 «누가 누구를 왜 의심했다가 무슨 카드를 잃었는지»가
+   * 안 보인다는 피드백 — 성공은 발각(금빛·확정), 실패는 오판(냉랭한 톤)으로 갈라 보여준다.
    *
-   * **위 탈락 훅보다 아래에 있어야 한다** — 같은 커밋에서 둘 다 걸릴 때 순서를 가르는
-   * 것이 선언 순서다. 자세한 사정은 그쪽 주석에 적었다.
+   * **마지막 기록 하나만 보면 안 된다.** 예전에는 `record.round === view.round`인 기록의
+   * 이의제기만 읽었는데, 엔진은 사람을 기다릴 때까지 밀고 나가므로 판정·라운드 전환·
+   * 다음 제안이 한 커밋에 실려 온다. 그러면 마지막 기록은 이미 «다음» 라운드의 것이라
+   * 조건이 깨지고, 방금 벌어진 발각·오판 컷이 **통째로 사라졌다**. 안 뜬 컷 자리에
+   * 다음 라운드 알림이 붙으니 순서가 뒤죽박죽으로 읽혔다.
+   *
+   * 그래서 «아직 안 본 이의제기»를 기록 전체에서 훑는다. 지나간 라운드의 기록은
+   * 더 바뀌지 않으므로 한 번 본 회차까지만 표시해 두면 다시 뜨지 않는다.
+   *
+   * reveals에는 성공 시 증거로 쓰인 카드(challenge.cardId)와, 무작위로 추가 공개된
+   * 패널티 카드가 섞여 있다 — cardId와 다른 것만 패널티다(실패 시엔 패널티 하나뿐이다).
+   * 패널티가 없을 수도 있다(공개할 패가 없을 때).
+   */
+  const seenChallengeRef = useRef(0)
+  useEffect(() => {
+    if (!view || !scenario) return
+
+    for (const record of view.rounds) {
+      const challenge = record.challenge
+      /* 이의제기가 없는 회차는 «본 것»으로 잠그지 않는다 — 진행 중인 라운드에 아직 붙을 수 있다. */
+      if (!challenge || record.round <= seenChallengeRef.current) continue
+      seenChallengeRef.current = record.round
+
+      const penalty = challenge.reveals.find((r) => r.cardId !== challenge.cardId) ?? null
+      const challenger = participantLabel(view, challenge.challengerId)
+      const target = participantLabel(view, challenge.targetId)
+
+      /*
+       * 예고 한 박자를 AI가 건 이의제기에도 붙인다. 내가 걸 때는 버튼 핸들러가 «누구를
+       * 위증으로 지목했는지»를 먼저 띄우고 결과가 뒤따르는 2단인데, AI가 걸면 그 앞이
+       * 통째로 없어서 결과만 툭 떨어졌다 — 같은 사건인데 남의 차례일 때만 밋밋했다.
+       * 내가 건 경우에는 핸들러가 이미 넣었으므로 여기서 또 넣으면 두 번 뜬다.
+       */
+      if (view.viewerId !== challenge.challengerId) {
+        enqueueFlash({
+          kind: 'challengeCall',
+          text: `${challenger} → ${target} 위증 의심!`,
+          detail: '이의를 제기했다',
+          ms: CHALLENGE_CALL_MS,
+          gapMs: CHALLENGE_BEAT_MS,
+        })
+      }
+
+      if (challenge.success) {
+        enqueueFlash({
+          kind: 'caught',
+          text: `${target} 위증 발각!`,
+          detail: penalty
+            ? `${subjectLabel(view, challenge.challengerId)} 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
+            : '더 밝힐 패가 없다',
+          art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
+          ms: CHALLENGE_CAUGHT_MS,
+        })
+      } else {
+        enqueueFlash({
+          kind: 'wrongCall',
+          text: `${challenger}의 오판`,
+          detail: penalty
+            ? `${josa(target, 'eun')} 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
+            : `${josa(target, 'eun')} 위증이 아니었다`,
+          art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
+          ms: CHALLENGE_RESULT_MS,
+        })
+      }
+    }
+  }, [view, scenario, enqueueFlash])
+
+  /*
+   * 바퀴가 바뀔 때마다 큐에 신문 알림을 넣는다. 1라운드는 착석 컷이 이미 시작을 알린다.
+   *
+   * **회차가 아니라 바퀴로 센다.** 회차마다 띄우면 24제안 = 23번이라 알림이 판을 덮는다.
+   * 바퀴로 접으면 세 번(2·3·4라운드)만 뜨고, 그 세 번이 실제로 국면이 바뀌는 지점이다.
+   */
+  const lastLapRef = useRef(0)
+  useEffect(() => {
+    if (!view) return
+    const lap = lapOf(view.round, view.players.length)
+    if (lap === lastLapRef.current) return
+    lastLapRef.current = lap
+    if (lap > 1) {
+      enqueueFlash({ kind: 'round', text: `제${lap}회 신문`, ms: 1000 })
+    }
+  }, [view?.round, view?.players.length, enqueueFlash])
+
+  /*
+   * 제안이 나오면 반증 추첨 컷을 큐에 넣는다.
    *
    * 라운드가 아니라 «라운드 기록이 생겼는가»로 감지한다 — 기록은 제안이 접수돼야
    * 만들어지므로(engine/round.ts suggest), 라운드가 넘어간 직후 아직 아무도 제안하지
@@ -418,6 +499,8 @@ export default function GameScreen() {
    * 이어지지 않는다. 명패가 좌석에 닿는 순간(game.css의 draw-plate-pick 100% = 컷의 끝)에 켠다.
    *
    * 컷이 실제로 화면에 뜬 뒤부터 재므로 큐에서 기다린 시간은 세지 않는다.
+   *
+   * 알림을 «넣는» 훅이 아니라 뜬 것을 «읽는» 훅이라 위 순서 목록과 무관하다.
    */
   const [drawnRound, setDrawnRound] = useState(0)
   useEffect(() => {
@@ -428,70 +511,6 @@ export default function GameScreen() {
     const timer = window.setTimeout(() => setDrawnRound(round), event.ms)
     return () => window.clearTimeout(timer)
   }, [activeFlash])
-
-  /*
-   * 이의제기 결과(성공·실패 둘 다)를 화면 전체로 띄운다. 이전에는 성공(위증 확정)만
-   * 다뤘는데, 실패했을 때(내가 위증을 의심했지만 틀려서 내 패가 대신 열리는 순간)의
-   * 연출은 좌석 위 작은 팝업뿐이라 «누가 누구를 왜 의심했다가 무슨 카드를 잃었는지»가
-   * 안 보인다는 피드백 — 성공은 발각(금빛·확정), 실패는 오판(냉랭한 톤)으로 갈라 보여준다.
-   * AI끼리의 이의제기도 대상이라 view.round가 아니라 view.phase로 감지한다(같은 라운드
-   * 안에서 벌어지는 일이라 round 값 자체는 안 바뀐다).
-   *
-   * reveals에는 성공 시 증거로 쓰인 카드(challenge.cardId)와, 무작위로 추가 공개된
-   * 패널티 카드가 섞여 있다 — cardId와 다른 것만 패널티다(실패 시엔 패널티 하나뿐이다).
-   * 패널티가 없을 수도 있다(공개할 패가 없을 때).
-   */
-  const lastCaughtRoundRef = useRef<number | null>(null)
-  useEffect(() => {
-    if (!view || !scenario) return
-    const record = view.rounds[view.rounds.length - 1]
-    const challenge = record?.round === view.round ? record.challenge : null
-    if (!challenge) return
-    if (lastCaughtRoundRef.current === view.round) return
-    lastCaughtRoundRef.current = view.round
-
-    const penalty = challenge.reveals.find((r) => r.cardId !== challenge.cardId) ?? null
-    const challenger = participantLabel(view, challenge.challengerId)
-    const target = participantLabel(view, challenge.targetId)
-
-    /*
-     * 예고 한 박자를 AI가 건 이의제기에도 붙인다. 내가 걸 때는 버튼 핸들러가 «누구를
-     * 위증으로 지목했는지»를 먼저 띄우고 결과가 뒤따르는 2단인데, AI가 걸면 그 앞이
-     * 통째로 없어서 결과만 툭 떨어졌다 — 같은 사건인데 남의 차례일 때만 밋밋했다.
-     * 내가 건 경우에는 핸들러가 이미 넣었으므로 여기서 또 넣으면 두 번 뜬다.
-     */
-    if (view.players.find((p) => p.isMe)?.id !== challenge.challengerId) {
-      enqueueFlash({
-        kind: 'challengeCall',
-        text: `${challenger} → ${target} 위증 의심!`,
-        detail: '이의를 제기했다',
-        ms: CHALLENGE_CALL_MS,
-        gapMs: CHALLENGE_BEAT_MS,
-      })
-    }
-
-    if (challenge.success) {
-      enqueueFlash({
-        kind: 'caught',
-        text: `${target} 위증 발각!`,
-        detail: penalty
-          ? `${subjectLabel(view, challenge.challengerId)} 밝힌 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
-          : '더 밝힐 패가 없다',
-        art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: CHALLENGE_CAUGHT_MS,
-      })
-    } else {
-      enqueueFlash({
-        kind: 'wrongCall',
-        text: `${challenger}의 오판`,
-        detail: penalty
-          ? `${josa(target, 'eun')} 위증이 아니었다 — 대신 ${challenger}의 ${cardLabel(scenario, penalty.cardId)} 카드가 열렸다`
-          : `${josa(target, 'eun')} 위증이 아니었다`,
-        art: penalty ? cardArtFor(scenario, penalty.cardId) : undefined,
-        ms: CHALLENGE_RESULT_MS,
-      })
-    }
-  }, [view?.phase, view?.round, scenario, enqueueFlash])
 
   /*
    * 내 제안 차례가 될 때마다 큐에 안내를 넣는다. stage/opening으로 막는 이유 —
