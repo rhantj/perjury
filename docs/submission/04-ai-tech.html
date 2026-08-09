@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>위증 PERJURY — AI 활용 기술 문서</title>
+<style>
+/* ─────────────────────────────────────────────
+   위증(PERJURY) 제출 문서 ④ — AI 활용 기술 문서
+   ③ 게임 소개 문서와 같은 스타일 시스템을 쓴다.
+   두 장이 한 세트로 보여야 하므로 팔레트·조판을 공유한다.
+   ───────────────────────────────────────────── */
+:root {
+  --bg: oklch(16% 0.012 60);
+  --surface: oklch(21% 0.014 60);
+  --surface-2: oklch(25% 0.014 60);
+  --text: oklch(92% 0.008 80);
+  --muted: oklch(62% 0.01 80);
+  --accent: oklch(66% 0.16 40);
+  --line: oklch(32% 0.012 60);
+  --seal: oklch(54% 0.2 27);
+  --lantern: oklch(80% 0.15 70);
+  --cold: oklch(64% 0.11 215);
+  --night: oklch(19% 0.045 235);
+
+  --font-display: 'Nanum Myeongjo', 'Apple SD Gothic Neo', serif;
+  --font-body: 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+
+  --slide-w: 297mm;
+  --slide-h: 187mm;
+}
+
+* { box-sizing: border-box; }
+html { background: oklch(11% 0.01 60); }
+
+body {
+  margin: 0;
+  padding: 10mm 0 14mm;
+  background: oklch(11% 0.01 60);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 10.5pt;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.slide {
+  position: relative;
+  width: var(--slide-w);
+  min-height: var(--slide-h);
+  margin: 0 auto 8mm;
+  padding: 13mm 16mm 14mm;
+  background:
+    radial-gradient(120% 90% at 82% 8%, oklch(23% 0.02 55) 0%, transparent 62%),
+    var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.slide::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 3px, oklch(100% 0 0 / 0.008) 3px 4px);
+}
+.slide__no {
+  position: absolute;
+  right: 11mm; bottom: 8mm;
+  font-family: var(--font-display);
+  font-size: 9pt;
+  color: oklch(45% 0.01 80);
+  letter-spacing: 0.06em;
+}
+.slide__tag {
+  display: inline-block;
+  margin-bottom: 5mm;
+  padding: 1.6mm 3.4mm;
+  font-family: var(--font-display);
+  font-size: 8.6pt;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  border: 1px solid color-mix(in oklch, var(--accent) 55%, transparent);
+}
+
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; }
+.slide h2 {
+  font-size: 21pt;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  margin-bottom: 2.5mm;
+}
+.slide h2 em { font-style: normal; color: var(--lantern); }
+
+.lede {
+  max-width: 210mm;
+  margin: 0 0 7mm;
+  font-size: 11pt;
+  color: var(--muted);
+  line-height: 1.68;
+}
+.lede b { color: var(--text); font-weight: 600; }
+
+/* 표지 */
+.cover {
+  display: flex; flex-direction: column; justify-content: center;
+  background:
+    radial-gradient(90% 120% at 78% 18%, oklch(26% 0.055 245) 0%, transparent 58%),
+    radial-gradient(70% 90% at 12% 92%, oklch(24% 0.03 40) 0%, transparent 60%),
+    var(--night);
+}
+.cover__seal {
+  width: 22mm; height: 22mm;
+  display: grid; place-items: center;
+  margin-bottom: 9mm;
+  font-family: var(--font-display);
+  font-size: 15pt;
+  color: var(--cold);
+  border: 2px solid var(--cold);
+  border-radius: 1.5mm;
+  line-height: 1.1; text-align: center;
+}
+.cover h1 { font-size: 40pt; letter-spacing: 0.01em; line-height: 1.1; margin-bottom: 3mm; }
+.cover h1 span { color: var(--accent); }
+.cover__sub {
+  font-family: var(--font-display);
+  font-size: 13pt; color: var(--lantern);
+  letter-spacing: 0.03em; margin: 0 0 8mm;
+}
+.cover__line {
+  max-width: 185mm;
+  font-size: 11.5pt; color: var(--text); line-height: 1.7;
+  padding-left: 5mm; border-left: 2px solid var(--cold);
+  margin: 0 0 11mm;
+}
+.cover__meta {
+  display: flex; gap: 14mm;
+  padding-top: 6mm; border-top: 1px solid var(--line);
+  font-size: 9.6pt; color: var(--muted);
+}
+.cover__meta b { display: block; color: var(--text); font-weight: 600; margin-top: 1mm; }
+
+/* 조판 */
+.cols { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 6mm; }
+.cols--2 { --n: 2; }
+.cols--4 { --n: 4; }
+.cols--wide-l { grid-template-columns: 1.35fr 1fr; }
+
+.card {
+  padding: 5.5mm 6mm;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--accent);
+}
+.card--cold { border-top-color: var(--cold); }
+.card--seal { border-top-color: var(--seal); }
+.card--lantern { border-top-color: var(--lantern); }
+.card h3 { font-size: 11.5pt; margin-bottom: 2.5mm; letter-spacing: -0.01em; }
+.card p { margin: 0; font-size: 9.8pt; color: var(--muted); line-height: 1.62; }
+.card p + p { margin-top: 2.5mm; }
+.card strong { color: var(--text); font-weight: 600; }
+
+table { width: 100%; border-collapse: collapse; font-size: 9.7pt; }
+caption {
+  text-align: left; font-family: var(--font-display);
+  font-size: 10pt; color: var(--lantern); padding-bottom: 2.5mm;
+}
+th, td { text-align: left; padding: 2.6mm 3.2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th {
+  font-family: var(--font-display); font-size: 9.3pt;
+  color: var(--accent); letter-spacing: 0.04em;
+  border-bottom: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
+  white-space: nowrap;
+}
+tbody th { font-weight: 600; color: var(--text); white-space: nowrap; }
+td { color: var(--muted); }
+td b, td strong { color: var(--text); font-weight: 600; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: none; }
+tr.pick th, tr.pick td { background: color-mix(in oklch, var(--lantern) 8%, transparent); }
+tr.pick td b { color: var(--lantern); }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 파이프라인 */
+.pipe { display: flex; align-items: stretch; margin: 2mm 0 5mm; }
+.pipe__n {
+  flex: 1; padding: 4.5mm 4mm;
+  background: var(--surface); border: 1px solid var(--line);
+  border-top: 2px solid var(--cold); position: relative;
+}
+.pipe__n + .pipe__n { margin-left: 5mm; }
+.pipe__n + .pipe__n::before {
+  content: '→'; position: absolute; left: -4.2mm; top: 50%;
+  transform: translateY(-50%); color: var(--cold); font-size: 10pt;
+}
+.pipe__t { display: block; font-family: var(--font-display); font-size: 10.5pt; margin-bottom: 1.8mm; }
+.pipe__d { display: block; font-size: 9pt; color: var(--muted); line-height: 1.55; }
+.pipe__d b { color: var(--text); font-weight: 600; }
+
+.note {
+  margin-top: 5mm; padding: 4.5mm 5.5mm;
+  background: color-mix(in oklch, var(--lantern) 7%, var(--surface));
+  border-left: 3px solid var(--lantern);
+  font-size: 9.8pt; color: var(--text); line-height: 1.65;
+}
+.note b { color: var(--lantern); }
+.note--seal { background: color-mix(in oklch, var(--seal) 9%, var(--surface)); border-left-color: var(--seal); }
+.note--seal b { color: oklch(70% 0.16 27); }
+.note--cold { background: color-mix(in oklch, var(--cold) 8%, var(--surface)); border-left-color: var(--cold); }
+.note--cold b { color: var(--cold); }
+
+.stats { display: grid; grid-template-columns: repeat(var(--sn, 4), minmax(0,1fr)); gap: 4mm; margin-bottom: 6mm; }
+.stat { padding: 4.5mm 4mm; background: var(--surface); border: 1px solid var(--line); text-align: center; }
+.stat__v {
+  display: block; font-family: var(--font-display);
+  font-size: 18pt; line-height: 1.1; color: var(--lantern);
+  font-variant-numeric: tabular-nums;
+}
+.stat__l { display: block; margin-top: 1.5mm; font-size: 8.8pt; color: var(--muted); line-height: 1.45; }
+
+code, pre { font-family: 'D2Coding', 'SF Mono', ui-monospace, monospace; font-size: 9pt; }
+code { padding: 0.4mm 1.2mm; background: var(--surface-2); border-radius: 1mm; color: var(--lantern); }
+pre {
+  margin: 0; padding: 4.5mm 5mm;
+  background: oklch(13% 0.01 60);
+  border: 1px solid var(--line); border-left: 2px solid var(--cold);
+  color: var(--text); line-height: 1.66; overflow-x: auto;
+}
+pre .c { color: var(--muted); }
+pre .k { color: var(--lantern); }
+pre .s { color: oklch(72% 0.13 150); }
+
+ul.plain { margin: 0; padding-left: 4.5mm; }
+ul.plain li { margin-bottom: 2.2mm; color: var(--muted); font-size: 9.8pt; }
+ul.plain li strong { color: var(--text); font-weight: 600; }
+ul.plain li:last-child { margin-bottom: 0; }
+
+@page { size: A4 landscape; margin: 0; }
+@media print {
+  html, body { background: #fff; }
+  body { padding: 0; }
+  .slide {
+    width: 297mm; height: 210mm; min-height: 210mm;
+    margin: 0; border: none; padding: 15mm 16mm;
+    break-after: page; page-break-after: always;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── 1. 표지 ───────────────────────────── -->
+<section class="slide cover">
+  <div class="cover__seal">技術</div>
+  <h1>AI 활용 <span>기술 문서</span></h1>
+  <p class="cover__sub">위증 PERJURY — AI 도구 · 프롬프트 · 활용 내역</p>
+  <p class="cover__line">
+    LLM 에이전트 5명이 한 테이블에 앉는다. 이 문서는 <strong>그들이 어떻게 판단하고,
+    무엇을 볼 수 없으며, 응답이 끊겼을 때 게임이 왜 안 멈추는지</strong>를 다룬다.
+  </p>
+  <div class="cover__meta">
+    <div>제출물 ④<b>AI 활용 기술 문서</b></div>
+    <div>운영 모델<b>claude-sonnet-5</b></div>
+    <div>상류 경로<b>Cloudflare Workers → AI Gateway → Anthropic</b></div>
+    <div>수치 출처<b>배포본 실측 (2026-08-03 · 08-04)</b></div>
+  </div>
+  <span class="slide__no">01</span>
+</section>
+
+<!-- ── 2. 요약 ──────────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">요 약</span>
+  <h2>AI를 <em>두 층</em>에서 썼다</h2>
+
+  <div class="cols cols--2">
+    <div class="card card--cold">
+      <h3>① 게임 안 — 플레이어의 상대</h3>
+      <p>AI 에이전트 5명이 <strong>거짓 반증 여부 · 이의제기 · 밀담 대화 · 직업 능력 · 최종 투표</strong>를 판단한다.
+      실시간으로 Anthropic 모델을 부른다.</p>
+      <p>모델 <code>claude-sonnet-5</code> · 상류 Cloudflare AI Gateway<br />
+      호출 경로: 브라우저 → 자체 Cloudflare Workers 프록시 → 게이트웨이 → Anthropic</p>
+    </div>
+    <div class="card card--lantern">
+      <h3>② 개발 과정 — 설계·구현 보조</h3>
+      <p><strong>Claude Code</strong>로 설계 문서 작성, 룰 엔진 TDD, 코드 리뷰, 리팩터를 진행했다.</p>
+      <p>산출물이 리포에 남아 있다 — <code>docs/decisions/</code> 11건, <code>docs/superpowers/</code>의 계획·설계 문서,
+      <code>session-resume/</code>의 세션 스냅샷, 단위 테스트 564개.</p>
+    </div>
+  </div>
+
+  <div class="stats" style="--sn:5; margin-top:6mm">
+    <div class="stat"><span class="stat__v">5</span><span class="stat__l">동시 판단하는<br />에이전트</span></div>
+    <div class="stat"><span class="stat__v">4.35<span style="font-size:11pt">초</span></span><span class="stat__l">응답 지연<br />중앙값 (실측)</span></div>
+    <div class="stat"><span class="stat__v">1,325+</span><span class="stat__l">호출당 캐시 적중<br />토큰 (2R부터)</span></div>
+    <div class="stat"><span class="stat__v">3.6<span style="font-size:11pt">%</span></span><span class="stat__l">호출 실패율<br />(110건 중 4건)</span></div>
+    <div class="stat"><span class="stat__v">0</span><span class="stat__l">폴백으로<br />멈추는 판</span></div>
+  </div>
+
+  <div class="note">
+    <b>이 문서가 답하는 질문은 하나다.</b> 「LLM을 붙였는데 왜 룰이 안 무너지고, 왜 판이 안 멈추는가.」
+    답은 <b>판정과 판단을 분리</b>했기 때문이다. 다음 장에서 그 경계를 먼저 그린다.
+  </div>
+  <span class="slide__no">02</span>
+</section>
+
+<!-- ── 3. 원칙 ──────────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">설 계 원 칙</span>
+  <h2>AI는 <em>룰을 어길 수 없다</em></h2>
+  <p class="lede">
+    LLM에 게임을 맡기면 무너지는 지점은 늘 같다 — 모델이 규칙을 지어내거나, 없는 카드를 내거나,
+    남의 손패를 안다. 그래서 처음부터 <b>「판정」과 「판단」을 물리적으로 갈랐다.</b>
+  </p>
+
+  <div class="cols cols--2">
+    <table>
+      <caption>무엇을 누가 정하는가</caption>
+      <thead><tr><th>일</th><th>주체</th><th>성질</th></tr></thead>
+      <tbody>
+        <tr><th>위증인가 아닌가</th><td><b>룰 엔진</b></td><td>손패와 대조 — 결정론적</td></tr>
+        <tr><th>이의제기 성공 여부</th><td><b>룰 엔진</b></td><td>카드 대조 — 결정론적</td></tr>
+        <tr><th>승패 판정</th><td><b>룰 엔진</b></td><td>정답 대조 — 결정론적</td></tr>
+        <tr><th>거짓말할 것인가</th><td><b>LLM</b></td><td>전략 — 비결정론적</td></tr>
+        <tr><th>지금 잡을 것인가</th><td><b>LLM</b></td><td>전략 — 비결정론적</td></tr>
+        <tr><th>밀담에서 무슨 말을</th><td><b>LLM</b></td><td>대화 — 비결정론적</td></tr>
+      </tbody>
+    </table>
+    <div>
+      <div class="card card--seal">
+        <h3>룰 엔진은 순수 함수다</h3>
+        <p><code>게임 상태 + 행동 → 새 상태</code>. LLM 호출·랜덤·시간·DOM 접근이 엔진 안에 들어가지 않는다.</p>
+        <p>그래서 <strong>단위 테스트가 LLM 없이 돈다.</strong> 호출이 필요한 로직이 있다면
+        그건 엔진에 있으면 안 되는 것이다 — 이 기준으로 경계를 잡았다.</p>
+      </div>
+      <div class="note note--cold" style="margin-top:5mm">
+        <b>능력의 「종류」는 모델이 고르지 않는다.</b> 좌석에 배정된 직업에서 나오고,
+        모델은 「쓸지 말지 · 누구에게」까지만 정한다. 종류까지 열면 AI가 남의 능력을 쓸 수 있고,
+        화면 버그가 곧 룰 위반이 된다.
+      </div>
+    </div>
+  </div>
+
+  <pre style="margin-top:5mm"><span class="c">// LLM이 무엇을 내든, 행동은 반드시 엔진을 통과한다</span>
+LLM 응답 <span class="k">→</span> 스키마 검증 <span class="k">→</span> 좁혀진 타입 <span class="k">→</span> <span class="s">룰 엔진</span> <span class="k">→</span> 새 상태
+                                         <span class="c">└ 불가능한 행동이면 여기서 거절된다</span></pre>
+  <span class="slide__no">03</span>
+</section>
+
+<!-- ── 4. 아키텍처 ──────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">아 키 텍 처</span>
+  <h2>호출은 <em>네 칸</em>을 지난다</h2>
+
+  <div class="pipe">
+    <div class="pipe__n">
+      <span class="pipe__t">브라우저</span>
+      <span class="pipe__d">React 19 + TypeScript + Vite + Zustand.<br />
+      룰 엔진과 화면이 여기 있다. <b>API 키를 모른다.</b></span>
+    </div>
+    <div class="pipe__n">
+      <span class="pipe__t">Cloudflare Workers</span>
+      <span class="pipe__d">자체 프록시. 프롬프트 조립 · 스키마 강제 · 예산 캡 · 오리진 검사.<br />
+      <b>키는 여기 환경변수에만 있다.</b></span>
+    </div>
+    <div class="pipe__n">
+      <span class="pipe__t">AI Gateway</span>
+      <span class="pipe__d">Cloudflare AI Gateway.<br />
+      상류 통제·계측 지점. <b>거치지 않으면 403이 난다</b>(다음 장).</span>
+    </div>
+    <div class="pipe__n">
+      <span class="pipe__t">Anthropic</span>
+      <span class="pipe__d">Messages API.<br />모델 <code>claude-sonnet-5</code>,
+      구조화 출력 <code>json_schema</code>.</span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="card card--seal">
+      <h3>키가 새지 않는 구조</h3>
+      <p>Anthropic 키는 <strong>워커 환경변수에만</strong> 존재한다. 프론트 번들·소스·문서·커밋 어디에도 없다.</p>
+      <p>브라우저가 직접 Anthropic을 부르는 경로 자체가 없으므로, 번들을 뜯어도 키가 나오지 않는다.</p>
+    </div>
+    <div class="card">
+      <h3>남용을 막는 두 겹</h3>
+      <p><strong>오리진 검사</strong> — 허용된 주소에서 온 요청만 받는다.</p>
+      <p><strong>호출 캡</strong> — 전체 일일 <code>400</code>회, IP당 일일 <code>250</code>회.
+      넘으면 프론트가 폴백으로 내려가 게임은 계속된다.</p>
+    </div>
+    <div class="card card--cold">
+      <h3>계측 창을 열어 뒀다</h3>
+      <p>응답 헤더 <code>X-Upstream-Tokens</code>에 <strong>입력 / 출력 / 캐시적중</strong>이 실린다.</p>
+      <p>이 문서의 실측 수치가 전부 여기서 나왔다. 모델을 바꿔 다시 재는 것도 코드 변경 없이 된다.</p>
+    </div>
+  </div>
+  <span class="slide__no">04</span>
+</section>
+
+<!-- ── 5. 게이트웨이 ────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">문 제 해 결 · 1</span>
+  <h2>워커에서 부르면 <em>403</em>이 났다</h2>
+  <p class="lede">
+    프록시 배선을 끝내고 Anthropic Messages API를 부르자 <code>{"type":"forbidden","message":"Request not allowed"}</code>가
+    돌아왔다. <b>키 문제가 아니었다</b> — 잘못된 키는 401이다.
+  </p>
+
+  <div class="cols cols--wide-l">
+    <table>
+      <caption>원인을 세 단계로 좁혔다</caption>
+      <thead><tr><th>확인한 것</th><th>결과</th><th>배제된 원인</th></tr></thead>
+      <tbody>
+        <tr><th>워커 → <code>POST /v1/messages</code></th><td>403</td><td>—</td></tr>
+        <tr><th>내 머신 → <b>같은 본문</b></th><td>200</td><td>요청 모양 · 스키마 · 모델</td></tr>
+        <tr><th>워커 → <code>GET /v1/models</code> (본문 없음)</th><td>403</td><td>본문 · 구조화 출력</td></tr>
+      </tbody>
+    </table>
+    <div>
+      <div class="note note--seal" style="margin-top:0">
+        <b>결론.</b> Anthropic이 Cloudflare Workers의 출구를 <b>네트워크 수준에서 막는다.</b>
+        <code>User-Agent</code> · <code>Referer</code> · <code>Sec-Fetch-Mode</code>를 바꿔도 403이었다.
+        우리 코드로 우회할 수 있는 것이 아니다.
+      </div>
+      <div class="note" style="margin-top:4mm">
+        <b>그래서 Cloudflare AI Gateway를 상류로 뒀다.</b> 우회가 아니라 정규 경로다 —
+        게이트웨이는 호출 로그와 통제를 얹을 수 있는 지점이기도 해서, 막힌 길을 여는 김에
+        <b>계측 지점을 하나 얻었다.</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="note note--cold" style="margin-top:6mm">
+    <b>이런 종류의 문제를 기록으로 남긴다.</b> 에러 메시지(403 forbidden)와 실제 원인(플랫폼 간 네트워크 차단)이
+    직관적으로 이어지지 않기 때문이다. 아키텍처·외부 연동이 바뀔 때마다 <b>한 파일에 한 결정</b>으로
+    <code>docs/decisions/</code>에 남겼고 현재 11건이다. 각 문서에는 <b>버린 대안과 되돌리는 법</b>이 함께 있다.
+  </div>
+  <span class="slide__no">05</span>
+</section>
+
+<!-- ── 6. 모델 선택 ─────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">모 델 선 택</span>
+  <h2>세 모델을 <em>같은 자리</em>에 앉혀 봤다</h2>
+  <p class="lede">
+    벤치마크가 아니라 <b>이 게임에서 실제로 갈리는 한 장면</b>으로 쟀다.
+    「내가 범인이고, 제안된 세 장이 봉인된 정답 그 자체이며, 내 손에는 그중 아무것도 없는 자리.」
+    정직하게 넘기면 다음 순간 정답이 드러난다. <b>게임 이름이 「위증」인 이유가 되는 순간이다.</b>
+  </p>
+
+  <table>
+    <thead><tr><th>모델</th><th>판단</th><th>대사</th><th class="num">응답</th><th class="num">판당 비용(≈90회)</th><th>평가</th></tr></thead>
+    <tbody>
+      <tr>
+        <th>Haiku 4.5</th>
+        <td>넘김 — 3회 중 1회는 <code>refute</code>+<code>none</code> 모순</td>
+        <td>현대 말투</td><td class="num">2초</td><td class="num">$0.13</td>
+        <td>핵심 기능이 <b>조용히 사라진다</b></td>
+      </tr>
+      <tr class="pick">
+        <th>Sonnet 5</th>
+        <td><b>위증</b></td>
+        <td><b>"내 손에 있소"</b></td><td class="num"><b>7초</b></td><td class="num"><b>$0.5</b></td>
+        <td><b>채택</b></td>
+      </tr>
+      <tr>
+        <th>Opus 5</th>
+        <td>위증</td>
+        <td>"있소이다"</td><td class="num">14초</td><td class="num">$1.7</td>
+        <td>품질 동급, <b>2배 느림</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="cols cols--2" style="margin-top:6mm">
+    <div class="card card--lantern">
+      <h3>왜 Sonnet 5인가</h3>
+      <p>품질에서 Opus와 갈리지 않았다 — <strong>위증 판단도, 대사와 행동의 일치도, 시대 말투도 같았다.</strong>
+      비용은 1/3, 응답은 절반이다.</p>
+      <p>Opus를 버린 이유가 비용이 아니라 <strong>지연</strong>이었다는 점이 중요하다.
+      반증 페이즈는 여러 좌석이 동시에 나가므로 꼬리 지연이 그대로 체감된다.</p>
+    </div>
+    <div class="card card--seal">
+      <h3>Haiku를 버린 진짜 이유</h3>
+      <p>판당 $0.13으로 압도적으로 쌌지만 <strong>세 번 중 한 번 위증을 건너뛰었다.</strong></p>
+      <p>더 나쁜 것은 <strong>모순된 조합</strong>(<code>kind:"refute"</code> + <code>cardId:"none"</code>)을 냈다는 것이다.
+      우리 변환기가 이를 넘김으로 흡수하므로 <strong>게임은 안 깨지고 기능만 사라진다.</strong>
+      조용히 사라지는 쪽이 터지는 쪽보다 나쁘다.</p>
+    </div>
+  </div>
+
+  <div class="note note--cold">
+    <b>바꾸는 데 코드 변경이 없다.</b> <code>LLM_MODEL</code> 환경변수를 고치고 워커만 다시 배포하면 된다.
+    프론트는 모델이 무엇인지 모른다.
+  </div>
+  <span class="slide__no">06</span>
+</section>
+
+<!-- ── 7. 프롬프트 ──────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">프 롬 프 트 설 계</span>
+  <h2>고정된 것을 <em>앞</em>에, 변하는 것을 <em>뒤</em>에</h2>
+  <p class="lede">
+    블록 순서는 취향이 아니라 <b>비용 구조</b>다. 앞쪽이 여섯 좌석·매 라운드 동일해야
+    프리픽스 캐시가 걸린다. 이 순서를 뒤집으면 캐시가 통째로 깨진다.
+  </p>
+
+  <div class="cols cols--wide-l">
+    <div>
+      <pre>┌─ <span class="s">고정 프리픽스 — 캐시 대상</span> ─────────────
+│ <span class="k">[카드]</span>        판에 있는 15장의 목록
+│ <span class="k">[규칙]</span>        반증·위증·이의제기·고발 룰
+│ <span class="k">[전략]</span>        진영별 행동 지침 (조건문)
+│ <span class="k">[답하는 방식]</span> 출력 형식과 말투
+├─ <span class="c">여기부터 좌석·라운드마다 다르다</span> ──────
+│ <span class="k">[나]</span>          내 손패 · 진영 · 성격 · 직업
+│ <span class="k">[공개된 카드]</span> 판에서 이미 열린 것
+│ <span class="k">[기록]</span>        <b>내가 관측한</b> 반증·발언 로그
+│ <span class="k">[밀담]</span>        나와 그 사람만 아는 말
+│ <span class="k">[능력으로 확인한 것]</span> 추측이 아닌 사실
+│ <span class="k">[상대가 한 말]</span>  플레이어 입력 — 데이터로만
+└─────────────────────────────────</pre>
+      <div class="note note--cold" style="margin-top:4mm">
+        <b>캐싱은 실제로 돌고 있다.</b> 라운드 2부터 매 호출 <b>1,325~1,459 토큰</b>이 캐시에서 읽힌다.
+        프롬프트가 자라도 지연이 흔들리지 않는 이유이며, 비캐시 입력은 1,000토큰 안쪽이라 더 줄일 것이 없다.
+      </div>
+    </div>
+    <div>
+      <div class="card card--lantern">
+        <h3>[전략] 블록이 모델 등급보다 셌다</h3>
+        <p>보강 전 Sonnet은 <strong>w1으로 위증해 놓고 "가지고 있지 않소"라고 말해
+        스스로 블러프를 무너뜨렸다.</strong></p>
+        <p>세 줄을 넣자 판단과 대사가 모두 맞았고, <strong>출력 토큰이 574 → 305로 줄었다.</strong></p>
+        <p>이 블록은 여섯 좌석 공용 캐시 프리픽스에 들어가므로 <strong>진영을 조건문으로</strong> 쓴다 —
+        진영별로 다른 프리픽스를 만들면 캐시가 갈린다.</p>
+      </div>
+      <div class="note" style="margin-top:5mm">
+        <b>성격은 파라미터가 아니라 프롬프트로 만든다.</b> Claude 5 계열은
+        <code>temperature</code>·<code>top_p</code>를 지원하지 않는다.
+        신중형·공격형 같은 에이전트 차이는 전부 <b>[나] 블록의 문장</b>에서 나온다.
+      </div>
+    </div>
+  </div>
+  <span class="slide__no">07</span>
+</section>
+
+<!-- ── 8. 구조화 출력 ───────────────────── -->
+<section class="slide">
+  <span class="slide__tag">출 력 강 제</span>
+  <h2>자유 텍스트로 <em>게임을 진행하지 않는다</em></h2>
+
+  <div class="cols cols--2">
+    <div>
+      <div class="card card--cold">
+        <h3>스키마를 서버가 강제한다</h3>
+        <p>반증 판단·이의제기·투표는 <strong>Anthropic의 구조화 출력</strong>으로 받는다 —
+        <code>output_config.format.type = "json_schema"</code>.</p>
+        <p>모델이 무엇을 쓰든 이 모양을 벗어날 수 없고, 워커가 한 번 더 검증한 뒤에야
+        프론트로 내려간다. <strong>모르는 모양은 400으로 거절한다.</strong></p>
+      </div>
+      <pre style="margin-top:4mm"><span class="c">// 워커가 상류에 넣는 옵션</span>
+{
+  model: <span class="s">"claude-sonnet-5"</span>,
+  max_tokens: …,        <span class="c">// thinking+응답 합산 상한</span>
+  thinking: { type: <span class="s">"disabled"</span> },
+  output_config: {
+    format: { type: <span class="s">"json_schema"</span>, schema: … }
+  }
+}</pre>
+    </div>
+    <div>
+      <div class="card card--seal">
+        <h3>강제 tool_choice는 쓰지 않았다</h3>
+        <p>도구 호출을 강제하는 방식은 <strong>확장 사고와 병용하면 400이 난다.</strong>
+        스키마 강제 쪽이 같은 목적을 더 단순하게 달성한다.</p>
+      </div>
+      <div class="card" style="margin-top:5mm">
+        <h3>대사는 룰에 관여하지 않는다</h3>
+        <p>모델이 낸 <strong>대사(자유 텍스트)는 화면에 출력될 뿐</strong>이고,
+        위증 여부는 오직 선언 내용과 손패를 대조해 정한다.</p>
+        <p>자유 텍스트가 룰에 닿는 순간 「무엇이 거짓말인가」를 엔진이 판정해야 하는데,
+        그건 룰 엔진을 순수 함수로 두기로 한 결정과 정면으로 부딪힌다.</p>
+      </div>
+      <div class="note note--seal" style="margin-top:5mm">
+        <b>LLM 응답은 텍스트로만 렌더한다.</b> <code>dangerouslySetInnerHTML</code>을 쓰지 않는다 —
+        모델 출력이 곧 XSS 경로가 되지 않게 하는 최소 방어다.
+      </div>
+    </div>
+  </div>
+  <span class="slide__no">08</span>
+</section>
+
+<!-- ── 9. 정보 격리 ─────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">공 정 성</span>
+  <h2>에이전트는 <em>자기가 본 것</em>만 안다</h2>
+  <p class="lede">
+    AI가 강해 보이는 가장 쉬운 방법은 전지적 정보를 주는 것이고, 그 순간 게임은 성립하지 않는다.
+    각 에이전트 프롬프트에는 <b>자기 손패 · 진영 · 성격 · 자기가 관측한 기록</b>만 들어간다.
+  </p>
+
+  <div class="cols">
+    <div class="card card--cold">
+      <h3>시야에서 걷어내는 것</h3>
+      <p>엔진이 상태를 <strong>「그 좌석의 시야」로 변환</strong>한 뒤에야 프롬프트가 만들어진다.
+      여기서 빠지는 것 —</p>
+      <p><strong>· 남의 손패</strong><br />
+      <strong>· 봉인된 정답</strong> (범인 진영 제외)<br />
+      <strong>· 위증 여부 플래그</strong><br />
+      <strong>· 시드</strong> — 추첨 결과를 미리 알 수 없다</p>
+    </div>
+    <div class="card card--seal">
+      <h3>대사에서 이름이 새는 것도 막는다</h3>
+      <p>반증 카드는 제안자만 봐야 하는데, <strong>모델이 쓴 자유 대사에 카드 이름이 섞여 나오면</strong>
+      비공개가 무너진다.</p>
+      <p>대사에 카드 이름이 들어 있는지 검사해 걸러낸다. <strong>사건별 표시 이름과 엔진 기본 이름을 모두</strong>
+      본다 — 표시 이름만 넘겨도 모델이 기본 이름을 부르는 응답이 섞여 들어오기 때문이다.</p>
+      <p style="color:var(--text)">못 잡으면 <strong>새고</strong>, 넘겨 잡으면 <strong>대사 한 줄을 잃을 뿐</strong>이라
+      검사를 그쪽으로 기울였다.</p>
+    </div>
+    <div class="card">
+      <h3>플레이어 입력은 데이터로만</h3>
+      <p>밀담은 자유 타이핑이라 <strong>프롬프트 인젝션의 입구</strong>다.</p>
+      <p>· 시스템 프롬프트에 <strong>룰 변경 요구를 무시</strong>하라고 명시<br />
+      · 입력을 <strong>별도 블록</strong>(<code>[상대가 한 말]</code>)으로 격리<br />
+      · <strong>길이 제한</strong></p>
+      <p>설령 모델이 흔들려도 <strong>행동은 엔진을 통과</strong>해야 하므로 룰 위반으로 이어지지 않는다.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>신뢰도 숫자를 프롬프트에 넣지 않았다.</b> 「참가3 신뢰도 12」보다
+    「참가3은 1라운드에 서재가 없다고 했고 4라운드에 서재로 반증했다」가 모델에게 훨씬 강한 근거다.
+    <b>모순을 읽는 일은 모델에게 맡기고, 엔진은 오간 말을 기록으로만 넘긴다.</b>
+    대가로 신뢰는 결정론적이지 않다 — 받아들였다. 결정론적이어야 하는 것은 룰이지 사람을 믿는 일이 아니다.
+  </div>
+  <span class="slide__no">09</span>
+</section>
+
+<!-- ── 10. 폴백 진단 ────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">문 제 해 결 · 2</span>
+  <h2>호출당 3.6%가 <em>라운드 40%</em>로 증폭됐다</h2>
+
+  <div class="cols cols--wide-l">
+    <div>
+      <p class="lede" style="margin-bottom:5mm">
+        배포본에서 간헐적으로 「연결 끊김」 배너가 떴다. 원인을 재려고 토큰 헤더를 노출하고
+        <b>110건의 소요 시간과 토큰을 기록</b>했다.
+      </p>
+      <table>
+        <caption>실측 (2026-08-04)</caption>
+        <tbody>
+          <tr><th>프리픽스 캐싱</th><td><b>정상</b> — 라운드 2부터 호출당 1,325~1,459 토큰 적중</td></tr>
+          <tr><th>지연</th><td>중앙값 <b>4.35초</b> · p90 <b>6.26초</b> — 프롬프트가 자라도 흔들리지 않음</td></tr>
+          <tr><th>실패</th><td><b>4건 / 110건 (3.6%)</b> — 전부 병렬 5건 중 하나만 늦은 <b>낙오</b></td></tr>
+          <tr><th>낙오의 모양</th><td>같은 배치의 넷이 4.2~4.8초일 때 낙오만 <b>24~25초</b>로 상한에 걸림</td></tr>
+        </tbody>
+      </table>
+      <div class="note note--seal">
+        <b>한 라운드는 12번 호출한다.</b> 호출당 3.6%면 라운드가 무사할 확률이 0.964<sup>12</sup> ≈ 64%이고,
+        배치가 겹쳐 실제로는 <b>절반 가까이가 폴백으로 떨어졌다.</b>
+        원래 설계가 「한 번이라도 실패하면 그 라운드 전체를 폴백」이었기 때문이다.
+      </div>
+    </div>
+    <div>
+      <div class="card card--lantern">
+        <h3>고친 방식</h3>
+        <p><strong>실패한 호출만</strong> 규칙 기반으로 보낸다.</p>
+        <p>다만 <strong>같은 라운드에서 두 번째 실패가 나면 라운드를 접는다.</strong>
+        낙오는 배치당 하나만 나오고 회선 장애는 배치가 통째로 실패하므로, 이 둘이 잘 갈린다.</p>
+        <p>차단기가 없으면 프록시가 멎었을 때 남은 페이즈마다 상한까지 매달린다.</p>
+      </div>
+      <table style="margin-top:5mm">
+        <caption>버린 대안과 그 이유</caption>
+        <tbody>
+          <tr><th>라운드 전체 폴백</th><td>원래 근거(「톤이 섞인다」)가 성립하지 않음 — 규칙 기반은 <b>대사를 아예 내지 않는다</b></td></tr>
+          <tr><th>상한을 25→28초</th><td>낙오는 정상 호출과 같은 프롬프트인데 4초와 24초로 갈린다. <b>문턱을 옮겨도 꼬리는 그대로</b></td></tr>
+          <tr><th>프롬프트 축소</th><td>캐싱이 이미 돌고 비캐시 입력이 1,000토큰 안쪽이라 <b>줄일 것이 없다</b></td></tr>
+          <tr><th>병렬 → 순차</th><td>낙오는 사라지나 페이즈마다 5×4초 = <b>20초</b>. 「멈춘 것처럼 보이지 않는다」를 정면으로 버림</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <span class="slide__no">10</span>
+</section>
+
+<!-- ── 11. 가용성 ───────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">가 용 성</span>
+  <h2>LLM이 없어도 <em>판은 끝까지 간다</em></h2>
+  <p class="lede">
+    심사 중 프록시가 멎거나 예산 캡을 넘겨도 게임이 멈추면 안 된다.
+    그래서 <b>LLM 응답이 반드시 있어야만 동작하는 코드를 쓰지 않았다.</b>
+  </p>
+
+  <div class="cols cols--2">
+    <table>
+      <caption>두 판단자는 같은 인터페이스를 쓴다</caption>
+      <thead><tr><th></th><th>LLM 판단자</th><th>규칙 기반 판단자</th></tr></thead>
+      <tbody>
+        <tr><th>행동 선택</th><td>모델이 정함</td><td>판세를 보고 결정론적으로 정함</td></tr>
+        <tr><th>대사</th><td>모델이 생성</td><td>사전 생성 대사 / 없으면 침묵</td></tr>
+        <tr><th>네트워크</th><td>필요</td><td><b>불필요</b></td></tr>
+        <tr><th>재현성</th><td>없음</td><td><b>시드로 재현</b></td></tr>
+        <tr><th>단위 테스트</th><td>안 씀</td><td><b>기본값</b> — 테스트가 네트워크를 타지 않는다</td></tr>
+      </tbody>
+    </table>
+    <div>
+      <div class="card card--lantern">
+        <h3>전환은 조용히 일어난다</h3>
+        <p>한 호출이 실패하면 <strong>그 좌석만</strong> 규칙 기반으로 답한다. 배너를 띄우지 않는다 —
+        낙오 하나로 배너를 띄우면 <strong>멀쩡한 밀담 패널까지 닫힌다.</strong></p>
+        <p>차단기가 내려간 순간에만 플레이어에게 알린다.</p>
+      </div>
+      <div class="note note--cold" style="margin-top:5mm">
+        <b>안내 문구가 사유마다 다르다.</b> 예산 소진이면 그날 안에 낫지 않고,
+        일시적 오류면 다음 라운드에 복구될 수 있다. 같은 「연결 끊김」으로 뭉뚱그리면
+        플레이어가 새로고침을 눌러 판을 날린다.
+      </div>
+      <div class="note note--seal" style="margin-top:4mm">
+        <b>로컬 개발 서버도 이 경로로 돈다.</b> 프록시는 허용된 주소에만 응답하므로
+        로컬에서는 자연히 규칙 기반으로 진행된다. <b>폴백 경로가 개발 내내 실제로 실행되는 셈</b>이라,
+        제출 직전에 처음 돌려보는 코드가 아니다.
+      </div>
+    </div>
+  </div>
+  <span class="slide__no">11</span>
+</section>
+
+<!-- ── 12. 개발 활용 내역 ───────────────── -->
+<section class="slide">
+  <span class="slide__tag">개 발 활 용 내 역</span>
+  <h2>만드는 과정에도 <em>같은 원칙</em>을 썼다</h2>
+  <p class="lede">
+    <b>Claude Code</b>를 설계·구현·리뷰에 썼다. 다만 「AI에게 맡겼다」가 아니라
+    <b>판단 근거를 사람이 검증할 수 있는 형태로 남기는 것</b>을 규칙으로 두고 진행했다.
+  </p>
+
+  <div class="cols cols--4">
+    <div class="card">
+      <h3>설계 · 결정 기록</h3>
+      <p>아키텍처·데이터 모델·외부 연동이 바뀔 때마다 <strong>한 파일에 한 결정</strong>.</p>
+      <p><code>docs/decisions/</code> <strong>11건</strong> — 각 문서에 맥락 · 선택 · <strong>버린 대안</strong> · 되돌리는 법이 있다.
+      이 문서의 5·6·10장이 그 기록에서 나왔다.</p>
+    </div>
+    <div class="card card--cold">
+      <h3>룰 엔진 TDD</h3>
+      <p>제안·반증·승패 판정은 <strong>테스트를 먼저 쓰고</strong> 구현했다.</p>
+      <p>현재 <strong>단위 테스트 564개</strong>가 LLM 호출 없이 돈다. 호출이 필요하면 그건 엔진에 있으면 안 되는 로직이다.</p>
+    </div>
+    <div class="card card--lantern">
+      <h3>세션 인계 기록</h3>
+      <p>대화가 끝나면 맥락이 사라지므로, <strong>다음 세션과 팀원이 이어받을 상태</strong>를 파일로 남겼다.</p>
+      <p><code>session-resume/</code> — 미완 항목과 <strong>다음에 어디부터 손대는지</strong>(파일·줄)까지 적는다.</p>
+    </div>
+    <div class="card card--seal">
+      <h3>작업 규칙 고정</h3>
+      <p><code>CLAUDE.md</code>에 <strong>절대 규칙 6개</strong>를 박아 뒀다 —
+      키를 리포에 넣지 않는다, 룰 엔진은 순수 함수다, LLM 응답은 텍스트로만 렌더한다, 폴백을 깨지 않는다 등.</p>
+      <p>AI 보조 작업이 이 선을 넘지 못하게 하는 장치다.</p>
+    </div>
+  </div>
+
+  <div class="cols cols--2" style="margin-top:6mm">
+    <div class="note">
+      <b>문서와 코드가 어긋나면 문서를 먼저 고친다.</b> 코드가 문서를 앞서가면 다음 사람이 틀린 지도를 본다.
+      실제로 08-06 룰 개편 때 설계 문서를 먼저 고치고 구현이 따라가게 했다.
+    </div>
+    <div class="note note--cold">
+      <b>2인 협업이라 경계를 먼저 나눴다.</b> 브랜치 이름에 담당 범위를 넣어
+      (<code>engine</code> · <code>agent</code> · <code>proxy</code> · <code>ui</code> · <code>content</code> 등)
+      이름만 보고 누구 작업인지 알 수 있게 했고, 한 브랜치는 한 가지 일만 하도록 묶었다.
+    </div>
+  </div>
+  <span class="slide__no">12</span>
+</section>
+
+<!-- ── 13. 요약 ─────────────────────────── -->
+<section class="slide">
+  <span class="slide__tag">한 장 요 약</span>
+  <h2>기술 스펙</h2>
+
+  <div class="cols cols--2">
+    <table>
+      <caption>AI 구성</caption>
+      <tbody>
+        <tr><th>운영 모델</th><td><code>claude-sonnet-5</code> — 워커 환경변수로 지정</td></tr>
+        <tr><th>상류 경로</th><td>브라우저 → Cloudflare Workers → AI Gateway → Anthropic</td></tr>
+        <tr><th>출력 강제</th><td><code>output_config.format.type = "json_schema"</code></td></tr>
+        <tr><th>확장 사고</th><td>비활성 — <code>max_tokens</code>는 thinking+응답 합산 상한</td></tr>
+        <tr><th>에이전트 차이</th><td>프롬프트로만 — <code>temperature</code> 미지원 모델</td></tr>
+        <tr><th>비용 통제</th><td>프리픽스 캐싱 + 일일 캡 400 / IP당 250</td></tr>
+        <tr><th>계측</th><td>응답 헤더 <code>X-Upstream-Tokens</code> = 입력 / 출력 / 캐시적중</td></tr>
+        <tr><th>개발 보조</th><td>Claude Code — 설계 문서 · TDD · 리뷰</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <caption>실측 (배포본)</caption>
+      <tbody>
+        <tr><th>응답 지연</th><td>중앙값 <b>4.35초</b> · p90 <b>6.26초</b></td></tr>
+        <tr><th>캐시 적중</th><td>라운드 2부터 호출당 <b>1,325~1,459 토큰</b></td></tr>
+        <tr><th>호출 실패율</th><td><b>3.6%</b> (110건 중 4건) — 전부 병렬 배치의 낙오</td></tr>
+        <tr><th>판당 비용</th><td>약 <b>$0.5</b> (≈90회 호출 기준)</td></tr>
+        <tr><th>[전략] 블록 효과</th><td>출력 토큰 <b>574 → 305</b>, 판단·대사 불일치 해소</td></tr>
+        <tr><th>폴백</th><td>호출 단위 + 라운드 차단기 — <b>판이 멈추지 않는다</b></td></tr>
+        <tr><th>룰 엔진 테스트</th><td><b>564개</b> — LLM 호출 없이 통과</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="margin-top:6mm">
+    <b>한 줄로 줄이면.</b> LLM은 「무엇을 할지」만 정하고, 「그것이 유효한가」는 순수 함수 엔진이 정한다.
+    이 경계 덕분에 <b>모델을 바꿔도 · 응답이 끊겨도 · 플레이어가 프롬프트를 흔들어도 룰이 무너지지 않는다.</b>
+    게임 룰과 플레이 방법은 제출물 ③ <b>게임 소개 및 설명 문서</b>에 있다.
+  </div>
+  <span class="slide__no">13</span>
+</section>
+
+</body>
+</html>

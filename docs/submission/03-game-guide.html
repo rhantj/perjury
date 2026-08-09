@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>위증 PERJURY — 룰북</title>
+<style>
+/* ─────────────────────────────────────────────
+   위증(PERJURY) 제출 문서 ③ — 룰북
+   A4 «세로» 페이지. 슬라이드가 아니라 읽는 문서다.
+   게임 본편(src/styles/global.css)의 팔레트를 그대로 쓴다.
+   ───────────────────────────────────────────── */
+:root {
+  --bg: oklch(16% 0.012 60);
+  --paper: oklch(18% 0.012 60);
+  --surface: oklch(21.5% 0.014 60);
+  --surface-2: oklch(25% 0.014 60);
+  --text: oklch(93% 0.008 80);
+  --muted: oklch(66% 0.01 80);
+  --dim: oklch(52% 0.01 80);
+  --accent: oklch(66% 0.16 40);
+  --line: oklch(31% 0.012 60);
+  --seal: oklch(58% 0.19 27);
+  --lantern: oklch(80% 0.15 70);
+  --cold: oklch(66% 0.11 215);
+  --night: oklch(19% 0.045 235);
+  --green: oklch(72% 0.13 150);
+
+  --display: 'Nanum Myeongjo', 'Apple SD Gothic Neo', serif;
+  --body: 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --mono: 'D2Coding', 'SF Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html { background: oklch(10% 0.008 60); }
+
+body {
+  margin: 0;
+  padding: 10mm 0 14mm;
+  background: oklch(10% 0.008 60);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 10.8pt;
+  line-height: 1.78;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 페이지 ──────────────────────────────── */
+.page {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto 7mm;
+  padding: 20mm 20mm 22mm;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.page::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none; opacity: 0.4;
+  background-image: repeating-linear-gradient(0deg, transparent 0 3px, oklch(100% 0 0 / 0.007) 3px 4px);
+}
+
+/* 러닝 헤더 / 쪽번호 */
+.page__head {
+  position: absolute;
+  top: 11mm; left: 20mm; right: 20mm;
+  display: flex; justify-content: space-between;
+  padding-bottom: 2mm;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--display);
+  font-size: 8.4pt;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+.page__no {
+  position: absolute;
+  bottom: 12mm; left: 0; right: 0;
+  text-align: center;
+  font-family: var(--display);
+  font-size: 9pt;
+  color: var(--dim);
+}
+
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 700; margin: 0; }
+
+/* 장 제목 */
+.chap {
+  display: flex; align-items: baseline; gap: 4mm;
+  margin: 0 0 5mm;
+  padding-bottom: 3mm;
+  border-bottom: 2px solid var(--accent);
+}
+.chap__n {
+  font-family: var(--display);
+  font-size: 26pt; line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.chap__t { font-size: 17pt; line-height: 1.2; }
+.chap__s { margin-left: auto; font-size: 9pt; color: var(--dim); font-family: var(--body); }
+
+/* 조항 */
+.rule { margin: 0 0 6mm; }
+.rule:last-child { margin-bottom: 0; }
+.rule__h {
+  display: flex; align-items: baseline; gap: 3mm;
+  margin-bottom: 2mm;
+}
+.rule__n {
+  font-family: var(--mono);
+  font-size: 9.6pt;
+  color: var(--lantern);
+  font-weight: 700;
+  min-width: 11mm;
+}
+.rule__t { font-size: 12pt; line-height: 1.35; }
+.rule p { margin: 0 0 2.5mm; padding-left: 14mm; }
+.rule p:last-child { margin-bottom: 0; }
+.rule ul { margin: 0 0 2.5mm; padding-left: 20mm; }
+.rule ul li { margin-bottom: 1.6mm; }
+.rule ul li:last-child { margin-bottom: 0; }
+.rule > .box, .rule > table, .rule > pre, .rule > .flow { margin-left: 14mm; }
+
+strong, b { color: var(--text); font-weight: 700; }
+p { color: var(--muted); }
+li { color: var(--muted); }
+em.k { font-style: normal; color: var(--lantern); font-weight: 600; }
+em.s { font-style: normal; color: oklch(74% 0.16 27); font-weight: 600; }
+
+/* 표지 */
+.cover {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 30mm 24mm;
+  background:
+    radial-gradient(85% 60% at 76% 16%, oklch(26% 0.055 245) 0%, transparent 60%),
+    radial-gradient(70% 50% at 14% 90%, oklch(24% 0.03 40) 0%, transparent 62%),
+    var(--night);
+}
+.cover__seal {
+  width: 24mm; height: 24mm;
+  display: grid; place-items: center;
+  margin-bottom: 12mm;
+  font-family: var(--display); font-size: 16pt;
+  color: var(--seal); border: 2px solid var(--seal);
+  border-radius: 1.5mm; line-height: 1.1; text-align: center;
+}
+.cover h1 { font-size: 44pt; line-height: 1.06; letter-spacing: 0.02em; margin-bottom: 2mm; }
+.cover h1 span { color: var(--accent); display: block; font-size: 26pt; letter-spacing: 0.16em; margin-top: 3mm; }
+.cover__sub {
+  font-family: var(--display); font-size: 13pt;
+  color: var(--lantern); letter-spacing: 0.04em;
+  margin: 8mm 0 10mm;
+}
+.cover__line {
+  font-size: 12pt; color: var(--text); line-height: 1.8;
+  padding-left: 5mm; border-left: 2px solid var(--accent);
+  margin: 0 0 auto;
+}
+.cover__meta {
+  margin-top: 16mm; padding-top: 6mm;
+  border-top: 1px solid oklch(40% 0.02 240);
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 4mm 10mm;
+  font-size: 9.6pt; color: var(--muted);
+}
+.cover__meta b { color: var(--text); font-weight: 600; }
+
+/* 목차 */
+.toc { margin-top: 3mm; }
+.toc__row {
+  display: flex; align-items: baseline; gap: 3mm;
+  padding: 2.6mm 0;
+  border-bottom: 1px solid var(--line);
+}
+.toc__n { font-family: var(--mono); font-size: 10pt; color: var(--accent); min-width: 9mm; }
+.toc__t { font-family: var(--display); font-size: 11.5pt; color: var(--text); }
+.toc__d { margin-left: auto; font-size: 9.4pt; color: var(--dim); }
+
+/* 상자 */
+.box {
+  margin: 3mm 0;
+  padding: 4.5mm 5.5mm;
+  background: var(--surface);
+  border-left: 3px solid var(--line);
+  font-size: 10.2pt;
+  line-height: 1.72;
+}
+.box__l {
+  display: block;
+  font-family: var(--display);
+  font-size: 9pt; letter-spacing: 0.12em;
+  margin-bottom: 2.5mm;
+}
+.box p { padding-left: 0 !important; margin-bottom: 2mm; }
+.box p:last-child { margin-bottom: 0; }
+
+.box--ex { border-left-color: var(--lantern); background: color-mix(in oklch, var(--lantern) 6%, var(--surface)); }
+.box--ex .box__l { color: var(--lantern); }
+.box--warn { border-left-color: var(--seal); background: color-mix(in oklch, var(--seal) 8%, var(--surface)); }
+.box--warn .box__l { color: oklch(74% 0.16 27); }
+.box--why { border-left-color: var(--cold); background: color-mix(in oklch, var(--cold) 6%, var(--surface)); }
+.box--why .box__l { color: var(--cold); }
+
+/* 예시 대사 */
+.script { font-family: var(--body); margin: 2.5mm 0; }
+.script__l { display: flex; gap: 3mm; margin-bottom: 1.6mm; }
+.script__w { min-width: 20mm; color: var(--text); font-weight: 600; font-size: 9.8pt; }
+.script__s { color: var(--muted); font-size: 10pt; }
+.script__r {
+  margin-top: 2.5mm; padding-top: 2.5mm;
+  border-top: 1px dashed var(--line);
+  color: var(--text); font-size: 10pt;
+}
+.script__r b { color: var(--lantern); }
+
+/* 표 */
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin: 3mm 0; }
+caption {
+  text-align: left; font-family: var(--display);
+  font-size: 9.6pt; color: var(--dim);
+  letter-spacing: 0.08em; padding-bottom: 2mm;
+}
+th, td { text-align: left; padding: 2.6mm 3.2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th {
+  font-family: var(--display); font-size: 9.4pt;
+  color: var(--accent); letter-spacing: 0.05em;
+  border-bottom: 1px solid color-mix(in oklch, var(--accent) 50%, transparent);
+}
+tbody th { font-weight: 600; color: var(--text); white-space: nowrap; }
+td { color: var(--muted); }
+td b { color: var(--text); }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: none; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 순서도 */
+.flow { margin: 4mm 0; }
+.flow__s {
+  display: flex; align-items: flex-start; gap: 4mm;
+  padding: 3.2mm 0;
+  border-bottom: 1px solid var(--line);
+}
+.flow__s:last-child { border-bottom: none; }
+.flow__b {
+  flex-shrink: 0;
+  width: 8mm; height: 8mm;
+  display: grid; place-items: center;
+  background: var(--accent); color: oklch(15% 0.02 40);
+  font-family: var(--display); font-size: 10pt; font-weight: 700;
+  border-radius: 50%;
+}
+.flow__c { flex: 1; }
+.flow__t { display: block; font-family: var(--display); font-size: 11.5pt; color: var(--text); margin-bottom: 1mm; }
+.flow__d { display: block; font-size: 10pt; color: var(--muted); line-height: 1.68; }
+.flow__who {
+  flex-shrink: 0; align-self: center;
+  font-size: 8.8pt; color: var(--dim);
+  border: 1px solid var(--line); border-radius: 1mm;
+  padding: 0.8mm 2mm; white-space: nowrap;
+}
+
+/* 카드 구성 */
+.compo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 4mm 0; }
+.compo__c { padding: 4mm; background: var(--surface); border: 1px solid var(--line); text-align: center; }
+.compo__n { display: block; font-family: var(--display); font-size: 21pt; color: var(--lantern); line-height: 1.1; }
+.compo__k { display: block; margin-top: 1.5mm; font-size: 10pt; color: var(--text); font-weight: 600; }
+.compo__d { display: block; margin-top: 0.8mm; font-size: 8.8pt; color: var(--dim); }
+
+code {
+  font-family: var(--mono); font-size: 9.4pt;
+  padding: 0.4mm 1.4mm; background: var(--surface-2);
+  border-radius: 1mm; color: var(--lantern);
+}
+pre {
+  font-family: var(--mono); font-size: 9.2pt;
+  margin: 3mm 0; padding: 4.5mm 5mm;
+  background: oklch(13% 0.008 60);
+  border: 1px solid var(--line); border-left: 2px solid var(--cold);
+  color: var(--text); line-height: 1.7; overflow-x: auto;
+}
+pre .c { color: var(--dim); }
+
+/* 빠른 참조 */
+.quick { columns: 2; column-gap: 8mm; }
+.quick table { break-inside: avoid; margin-bottom: 5mm; }
+
+/* ── 인쇄 ──────────────────────────────── */
+@page { size: A4 portrait; margin: 0; }
+@media print {
+  html, body { background: #fff; }
+  body { padding: 0; }
+  .page {
+    width: 210mm; height: 297mm; min-height: 297mm;
+    margin: 0; border: none;
+    break-after: page; page-break-after: always;
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ 표지 ═══════════════════════════════ -->
+<section class="page cover">
+  <div class="cover__seal">僞證</div>
+  <h1>위증<span>PERJURY</span></h1>
+  <p class="cover__sub">룰 북 — 경성 1935</p>
+  <p class="cover__line">
+    여섯이 한 자리에 앉는다. 그중 하나는 거짓을 말한다.<br />
+    <strong>당신일 수도 있다.</strong>
+  </p>
+  <div class="cover__meta">
+    <div>인원<br /><b>1인 — 플레이어 1 + AI 5</b></div>
+    <div>1판 소요<br /><b>12~15분</b></div>
+    <div>플랫폼<br /><b>웹 브라우저 · 설치 없음</b></div>
+    <div>바로 하기<br /><b>rhantj.github.io/perjury</b></div>
+  </div>
+</section>
+
+<!-- ══ 목차 ═══════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>위증 PERJURY 룰북</span><span>목차</span></div>
+
+  <div class="chap"><span class="chap__n">目</span><span class="chap__t">차례</span></div>
+
+  <p style="margin-bottom:6mm">
+    <strong>처음이라면 1장과 3장만 읽고 시작해도 된다.</strong> 나머지는 하다가 막혔을 때 찾아보면 된다.
+    맨 뒤 <strong>부록 A(빠른 참조)</strong>는 한 장에 모든 수치가 있다.
+  </p>
+
+  <div class="toc">
+    <div class="toc__row"><span class="toc__n">1</span><span class="toc__t">게임의 목표</span><span class="toc__d">3쪽</span></div>
+    <div class="toc__row"><span class="toc__n">2</span><span class="toc__t">구성물과 준비</span><span class="toc__d">4쪽</span></div>
+    <div class="toc__row"><span class="toc__n">3</span><span class="toc__t">한 회차의 흐름</span><span class="toc__d">5쪽</span></div>
+    <div class="toc__row"><span class="toc__n">4</span><span class="toc__t">제안</span><span class="toc__d">6쪽</span></div>
+    <div class="toc__row"><span class="toc__n">5</span><span class="toc__t">반증 — 추첨과 선언</span><span class="toc__d">7쪽</span></div>
+    <div class="toc__row"><span class="toc__n">6</span><span class="toc__t">위증 — 두 가지 거짓말</span><span class="toc__d">8쪽</span></div>
+    <div class="toc__row"><span class="toc__n">7</span><span class="toc__t">이의제기</span><span class="toc__d">9쪽</span></div>
+    <div class="toc__row"><span class="toc__n">8</span><span class="toc__t">밀담</span><span class="toc__d">11쪽</span></div>
+    <div class="toc__row"><span class="toc__n">9</span><span class="toc__t">직업과 능력</span><span class="toc__d">12쪽</span></div>
+    <div class="toc__row"><span class="toc__n">10</span><span class="toc__t">고발과 게임 종료</span><span class="toc__d">13쪽</span></div>
+    <div class="toc__row"><span class="toc__n">11</span><span class="toc__t">화면 보는 법</span><span class="toc__d">14쪽</span></div>
+    <div class="toc__row"><span class="toc__n">12</span><span class="toc__t">실행 방법</span><span class="toc__d">15쪽</span></div>
+    <div class="toc__row"><span class="toc__n">A</span><span class="toc__t">부록 — 빠른 참조</span><span class="toc__d">16쪽</span></div>
+    <div class="toc__row"><span class="toc__n">B</span><span class="toc__t">부록 — 이 게임이 왜 이런 룰인가</span><span class="toc__d">17쪽</span></div>
+  </div>
+
+  <div class="box box--ex" style="margin-top:8mm">
+    <span class="box__l">이 게임을 한 줄로</span>
+    <p>
+      <strong>클루</strong>의 추리 룰에서 딱 한 가지를 바꿨다 — <strong>반증할 때 거짓말을 할 수 있다.</strong>
+      원래 클루는 카드를 실물로 보여주니 거짓말이 불가능하다. 이 게임은 말로만 선언한다.
+    </p>
+    <p>
+      그래서 「없는데 있다고 하기」와 「있는데 없다고 하기」가 가능해지고,
+      그것이 들통났을 때 대가를 치른다. <strong>그게 위증(僞證)이다.</strong>
+    </p>
+  </div>
+
+  <span class="page__no">2</span>
+</section>
+
+<!-- ══ 1. 목표 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>1. 게임의 목표</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">1</span><span class="chap__t">게임의 목표</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">1.1</span><span class="rule__t">사건이 하나 벌어졌다</span></div>
+    <p>
+      <strong>범인 1명 · 수단 1개 · 장소 1곳.</strong> 이 세 장이 봉투에 봉인되어 있다.
+      나머지 카드는 여섯 사람이 나눠 갖는다.
+    </p>
+    <p>
+      누군가 「강도윤이 넥타이로 서재에서」라고 말했는데 아무도 반박하지 못하면,
+      그 조합이 정답일 가능성이 크다. <strong>남이 못 가진 카드를 찾는 것이 이 게임의 전부다.</strong>
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">1.2</span><span class="rule__t">당신의 진영은 매판 바뀐다</span></div>
+    <table>
+      <thead><tr><th style="width:22%">진영</th><th style="width:40%">이기는 조건</th><th>해야 하는 일</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>시민</th>
+          <td>정답 3장을 <b>정확히 맞힌다</b></td>
+          <td>거짓 반증을 하는 자를 찾아내고, 소거법으로 봉인된 3장을 좁힌다</td>
+        </tr>
+        <tr>
+          <th><em class="s">범인</em></th>
+          <td>최종 고발이 <b>틀리게 만든다</b></td>
+          <td>정답 3장을 이미 알고 시작한다. 거짓 반증과 밀담으로 남의 추리를 오염시킨다</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box box--warn">
+      <span class="box__l">범인일 때 주의</span>
+      <p>
+        <strong>범인은 자기가 고발하지 않는다.</strong> 정답을 알면서 일부러 틀리면 무조건 이기기 때문이다.
+        범인 진영일 때 최종 고발은 <strong>AI 시민들의 투표</strong>로 정해진다.
+        당신이 할 일은 「맞히기」가 아니라 <strong>「그들이 틀리게 만들기」</strong>다.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">1.3</span><span class="rule__t">정보를 얻는 길은 둘뿐이다</span></div>
+    <ul>
+      <li><strong>공식 경로 — 제안과 반증.</strong> 누가 무엇을 반박했는지, 반박하지 못했는지가 단서다.</li>
+      <li><strong>비공식 경로 — 밀담.</strong> 1:1로 캐묻고 거래한다. 다만 <em class="s">상대가 거짓말할 수 있다.</em></li>
+    </ul>
+    <p>여기에 <strong>직업 능력</strong>이 판당 한 번, 나만 아는 정보를 얹어 준다.</p>
+  </div>
+
+  <span class="page__no">3</span>
+</section>
+
+<!-- ══ 2. 구성물 ══════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>2. 구성물과 준비</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">2</span><span class="chap__t">구성물과 준비</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">2.1</span><span class="rule__t">카드 15장</span></div>
+    <div class="compo">
+      <div class="compo__c"><span class="compo__n">6</span><span class="compo__k">범인</span><span class="compo__d">누가 했는가</span></div>
+      <div class="compo__c"><span class="compo__n">4</span><span class="compo__k">수단</span><span class="compo__d">무엇으로 했는가</span></div>
+      <div class="compo__c"><span class="compo__n">5</span><span class="compo__k">장소</span><span class="compo__d">어디서 했는가</span></div>
+    </div>
+    <p>
+      카드 이름은 <strong>사건마다 다르다.</strong> 브리핑에서 고른 시나리오에 따라
+      수단·장소 이름과 좌석의 직함이 함께 바뀐다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">2.2</span><span class="rule__t">준비 — 자동으로 진행된다</span></div>
+    <div class="flow">
+      <div class="flow__s">
+        <span class="flow__b">1</span>
+        <span class="flow__c">
+          <span class="flow__t">정답 3장을 봉인한다</span>
+          <span class="flow__d">범인·수단·장소에서 한 장씩 뽑아 봉투에 넣는다. 이 셋이 정답이다.</span>
+        </span>
+      </div>
+      <div class="flow__s">
+        <span class="flow__b">2</span>
+        <span class="flow__c">
+          <span class="flow__t">남은 12장을 나눈다</span>
+          <span class="flow__d">여섯 명이 <b>2장씩</b> 받는다. 내 손패는 나만 안다.</span>
+        </span>
+      </div>
+      <div class="flow__s">
+        <span class="flow__b">3</span>
+        <span class="flow__c">
+          <span class="flow__t">진영과 직업을 배정한다</span>
+          <span class="flow__d">범인 진영은 <b>봉인된 3장을 알고</b> 시작한다. 직업은 10종 중 하나가 각 좌석에 붙는다.</span>
+        </span>
+      </div>
+      <div class="flow__s">
+        <span class="flow__b">4</span>
+        <span class="flow__c">
+          <span class="flow__t">브리핑을 읽는다</span>
+          <span class="flow__d">내 진영·직업·손패가 여기서 공개된다. 범인이면 정답도 함께 보인다.</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">2.3</span><span class="rule__t">판의 길이</span></div>
+    <p>
+      제안이 <strong>총 24회</strong> 오간다. 순서가 한 자리씩 돌므로 여섯 명이 <strong>네 바퀴</strong> 도는 셈이다.
+      화면은 한 바퀴를 묶어 <strong>「제1회 신문」~「제4회 신문」</strong>으로 표시한다.
+    </p>
+    <div class="box">
+      <span class="box__l" style="color:var(--dim)">용어</span>
+      <p>
+        이 룰북에서 <strong>「회차」</strong>는 <strong>제안 한 번</strong>을 뜻한다.
+        <strong>「신문(訊問)」</strong>은 여섯 회차를 묶은 한 바퀴다.
+      </p>
+    </div>
+  </div>
+
+  <span class="page__no">4</span>
+</section>
+
+<!-- ══ 3. 흐름 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>3. 한 회차의 흐름</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">3</span><span class="chap__t">한 회차의 흐름</span><span class="chap__s">이 장만 알면 게임이 굴러간다</span></div>
+
+  <div class="flow">
+    <div class="flow__s">
+      <span class="flow__b">1</span>
+      <span class="flow__c">
+        <span class="flow__t">제안</span>
+        <span class="flow__d">이번 차례인 사람이 <b>범인·수단·장소를 한 장씩</b> 지목한다. → <em class="k">4장</em></span>
+      </span>
+      <span class="flow__who">제안자</span>
+    </div>
+    <div class="flow__s">
+      <span class="flow__b">2</span>
+      <span class="flow__c">
+        <span class="flow__t">반증 추첨</span>
+        <span class="flow__d">제안자를 뺀 다섯 중 <b>두 명</b>이 뽑힌다. 누가 뽑혔는지는 전원이 본다. → <em class="k">5장</em></span>
+      </span>
+      <span class="flow__who">자동</span>
+    </div>
+    <div class="flow__s">
+      <span class="flow__b">3</span>
+      <span class="flow__c">
+        <span class="flow__t">반증 선언</span>
+        <span class="flow__d">뽑힌 두 명이 답한다. 카드로 <b>반증</b>하거나, 없다고 <b>침묵</b>한다. → <em class="k">5장</em></span>
+      </span>
+      <span class="flow__who">뽑힌 2명</span>
+    </div>
+    <div class="flow__s">
+      <span class="flow__b">4</span>
+      <span class="flow__c">
+        <span class="flow__t">이의제기</span>
+        <span class="flow__d">제안자가 「저건 거짓말이다」 싶으면 건다. 그냥 넘어가도 된다. → <em class="k">7장</em></span>
+      </span>
+      <span class="flow__who">제안자</span>
+    </div>
+    <div class="flow__s">
+      <span class="flow__b">5</span>
+      <span class="flow__c">
+        <span class="flow__t">밀담</span>
+        <span class="flow__d">한 사람을 골라 1:1로 말을 붙인다. 건너뛰어도 된다. → <em class="k">8장</em></span>
+      </span>
+      <span class="flow__who">전원</span>
+    </div>
+  </div>
+
+  <div class="box box--ex">
+    <span class="box__l">한 회차가 실제로 어떻게 흘러가나</span>
+    <div class="script">
+      <div class="script__l"><span class="script__w">나 (제안)</span><span class="script__s">"강도윤이 넥타이로 서재에서 그랬소."</span></div>
+      <div class="script__l"><span class="script__w">추첨</span><span class="script__s">참가3과 참가5가 뽑혔다.</span></div>
+      <div class="script__l"><span class="script__w">참가3</span><span class="script__s">"반증하겠소." <span style="color:var(--lantern)">(나에게만 «서재» 카드가 보인다)</span></span></div>
+      <div class="script__l"><span class="script__w">참가5</span><span class="script__s">"내겐 아무것도 없소." <span style="color:var(--dim)">(전원이 이 사실을 안다)</span></span></div>
+      <div class="script__r">
+        <b>내가 얻은 것 —</b> 참가5는 강도윤·넥타이·서재를 <b>하나도 안 가졌다.</b> 추리표에서 칸 셋이 지워진다.<br />
+        <b>내가 판단할 것 —</b> 그런데 내 손에도 «서재»가 있다. 그렇다면 참가3은 <b>거짓말을 했다.</b> 지금 잡을 것인가?
+      </div>
+    </div>
+  </div>
+
+  <div class="rule" style="margin-top:6mm">
+    <div class="rule__h"><span class="rule__n">3.1</span><span class="rule__t">무엇이 공개되고 무엇이 가려지는가</span></div>
+    <table>
+      <thead><tr><th style="width:34%">정보</th><th style="width:26%">누가 아는가</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><th>누가 뽑혔는가</th><td><b>전원</b></td><td>추첨 결과는 즉시 공개된다</td></tr>
+        <tr><th>반증했는가 / 못 했는가</th><td><b>전원</b></td><td>「못 했다」가 가장 강한 공개 단서다</td></tr>
+        <tr><th>어떤 카드로 반증했는가</th><td><b>제안자만</b></td><td>다른 좌석에는 카드가 가려진다</td></tr>
+        <tr><th>봉인된 정답 3장</th><td><em class="s">범인 진영만</em></td><td>시민은 끝까지 모른다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <span class="page__no">5</span>
+</section>
+
+<!-- ══ 4. 제안 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>4. 제안</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">4</span><span class="chap__t">제안</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">4.1</span><span class="rule__t">차례가 오면 세 장을 지목한다</span></div>
+    <p>
+      추리표에서 <strong>범인 한 장 · 수단 한 장 · 장소 한 장</strong>을 누르고 「제안 확정」을 누른다.
+      화면 아래에 「당신의 차례다」가 뜨면 내 차례다.
+    </p>
+    <p>제안은 <strong>내 차례에만</strong> 할 수 있다. 제안 순서는 한 자리씩 돌아간다.</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">4.2</span><span class="rule__t">내가 가진 카드도 제안할 수 있다</span></div>
+    <p>
+      제안하는 세 장이 정답 후보일 필요는 없다. <strong>내가 쥔 카드를 일부러 넣어도 된다.</strong>
+      이것이 이 게임에서 가장 강한 수 중 하나다.
+    </p>
+    <div class="box box--ex">
+      <span class="box__l">미끼 — 낚싯대를 던지는 수</span>
+      <p>
+        내 손에 «서재»가 있다. 그런데 제안에 «서재»를 넣는다.
+      </p>
+      <p>
+        누군가 «서재»로 반증한다면? <strong>그 카드는 내 손에 있으므로 그자는 확실히 거짓말을 한 것이다.</strong>
+        추측이 아니라 <strong>논리적 확정</strong>이며, 나는 그 자리에서 증명할 수 있다.
+      </p>
+      <p style="color:var(--text)">
+        <strong>이의제기는 「내가 그 카드를 쥐고 있을 때」만 성공한다</strong>(7장).
+        그러므로 <strong>미끼를 던지는 것이 이의제기를 설계하는 유일한 방법</strong>이다.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">4.3</span><span class="rule__t">제안이 남기는 것</span></div>
+    <ul>
+      <li><strong>남이 반증하지 못하면</strong> — 그 세 장 중 일부가 정답일 가능성이 오른다.</li>
+      <li><strong>남이 반증하면</strong> — 그 카드는 봉투에 없다. 단, <em class="s">거짓말이 아니라면.</em></li>
+      <li><strong>내 제안 자체가 정보를 준다</strong> — 남들은 「저 사람이 왜 저걸 물었지」를 읽는다.</li>
+    </ul>
+    <div class="box box--warn">
+      <span class="box__l">범인일 때</span>
+      <p>
+        정답을 알고 있으므로 <strong>정답이 아닌 조합을 계속 제안</strong>해 남들이 그쪽을 파게 만들 수 있다.
+        다만 너무 티 나게 정답을 피하면 그것도 단서가 된다.
+      </p>
+    </div>
+  </div>
+
+  <span class="page__no">6</span>
+</section>
+
+<!-- ══ 5. 반증 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>5. 반증 — 추첨과 선언</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">5</span><span class="chap__t">반증 — 추첨과 선언</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">5.1</span><span class="rule__t">다섯 중 둘만 답한다</span></div>
+    <p>
+      제안이 나오면 <strong>제안자를 뺀 다섯 명 중 두 명이 추첨</strong>된다.
+      뽑히지 않은 세 명은 그 회차에 아무것도 하지 않는다.
+    </p>
+    <div class="box box--warn">
+      <span class="box__l">중요</span>
+      <p>
+        <strong>뽑히지 않은 사람은 위증 판정을 받지 않는다.</strong> 말할 기회 자체가 없었기 때문이다.
+        「저 사람은 그때 조용했다」는 근거가 되지 않는다 — <strong>뽑혔는지부터 확인해야 한다.</strong>
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">5.2</span><span class="rule__t">뽑히면 반드시 답한다</span></div>
+    <p>답하는 방법은 둘뿐이다.</p>
+    <table>
+      <thead><tr><th style="width:24%">선택</th><th style="width:38%">뜻</th><th>남들이 보는 것</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>반증한다</th>
+          <td>제안된 세 장 중 하나를 갖고 있다고 선언한다</td>
+          <td>「반증했다」는 사실만. <b>어떤 카드인지는 제안자만 본다</b></td>
+        </tr>
+        <tr>
+          <th>침묵한다</th>
+          <td>세 장 중 아무것도 없다고 선언한다</td>
+          <td>「못 했다」 — <b>강력한 소거 정보</b>. 그 사람에게 세 장이 다 없다</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">5.3</span><span class="rule__t">침묵도 진술이다</span></div>
+    <p>
+      원래 클루라면 카드가 있을 때 <strong>반드시</strong> 보여줘야 한다. 이 게임도 그 의무는 그대로다.
+    </p>
+    <p>
+      <strong>다만 강제하지 않는다.</strong> 카드를 쥐고도 「없소」라고 말할 수 있다.
+      그렇게 하는 순간 그것은 <strong>위증</strong>이 된다(6장).
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">5.4</span><span class="rule__t">반증에서 읽어야 할 것</span></div>
+    <div class="box box--ex">
+      <span class="box__l">예시 — 소거법이 굴러가는 방식</span>
+      <div class="script">
+        <div class="script__l"><span class="script__w">2회차</span><span class="script__s">「서지혜 · 넥타이 · 옥상」 → 참가4 <b>침묵</b></span></div>
+        <div class="script__l"><span class="script__w">5회차</span><span class="script__s">「서지혜 · 수면제 · 서재」 → 참가4 <b>침묵</b></span></div>
+        <div class="script__r">
+          참가4에게 없는 카드가 <b>다섯 장</b>으로 늘었다. 손패가 2장뿐이니
+          <b>참가4의 패는 나머지 열 장 중 둘</b>이다. 추리표에서 참가4 열의 다섯 칸이 ✕로 확정된다.
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:3mm">
+      화면의 추리표는 이 계산을 <strong>대신 해준다.</strong> 한 사람의 ✓가 2개가 되면 그 사람의 남은 칸이 자동으로 닫히고,
+      한 줄이 전부 ✕가 되면 <strong>그 카드가 정답</strong>이라고 표시된다(11장).
+    </p>
+  </div>
+
+  <span class="page__no">7</span>
+</section>
+
+<!-- ══ 6. 위증 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>6. 위증 — 두 가지 거짓말</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">6</span><span class="chap__t">위증 — 두 가지 거짓말</span><span class="chap__s">이 게임의 이름이 된 규칙</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">6.1</span><span class="rule__t">거짓말은 두 방향이다</span></div>
+    <table>
+      <thead><tr><th style="width:26%"></th><th style="width:37%">없는데 「있다」</th><th>있는데 「없다」</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>하는 일</th>
+          <td>안 가진 카드로 반증했다고 선언</td>
+          <td>가진 카드를 숨기고 침묵</td>
+        </tr>
+        <tr>
+          <th>노리는 것</th>
+          <td>상대의 추리표를 <b>오염</b>시킨다</td>
+          <td>정답이 아닌 조합을 <b>정답처럼 위장</b>한다</td>
+        </tr>
+        <tr>
+          <th>들통나는 시점</th>
+          <td><b>즉시</b> — 그 카드를 쥔 사람이 바로 안다</td>
+          <td><b>나중에</b> — 로그가 모순을 드러내야 한다</td>
+        </tr>
+        <tr>
+          <th>이의제기</th>
+          <td><b>걸 수 있다</b></td>
+          <td><b>걸 수 없다</b></td>
+        </tr>
+        <tr>
+          <th>성격</th>
+          <td>공격적 — 판을 흔든다</td>
+          <td>방어적 — 시한폭탄을 심는다</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">6.2</span><span class="rule__t">왜 한쪽만 잡을 수 있는가</span></div>
+    <p>
+      <strong>증명할 수 있느냐의 차이다.</strong>
+    </p>
+    <ul>
+      <li>「너는 서재를 갖고 있지 않다」 → <strong>내가 서재를 쥐고 있으면 증명된다.</strong></li>
+      <li>「너는 서재를 갖고 있다」 → 남의 손패를 볼 수 없으므로 <strong>증명할 방법이 없다.</strong></li>
+    </ul>
+    <p>
+      그래서 이의제기는 <strong>「있다」 선언에만</strong> 걸 수 있다.
+      침묵으로 하는 거짓말은 판에 남아 있다가, 그가 나중에 같은 카드로 반증하는 순간 기록이 모순을 드러낸다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">6.3</span><span class="rule__t">거짓말은 이득이지만 빚이다</span></div>
+    <div class="box box--ex">
+      <span class="box__l">예시 — 위증이 확정되는 순간</span>
+      <div class="script">
+        <div class="script__l"><span class="script__w">참가3</span><span class="script__s">"«서재»로 반증하겠소."</span></div>
+        <div class="script__l"><span class="script__w">나</span><span class="script__s">…그런데 «서재»는 <b>내 손에 있다.</b></span></div>
+        <div class="script__r">
+          참가3은 <b>거짓말쟁이로 확정</b>됐다. 이건 의심이 아니라 <b>논리적 확정</b>이다.
+          카드는 한 장뿐이고, 그 한 장이 내 손에 있기 때문이다.
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:3mm">
+      즉 <strong>거짓말은 언젠가 드러날 수 있는 형태로만 가능하다.</strong>
+      「안 들키게 거짓말하기」가 이 게임에서 플레이어가 실제로 푸는 과제다.
+    </p>
+  </div>
+
+  <span class="page__no">8</span>
+</section>
+
+<!-- ══ 7. 이의제기 ════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>7. 이의제기</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">7</span><span class="chap__t">이의제기</span><span class="chap__s">잡는 데도 값이 든다</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">7.1</span><span class="rule__t">거는 사람은 제안자뿐이다</span></div>
+    <p>
+      반증에 쓰인 카드를 본 사람이 <strong>제안자밖에 없으므로</strong>, 이의제기도 제안자만 건다.
+      내가 제안한 회차가 아니면 이의제기 줄 자체가 나오지 않는다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">7.2</span><span class="rule__t">걸려면 세 조건을 모두 만족해야 한다</span></div>
+    <table>
+      <thead><tr><th style="width:30%">조건</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><th>① 제안자일 것</th><td>이번 회차에 내가 제안했어야 한다</td></tr>
+        <tr><th>② 횟수가 남을 것</th><td>한 판에 <b>2회</b>까지</td></tr>
+        <tr><th>③ 낼 패가 있을 것</th><td>아직 공개되지 않은 내 손패가 <b>1장 이상</b> 남아 있어야 한다</td></tr>
+      </tbody>
+    </table>
+    <p>
+      ③이 있는 이유는 간단하다 — <strong>증명은 카드로 하는 것</strong>이고, 낼 카드가 없으면 애초에 성공할 수 없다.
+      실패가 확정된 행동을 열어 둘 이유가 없다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">7.3</span><span class="rule__t">결과 — 이기든 지든 패가 열린다</span></div>
+    <table>
+      <thead><tr><th style="width:24%">결과</th><th style="width:38%">언제</th><th>일어나는 일</th></tr></thead>
+      <tbody>
+        <tr>
+          <th><em class="k">성공</em></th>
+          <td>그자가 낸 카드를 <b>내가 쥐고 있을 때</b></td>
+          <td><b>위증자</b>의 손패 1장이 전원에게 공개된다</td>
+        </tr>
+        <tr>
+          <th><em class="s">실패</em></th>
+          <td>그자가 정말로 그 카드를 갖고 있었을 때</td>
+          <td><b>내</b> 손패 1장이 전원에게 공개된다</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box box--warn">
+      <span class="box__l">손해를 계산하라</span>
+      <p>
+        성공해도 <strong>내가 그 카드를 쥐고 있다는 사실이 드러난다.</strong>
+        잡는 것은 언제나 이득만은 아니다.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">7.4</span><span class="rule__t">잡지 않는 것도 하나의 수다</span></div>
+    <div class="box box--ex">
+      <span class="box__l">두 갈래</span>
+      <div class="script">
+        <div class="script__l"><span class="script__w">잡는다</span><span class="script__s">참가3의 패 1장이 열린다 <span style="color:var(--lantern)">(이득)</span> · 내가 «서재»를 쥔 것이 드러난다 <span style="color:oklch(74% 0.16 27)">(손실)</span></span></div>
+        <div class="script__l"><span class="script__w">숨긴다</span><span class="script__s">참가3이 거짓말쟁이라는 걸 <b>나만 안다</b> <span style="color:var(--lantern)">(밀담 협상 카드)</span></span></div>
+        <div class="script__r">
+          <b>아는 것과 말하는 것은 다르다.</b> 이 분리가 밀담에서 거래할 거리를 만든다.
+          「네가 3회차에 거짓말한 걸 안다. 대신 하나 알려줘」 — 이 말이 성립하려면 <b>잡지 않아야 한다.</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <span class="page__no">9</span>
+</section>
+
+<!-- ══ 7 계속 — 특수 상황 ═════════════════ -->
+<section class="page">
+  <div class="page__head"><span>7. 이의제기 (계속)</span><span>위증 PERJURY</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">7.5</span><span class="rule__t">화면에서 이의제기 줄 읽는 법</span></div>
+    <p>제안자일 때만 나타나며, 반증한 사람마다 버튼이 하나씩 선다.</p>
+    <pre>이의제기 <span style="color:var(--lantern)">2</span>/2
+
+  [ 참가3 위증  <span style="color:var(--lantern)">증명 가능</span> ]   [ 참가5 위증 ]   [ 넘어가기 ]
+       ↑                              ↑
+  그자가 낸 카드를              내 손에 없는 카드다.
+  내가 쥐고 있다.               걸면 <span style="color:oklch(74% 0.16 27)">실패할 가능성이 크다</span>
+  <span style="color:var(--lantern)">걸면 반드시 성공한다</span></pre>
+    <p>
+      <strong>「증명 가능」 배지가 붙은 버튼은 성공이 보장된다.</strong>
+      배지가 없는 쪽을 거는 것은 도박이다 — 그래도 걸 수는 있다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">7.6</span><span class="rule__t">특수 상황</span></div>
+    <table>
+      <thead><tr><th style="width:30%">상황</th><th>처리</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>밀정이 대상일 때</th>
+          <td>범인 진영 직업 <b>밀정</b>은 이의제기를 <b>저절로 한 번 막는다.</b>
+          그 위증은 발각되지 않는다(9장). 막았다는 사실 자체는 드러난다</td>
+        </tr>
+        <tr>
+          <th>공개할 패가 없을 때</th>
+          <td>페널티로 열 카드가 남아 있지 않으면 공개 없이 결과만 확정된다</td>
+        </tr>
+        <tr>
+          <th>탈락자일 때</th>
+          <td>조기 고발에 실패해 탈락하면 <b>이의제기를 잃는다</b>(10장). 반증은 계속한다</td>
+        </tr>
+        <tr>
+          <th>AI끼리 걸었을 때</th>
+          <td>화면 전체에 「위증 의심 → 발각 / 오판」 컷이 뜬다. 결과는 전원이 본다</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="box box--why" style="margin-top:8mm">
+    <span class="box__l">왜 판당 2회인가</span>
+    <p>
+      이의제기는 <strong>이기든 지든 내 패 1장을 소모</strong>한다. 손패가 2장이므로 실질 상한이 자연히 둘이다.
+      규칙으로 명시한 것은 <strong>패가 다른 이유로 열렸을 때</strong>를 막기 위해서다 —
+      위증하다 두 번 걸려 패가 전부 공개된 사람에게는 이의제기가 <strong>비용 0인 행동</strong>이 되고,
+      값이 없는 행동은 남발된다. 그러면 「알지만 지금 말하지 않는다」는 이 게임의 핵심 긴장이 사라진다.
+    </p>
+  </div>
+
+  <span class="page__no">10</span>
+</section>
+
+<!-- ══ 8. 밀담 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>8. 밀담</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">8</span><span class="chap__t">밀담</span><span class="chap__s">1:1 · 자유 타이핑</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">8.1</span><span class="rule__t">한 사람을 골라 말을 붙인다</span></div>
+    <p>
+      회차마다 한 번, 원하는 상대를 골라 <strong>자유롭게 타이핑</strong>한다.
+      상대는 그 자리에서 답한다. 오간 말은 <strong>둘만 안다.</strong>
+    </p>
+    <p>쓰임새는 대략 셋이다.</p>
+    <ul>
+      <li><strong>정보 거래</strong> — "촛대 카드 알려주면 널 지목하지 않겠소"</li>
+      <li><strong>알리바이 압박</strong> — "3회차에 왜 침묵했소"</li>
+      <li><strong>거짓 심기</strong> — 없는 정보를 흘려 상대의 추리표를 오염시킨다</li>
+    </ul>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">8.2</span><span class="rule__t">횟수 — 두 가지 제한이 겹쳐 있다</span></div>
+    <table>
+      <thead><tr><th style="width:24%">제한</th><th style="width:16%">값</th><th>막는 것</th></tr></thead>
+      <tbody>
+        <tr><th>회차당</th><td class="num">1회</td><td>한 회차에 두 사람에게 붙는 것</td></tr>
+        <tr><th>판 전체</th><td class="num">8회</td><td>판 전체에서 아홉 번째</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>건너뛴 회차는 횟수를 쓰지 않는다.</strong> 말을 건 것만 센다.</li>
+      <li><strong>전화교환수</strong>는 한 회차에 두 사람과 밀담한다. 판당 8회는 그대로다.</li>
+      <li><strong>탈락자에게는 말을 붙일 수 없다.</strong></li>
+    </ul>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">8.3</span><span class="rule__t">한 말은 기록에 남는다</span></div>
+    <p>
+      밀담에서 한 말은 <strong>상대의 기억에 남아 남은 판 내내 따라다닌다.</strong>
+      나중에 그 말과 어긋나는 행동을 하면 상대가 그것을 읽는다.
+    </p>
+    <div class="box box--ex">
+      <span class="box__l">예시 — 거짓말이 값을 치르는 방식</span>
+      <div class="script">
+        <div class="script__l"><span class="script__w">1회차 밀담</span><span class="script__s">나 → 참가3: "나 서재 카드 없소."</span></div>
+        <div class="script__l"><span class="script__w">4회차 반증</span><span class="script__s">내가 «서재» 카드로 반증했다.</span></div>
+        <div class="script__l"><span class="script__w">5회차 밀담</span><span class="script__s">참가3의 기억에 둘 다 들어 있다.</span></div>
+        <div class="script__r">
+          <b>참가3이 모순을 읽고 거래를 거부한다.</b> 한 번의 거짓말이 남은 판 전체에 값을 물린다.
+        </div>
+      </div>
+    </div>
+    <div class="box box--warn">
+      <span class="box__l">주의</span>
+      <p>
+        상대는 <strong>신뢰도 점수를 매기지 않는다.</strong> 오간 말을 그대로 기억하고 스스로 판단한다.
+        따라서 <strong>같은 상황에서도 반응이 다를 수 있다.</strong> 사람을 상대한다고 생각하는 편이 맞다.
+      </p>
+    </div>
+  </div>
+
+  <span class="page__no">11</span>
+</section>
+
+<!-- ══ 9. 직업 ════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>9. 직업과 능력</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">9</span><span class="chap__t">직업과 능력</span><span class="chap__s">판당 1회</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">9.1</span><span class="rule__t">좌석마다 하나씩, 판당 한 번</span></div>
+    <p>
+      직업은 브리핑에서 공개된다. 능력은 <strong>한 판에 한 번</strong>뿐이므로
+      <strong>「언제 쓸 것인가」</strong>가 판단의 핵심이다.
+    </p>
+    <p>능력의 목적은 세기가 아니라 <strong>「나만 아는 것」</strong>을 만드는 데 있다 — 밀담에서 거래할 재료가 된다.</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">9.2</span><span class="rule__t">시민 진영 8종</span></div>
+    <table>
+      <thead><tr><th style="width:24%">직업</th><th>능력</th></tr></thead>
+      <tbody>
+        <tr><th>검시관</th><td>한 명을 지목해 그 사람의 손패 1장을 확인한다</td></tr>
+        <tr><th>약제사</th><td>수단 카드 1장을 지정해 <b>정답인지 아닌지</b>를 확인한다</td></tr>
+        <tr><th>순사</th><td>한 명을 지목한다 — 그가 <b>다음에 선언하는 반증</b>이 참인지 통보받는다</td></tr>
+        <tr><th>신문기자</th><td>한 명의 <b>지난 선언 1건</b>, 그 진위를 전체에 공개한다</td></tr>
+        <tr><th>변호사</th><td>반증 요구를 <b>1회 거부</b>한다 — 거부는 위증이 아니다</td></tr>
+        <tr><th>정보상</th><td>밀담 상대 발언의 <b>참·거짓만</b> 판정한다</td></tr>
+        <tr><th>전화교환수</th><td>한 회차에 <b>두 사람</b>과 밀담한다 — 남의 자리에서는 엿듣는다</td></tr>
+        <tr><th>사진사</th><td>한 명을 촬영한다 — 그가 <b>다음 회차부터 처음 위증하면 즉시 발각</b>된다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">9.3</span><span class="rule__t">범인 진영 2종</span></div>
+    <table>
+      <thead><tr><th style="width:24%">직업</th><th>능력</th></tr></thead>
+      <tbody>
+        <tr><th><em class="s">협잡꾼</em></th><td>타인의 반증 1회를 <b>조작</b>한다 — 무고한 사람을 거짓말쟁이로 만든다</td></tr>
+        <tr><th><em class="s">밀정</em></th><td>이의제기를 당하면 <b>저절로 한 번 막는다</b> — 그 위증은 발각되지 않는다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">9.4</span><span class="rule__t">쓸 수 없는 때</span></div>
+    <ul>
+      <li><strong>이미 썼을 때</strong> — 판당 1회다.</li>
+      <li><strong>때가 아닐 때</strong> — 답이 나올 「나중」이 없으면 잠긴다. 마지막 회차의 사진사, 첫 회차의 신문기자가 그렇다.</li>
+      <li><strong>탈락했을 때</strong> — 능력을 잃는다. 다만 <strong>남의 능력의 대상</strong>으로는 여전히 유효하다.</li>
+      <li><strong>판이 끝난 뒤</strong> — 결과 화면에서는 쓸 수 없다.</li>
+    </ul>
+    <div class="box">
+      <span class="box__l" style="color:var(--dim)">참고</span>
+      <p>
+        <strong>순사·사진사·협잡꾼·밀정·정보상</strong>은 지목해 두고 <strong>기다리는</strong> 능력이다.
+        지목한 상대가 뽑히지 않으면 답이 다음 회차로 넘어간다 — <strong>능력은 소모되지 않지만 재사용도 안 된다.</strong>
+      </p>
+    </div>
+  </div>
+
+  <span class="page__no">12</span>
+</section>
+
+<!-- ══ 10. 고발 ═══════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>10. 고발과 게임 종료</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">10</span><span class="chap__t">고발과 게임 종료</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">10.1</span><span class="rule__t">조기 고발 — 언제든 외칠 수 있다</span></div>
+    <p>
+      <strong>시민 진영은 누구나, 자기 차례가 아니어도</strong> 정답 3요소를 외칠 수 있다.
+      추리표에서 세 장을 고르고 「범인을 지목한다」를 누른다.
+    </p>
+    <table>
+      <thead><tr><th style="width:20%">결과</th><th>일어나는 일</th></tr></thead>
+      <tbody>
+        <tr><th><em class="k">맞으면</em></th><td>그 자리에서 판이 끝나고 <b>시민 진영이 이긴다</b></td></tr>
+        <tr><th><em class="s">틀리면</em></th><td><b>외친 사람만 탈락</b>한다. 판은 계속된다</td></tr>
+      </tbody>
+    </table>
+    <div class="box box--warn">
+      <span class="box__l">되돌릴 수 없다</span>
+      <p>
+        고발은 취소되지 않는다. 화면이 제안과 고발을 <strong>다른 모드로 갈라 놓은 것</strong>도 이 때문이다 —
+        「제안 확정」과 「최종 고발」을 잘못 누르면 판이 그대로 끝난다.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">10.2</span><span class="rule__t">탈락하면 무엇이 남는가</span></div>
+    <table>
+      <thead><tr><th style="width:20%"></th><th>항목</th></tr></thead>
+      <tbody>
+        <tr><th><em class="s">잃는 것</em></th><td>제안 · 고발 · 밀담 · 직업 능력 · 이의제기</td></tr>
+        <tr><th><em class="k">남는 것</em></th><td><b>반증.</b> 추첨에 뽑히면 그대로 답해야 한다</td></tr>
+      </tbody>
+    </table>
+    <p>
+      탈락자는 자리를 뜨는 것이 아니라 <strong>말 없는 카드 보관함</strong>이 된다.
+      그의 손패는 여전히 판에서 돌고, 남들은 그를 통해 정보를 계속 얻는다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">10.3</span><span class="rule__t">최종 고발 — 제안 24회를 다 썼을 때</span></div>
+    <table>
+      <thead><tr><th style="width:22%">내 진영</th><th style="width:30%">고발하는 주체</th><th>내가 하는 일</th></tr></thead>
+      <tbody>
+        <tr><th>시민</th><td><b>나</b></td><td>정답 3장을 특정해 제출한다</td></tr>
+        <tr><th><em class="s">범인</em></th><td><b>AI 시민들의 투표</b></td><td>그들의 추리를 오염시켜 둔다</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <span class="box__l" style="color:var(--dim)">투표는 칸별로 집계한다</span>
+      <p>
+        다섯이 각자 세 장을 찍으면 조합이 갈려 결정이 안 난다. 그래서 <strong>범인·수단·장소를 따로 센다.</strong>
+      </p>
+      <pre style="margin:2.5mm 0 0">범인 칸  강도윤 3표 · 문태석 2표          <span class="c">→ 강도윤</span>
+수단 칸  넥타이 2표 · 수면제 2표 · 계단 1표 <span class="c">→ 넥타이 (동률은 자동 결정)</span>
+장소 칸  서재 4표 · 옥상 1표              <span class="c">→ 서재</span>
+
+최종 고발: <span style="color:var(--lantern)">강도윤 · 넥타이 · 서재</span></pre>
+      <p style="margin-top:2.5mm">
+        <strong>아무도 제안하지 않은 조합이 나올 수 있다.</strong> 집단 추리는 원래 그렇게 된다.
+        범인 입장에서는 공략 지점이 명확해진다 — <strong>세 칸 중 하나만 오염시켜도 이긴다.</strong>
+      </p>
+    </div>
+  </div>
+
+  <span class="page__no">13</span>
+</section>
+
+<!-- ══ 11. 화면 ═══════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>11. 화면 보는 법</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">11</span><span class="chap__t">화면 보는 법</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">11.1</span><span class="rule__t">보는 곳은 셋이다</span></div>
+    <table>
+      <thead><tr><th style="width:22%">위치</th><th>무엇을 보나</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>① 원탁</th>
+          <td>여섯 좌석. 이번 회차 <b>제안자</b>와 추첨으로 <b>뽑힌 두 명</b>에 테두리가 켜진다.
+          탈락한 좌석, 능력을 쓴 좌석도 여기 표시된다</td>
+        </tr>
+        <tr>
+          <th>② 추리표</th>
+          <td>가로 6칸 = 참가자, 세로 15칸 = 카드. <b>여기서 제안과 고발도 한다</b></td>
+        </tr>
+        <tr>
+          <th>③ 내 패</th>
+          <td>손패 2장과 직업. <b>능력 발동 버튼</b>이 여기 있다.
+          범인이면 봉인된 정답도 함께 표시된다</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">11.2</span><span class="rule__t">추리표 — 표가 소거를 대신 해준다</span></div>
+    <p>칸을 누를 때마다 표시가 바뀐다.</p>
+    <pre>빈칸 → <span style="color:var(--green)">✓ 있음</span> → <span style="color:oklch(74% 0.16 27)">✕ 없음</span> → <span style="color:var(--lantern)">? 의심</span> → 빈칸 …</pre>
+    <p>여기에 더해 <strong>표가 스스로 채우는 것</strong>이 셋 있다.</p>
+    <table>
+      <thead><tr><th style="width:36%">이런 상태가 되면</th><th>표가 하는 일</th></tr></thead>
+      <tbody>
+        <tr><th>한 칸에 ✓를 찍으면</th><td>카드는 한 사람만 쥐므로 <b>그 줄의 나머지 칸이 ✕로 잠긴다</b></td></tr>
+        <tr><th>한 사람의 ✓가 2개가 되면</th><td>손패가 2장이므로 <b>그 사람의 남은 칸이 전부 닫힌다</b></td></tr>
+        <tr><th>한 줄이 전부 ✕가 되면</th><td>아무도 안 쥔 카드다 → <b>정답. 줄에 인장이 뜬다</b></td></tr>
+      </tbody>
+    </table>
+    <p>
+      확정된 칸(내 손패, 공개된 패)은 처음부터 잠겨 있다.
+      <strong>✓를 잘못 찍었으면 지우면 된다</strong> — 잠겼던 칸이 원래대로 돌아온다.
+    </p>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">11.3</span><span class="rule__t">화면 전체로 뜨는 알림</span></div>
+    <p>사건이 일어난 순서대로 하나씩 지나간다.</p>
+    <table>
+      <tbody>
+        <tr><td class="num" style="width:10%">1</td><th style="width:32%">고발 실패</th><td>누군가 조기 고발에 실패해 판에서 빠졌다</td></tr>
+        <tr><td class="num">2</td><th>위증 의심 → 발각 / 오판</th><td>이의제기가 걸렸고 그 결과가 나왔다</td></tr>
+        <tr><td class="num">3</td><th>제N회 신문</th><td>한 바퀴가 돌아 새 국면이 시작됐다</td></tr>
+        <tr><td class="num">4</td><th>반증 추첨</th><td>이번 회차에 답할 두 명이 뽑혔다</td></tr>
+        <tr><td class="num">5</td><th>당신의 차례다</th><td>내가 제안할 순서가 왔다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <span class="page__no">14</span>
+</section>
+
+<!-- ══ 12. 실행 ═══════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>12. 실행 방법</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">12</span><span class="chap__t">실행 방법</span></div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">12.1</span><span class="rule__t">브라우저에서 바로 시작한다</span></div>
+    <div class="box box--ex">
+      <span class="box__l">플레이 주소</span>
+      <p style="font-family:var(--display); font-size:15pt; color:var(--lantern); line-height:1.4">
+        https://rhantj.github.io/perjury/
+      </p>
+      <p>설치·로그인·계정이 필요 없다. <strong>이 주소가 기준 환경이다.</strong></p>
+    </div>
+    <table>
+      <caption>동작 환경</caption>
+      <tbody>
+        <tr><th style="width:24%">브라우저</th><td>Chrome · Safari · Edge 최신 버전</td></tr>
+        <tr><th>화면</th><td>가로 1280px 이상 권장 — 추리표 15줄이 한 화면에 들어가야 소거법이 편하다</td></tr>
+        <tr><th>소리</th><td>BGM·효과음 있음. 우상단 버튼으로 끌 수 있다</td></tr>
+        <tr><th>1판 소요</th><td>12~15분</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">12.2</span><span class="rule__t">직접 빌드해 보려면</span></div>
+    <p>Node 22 · npm 기준. 저장소를 받은 뒤 —</p>
+    <pre>npm install
+
+npm run dev       <span class="c"># 개발 서버 (localhost:5173)</span>
+npm run typecheck <span class="c"># 타입 검사</span>
+npm run test      <span class="c"># 룰 엔진 단위 테스트</span>
+npm run build     <span class="c"># 타입 검사 + 프로덕션 빌드</span>
+npm run preview   <span class="c"># 빌드 결과 확인</span></pre>
+    <div class="box box--warn">
+      <span class="box__l">로컬에서는 AI가 다르게 움직인다</span>
+      <p>
+        AI 판단을 중계하는 서버는 허용된 주소에서만 응답한다. 따라서 로컬 개발 서버로 열면
+        <strong>사전 준비된 대사와 규칙 기반 판단</strong>으로 진행된다.
+      </p>
+      <p>
+        <strong>게임은 처음부터 끝까지 정상으로 진행되지만</strong>, AI의 실제 판단과 대사를 보시려면
+        위 배포 주소를 이용하시기 바란다.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">12.3</span><span class="rule__t">막혔을 때</span></div>
+    <table>
+      <thead><tr><th style="width:36%">증상</th><th>확인할 것</th></tr></thead>
+      <tbody>
+        <tr><th>버튼이 하나도 없다</th><td>지금은 AI 차례다. 화면 아래에 「다른 사람 추측중」이 떠 있다</td></tr>
+        <tr><th>이의제기 줄이 안 보인다</th><td>이의제기는 <b>제안자만</b> 건다(7.1). 내가 제안한 회차가 아니면 나오지 않는다</td></tr>
+        <tr><th>능력 버튼이 잠겨 있다</th><td>이미 썼거나, 지금이 그 능력을 쓸 때가 아니거나, 탈락했다(9.4)</td></tr>
+        <tr><th>AI 응답이 느리다</th><td>판단 중이다. 응답이 끊기면 자동으로 규칙 기반으로 넘어가 판은 계속된다</td></tr>
+        <tr><th>추리표 칸이 안 눌린다</th><td>확정됐거나 표가 자동으로 닫은 칸이다(11.2). 커서를 올리면 이유가 뜬다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <span class="page__no">15</span>
+</section>
+
+<!-- ══ 부록 A ═════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>부록 A — 빠른 참조</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">A</span><span class="chap__t">빠른 참조</span><span class="chap__s">이 한 장만 옆에 두면 된다</span></div>
+
+  <div class="quick">
+    <table>
+      <caption>판 구성</caption>
+      <tbody>
+        <tr><th>좌석</th><td>6 (나 1 + AI 5)</td></tr>
+        <tr><th>카드</th><td>15장 — 범인 6 · 수단 4 · 장소 5</td></tr>
+        <tr><th>정답</th><td>종류별 1장씩 3장 봉인</td></tr>
+        <tr><th>손패</th><td>1인 2장</td></tr>
+        <tr><th>제안 횟수</th><td>총 24회 (6인 × 4바퀴)</td></tr>
+        <tr><th>1판 시간</th><td>12~15분</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>반증</caption>
+      <tbody>
+        <tr><th>답하는 인원</th><td>제안자 제외 5명 중 추첨 <b>2명</b></td></tr>
+        <tr><th>카드 공개</th><td><b>제안자만</b> 본다</td></tr>
+        <tr><th>반증 여부</th><td><b>전원</b>이 안다</td></tr>
+        <tr><th>안 뽑힌 사람</th><td>위증 판정 <b>없음</b></td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>이의제기</caption>
+      <tbody>
+        <tr><th>거는 사람</th><td>그 회차 <b>제안자만</b></td></tr>
+        <tr><th>횟수</th><td>판당 <b>2회</b></td></tr>
+        <tr><th>조건</th><td>미공개 손패 <b>1장 이상</b></td></tr>
+        <tr><th>성공 시</th><td><b>위증자</b> 패 1장 공개</td></tr>
+        <tr><th>실패 시</th><td><b>고발자</b> 패 1장 공개</td></tr>
+        <tr><th>걸 수 있는 대상</th><td>「있다」 선언만. 침묵은 못 건다</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>밀담</caption>
+      <tbody>
+        <tr><th>회차당</th><td>1회</td></tr>
+        <tr><th>판 전체</th><td><b>8회</b></td></tr>
+        <tr><th>건너뛰면</th><td>횟수를 쓰지 않는다</td></tr>
+        <tr><th>전화교환수</th><td>회차당 2명 (판당 8회는 동일)</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>직업</caption>
+      <tbody>
+        <tr><th>종류</th><td>10종 — 시민 8 · 범인 2</td></tr>
+        <tr><th>사용</th><td>판당 <b>1회</b></td></tr>
+        <tr><th>탈락 시</th><td>능력 상실 (대상으로는 유효)</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <caption>고발</caption>
+      <tbody>
+        <tr><th>조기 고발</th><td>시민 진영 누구나, 언제든</td></tr>
+        <tr><th>맞으면</th><td>즉시 시민 승</td></tr>
+        <tr><th>틀리면</th><td>본인만 탈락 (반증은 계속)</td></tr>
+        <tr><th>최종 고발</th><td>24회 소진 후 1회</td></tr>
+        <tr><th>범인일 때</th><td>AI 투표가 고발한다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="box box--ex" style="margin-top:5mm">
+    <span class="box__l">한 줄 요약</span>
+    <p style="font-size:11pt">
+      <strong>남이 못 가진 카드를 찾아라. 단, 남이 하는 말은 거짓일 수 있다.</strong>
+    </p>
+  </div>
+
+  <span class="page__no">16</span>
+</section>
+
+<!-- ══ 부록 B ═════════════════════════════ -->
+<section class="page">
+  <div class="page__head"><span>부록 B — 설계 노트</span><span>위증 PERJURY</span></div>
+
+  <div class="chap"><span class="chap__n">B</span><span class="chap__t">이 게임이 왜 이런 룰인가</span><span class="chap__s">플레이에 필요하지 않은 이야기</span></div>
+
+  <p style="margin-bottom:6mm">
+    <strong>여기부터는 룰이 아니다.</strong> 각 규칙을 왜 그렇게 정했는지에 대한 기록이다.
+    게임을 하는 데는 필요 없지만, 「왜 하필 이렇게?」가 궁금하다면 읽을 만하다.
+  </p>
+
+  <div class="box box--why">
+    <span class="box__l">세 게임을 하나로 잇는 한 줄</span>
+    <p>
+      클루는 정보 게임, 마피아42는 심리 게임, 크라임씬은 서사 게임이다. 그냥 얹으면 따로 논다.
+      셋을 잇는 접합점이 <strong>「반증에서 거짓말할 수 있다」</strong> 한 줄이었다.
+    </p>
+    <p>
+      정답 특정은 클루에서, 진영과 거짓말은 마피아42에서, 캐릭터마다 다른 거짓말의 이유는 크라임씬에서 온다.
+      규칙을 세 겹 쌓은 것이 아니라 <strong>한 줄을 바꿨더니 셋이 동시에 성립했다.</strong>
+    </p>
+  </div>
+
+  <div class="box box--why">
+    <span class="box__l">왜 카드가 15장인가</span>
+    <p>
+      <strong>화면이 정한 제약이다.</strong> 추리표에 스크롤이 생기면 소거법이 무너진다 —
+      「이 줄은 아무도 없다 → 정답」이라는 판단은 표 전체를 <strong>동시에 봐야</strong> 나오기 때문이다.
+      클루 원본 21장은 한 화면에 물리적으로 들어가지 않는다.
+    </p>
+  </div>
+
+  <div class="box box--why">
+    <span class="box__l">왜 다섯이 아니라 둘만 답하는가</span>
+    <p>
+      처음에는 제안자를 뺀 <strong>다섯 전원</strong>이 매 회차 답하게 했다. 그러자 소거가 너무 빨라
+      판이 일찍 끝났고, AI 판단 호출도 회차마다 다섯 번씩 들었다.
+    </p>
+    <p>
+      둘로 줄이자 정보가 천천히 쌓이고, <strong>「이번엔 누가 뽑힐까」</strong>라는 긴장이 하나 늘었다.
+    </p>
+  </div>
+
+  <div class="box box--why">
+    <span class="box__l">왜 이의제기를 제안자만 하는가</span>
+    <p>
+      반증에 쓰인 카드가 <strong>제안자에게만</strong> 보이도록 바꾼 뒤 따라온 결과다.
+      카드를 못 본 좌석이 이의제기를 걸면 근거 없는 도박이 된다.
+    </p>
+    <p>
+      그리고 이 제한이 <strong>가장 재미있는 수를 열었다</strong> — 제안자가 자기 손패를 미끼로 제안에 넣는 것(4.2).
+      제한이 선택지를 좁힌 것이 아니라 새 선택지를 만들었다.
+    </p>
+  </div>
+
+  <div class="box box--why">
+    <span class="box__l">왜 신뢰를 점수로 만들지 않았는가</span>
+    <p>
+      밀담은 자유 텍스트다. 「무엇이 거짓말인가」를 게임 엔진이 판정하려면 룰이 자유 텍스트에 의존하게 된다.
+      그건 <strong>룰을 결정론적으로 유지한다</strong>는 원칙과 정면으로 부딪힌다.
+    </p>
+    <p>
+      그래서 오간 말을 <strong>기록으로만</strong> 남기고, 모순을 읽는 일은 AI에게 맡겼다.
+      대가로 신뢰는 결정론적이지 않다 — 받아들였다.
+      <strong>결정론적이어야 하는 것은 룰이지, 사람을 믿을지 말지가 아니다.</strong>
+    </p>
+  </div>
+
+  <p style="margin-top:8mm; color:var(--dim); font-size:9.6pt">
+    AI 에이전트의 동작 방식·프롬프트 설계·장애 대응은 제출물 ④ <strong>AI 활용 기술 문서</strong>에 있다.
+  </p>
+
+  <span class="page__no">17</span>
+</section>
+
+</body>
+</html>
