@@ -326,6 +326,7 @@ pre .c { color: var(--dim); }
 </head>
 <body>
 
+
 <!-- ══ 표지 ═══════════════════════════════ -->
 <section class="page cover">
   <div class="cover__seal">組織</div>
@@ -343,88 +344,26 @@ pre .c { color: var(--dim); }
   </div>
 </section>
 
-<!-- ══ 1. 한 줄 요약 ═══════════════════════ -->
+<!-- ══ 1. 팀원 ════════════════════════════ -->
 <section class="page">
-  <div class="page__head"><span>1. 한 줄 요약</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
+  <div class="page__head"><span>1. 팀원</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
 
   <div class="chap">
-    <span class="chap__n">1</span><span class="chap__t">한 줄 요약</span>
-    <span class="chap__s">NAN 2026 NHN Game × AI 해커톤 사전 과제</span>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">1.1</span><span class="rule__t">약점을 나눠 가졌다</span></div>
-    <p>
-      두 사람 모두 LLM에 강하고 프론트엔드에 약했다. 그래서 <strong>약한 영역을 한 사람에게
-      몰지 않는 것</strong>을 분업의 첫 원칙으로 삼았다. UI를 맡은 쪽이 콘텐츠·제출물로
-      균형을 잡고, 엔진을 맡은 쪽이 프록시·폴백까지 안는다.
-    </p>
-    <p>
-      경계는 말이 아니라 <strong>브랜치 이름</strong>에 박아 두었고, 커밋 기록이 그 경계를
-      그대로 증명한다.
-    </p>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">1.2</span><span class="rule__t">지금까지의 규모</span></div>
-    <table>
-      <caption>기준 시점 2026-08-08 · main 브랜치</caption>
-      <tbody>
-        <tr>
-          <th>저장소</th>
-          <td><code>github.com/rhantj/perjury</code> (public)</td>
-        </tr>
-        <tr>
-          <th>배포</th>
-          <td><code>https://rhantj.github.io/perjury/</code> — main 푸시 시 GitHub Actions 자동 배포</td>
-        </tr>
-        <tr>
-          <th>총 커밋</th>
-          <td class="num">420 <b>(병합 커밋 128 포함)</b></td>
-        </tr>
-        <tr>
-          <th>코드</th>
-          <td class="num">11,080줄 (운영) + 7,723줄 (테스트 27파일) · 자동 테스트 <b>564개 통과</b></td>
-        </tr>
-        <tr>
-          <th>기록</th>
-          <td class="num">결정 기록 11건 · 세션 인수인계 기록 31건</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">1.3</span><span class="rule__t">이 문서의 차례</span></div>
-    <div class="toc" style="margin-left:14mm">
-      <div class="toc__row"><span class="toc__n">1</span><span class="toc__t">한 줄 요약</span><span class="toc__d">2쪽</span></div>
-      <div class="toc__row"><span class="toc__n">2</span><span class="toc__t">팀원</span><span class="toc__d">3쪽</span></div>
-      <div class="toc__row"><span class="toc__n">3</span><span class="toc__t">분업 경계</span><span class="toc__d">4쪽</span></div>
-      <div class="toc__row"><span class="toc__n">4</span><span class="toc__t">협업 방식</span><span class="toc__d">5쪽</span></div>
-      <div class="toc__row"><span class="toc__n">5</span><span class="toc__t">공동 작업 구간 · 기술 스택</span><span class="toc__d">6쪽</span></div>
-    </div>
-  </div>
-
-  <span class="page__no">2</span>
-</section>
-
-<!-- ══ 2. 팀원 ════════════════════════════ -->
-<section class="page">
-  <div class="page__head"><span>2. 팀원</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
-
-  <div class="chap">
-    <span class="chap__n">2</span><span class="chap__t">팀원</span>
-    <span class="chap__s">이름 · 역할 · 담당 구현 영역</span>
+    <span class="chap__n">1</span><span class="chap__t">팀원</span>
+    <span class="chap__s">이름 · 담당 역할 · 실제 구현 영역</span>
   </div>
 
   <div class="mem">
     <div class="mem__h">
       <span class="mem__b">A</span>
       <span class="mem__n">고무서</span>
-      <span class="mem__r">게임 엔진 · AI 레이어 · 인프라</span>
+      <span class="mem__r">개발 — 게임 엔진 · AI 활용 · 인프라</span>
       <span class="mem__s">第壹號</span>
     </div>
     <table>
+      <thead>
+        <tr><th style="width:24%">실제로 맡아 구현한 영역</th><th>내용</th></tr>
+      </thead>
       <tbody>
         <tr>
           <th>룰 엔진</th>
@@ -435,13 +374,16 @@ pre .c { color: var(--dim); }
         </tr>
         <tr>
           <th>AI 에이전트</th>
-          <td><code>src/ai/</code> — 좌석별 지식 상태, 규칙 기반 판단자, LLM 판단자, 조기 고발 판단</td>
+          <td>
+            <code>src/ai/</code> — 좌석별 지식 상태, 규칙 기반 판단자, LLM 판단자,
+            조기 고발 판단. 프롬프트 설계와 구조화 출력 스키마를 포함한다
+          </td>
         </tr>
         <tr>
           <th>프록시</th>
           <td>
             <code>workers/</code> — Cloudflare Workers. API 키 격리, CORS 오리진 제한,
-            호출 캡(전체/IP), 스키마 강제 구조화 출력
+            호출 캡(전체/IP)
           </td>
         </tr>
         <tr>
@@ -453,18 +395,11 @@ pre .c { color: var(--dim); }
         </tr>
         <tr>
           <th>상태 저장소</th>
-          <td><code>src/store/</code> (Zustand)</td>
+          <td><code>src/store/</code> (Zustand) — 엔진과 화면을 잇는 단일 상태</td>
         </tr>
         <tr>
-          <th><em class="k">지표</em></th>
-          <td class="num">
-            커밋 <b>207</b> · <code>engine</code> 122 · <code>ai</code> 100 ·
-            <code>workers</code> 83 · <code>store</code> 34
-          </td>
-        </tr>
-        <tr>
-          <th><em class="k">제출물</em></th>
-          <td>④ AI 활용 기술 문서</td>
+          <th><em class="k">담당 제출물</em></th>
+          <td>② 플레이 영상 · ④ AI 활용 기술 문서</td>
         </tr>
       </tbody>
     </table>
@@ -474,10 +409,13 @@ pre .c { color: var(--dim); }
     <div class="mem__h">
       <span class="mem__b">B</span>
       <span class="mem__n">박지수</span>
-      <span class="mem__r">UI · 콘텐츠 · 제출물</span>
+      <span class="mem__r">기획 · 아트 — UI · 콘텐츠 · 제출물</span>
       <span class="mem__s">第貳號</span>
     </div>
     <table>
+      <thead>
+        <tr><th style="width:24%">실제로 맡아 구현한 영역</th><th>내용</th></tr>
+      </thead>
       <tbody>
         <tr>
           <th>화면</th>
@@ -494,10 +432,10 @@ pre .c { color: var(--dim); }
           </td>
         </tr>
         <tr>
-          <th>콘텐츠</th>
+          <th>콘텐츠 기획</th>
           <td>
             <code>src/content/</code> — 사건 시나리오 4종, 용의자·수단·장소 카드,
-            직업 10종의 문구와 이야기
+            직업 10종의 능력과 문구
           </td>
         </tr>
         <tr>
@@ -505,59 +443,36 @@ pre .c { color: var(--dim); }
           <td><code>src/assets/</code> — 직업·용의자·원탁 일러스트</td>
         </tr>
         <tr>
-          <th>밸런싱 데이터</th>
-          <td>회차·밀담 횟수·직업 능력 수치</td>
+          <th>밸런싱</th>
+          <td>회차 수 · 밀담 횟수 · 직업 능력 수치를 실제 플레이로 조정</td>
         </tr>
         <tr>
-          <th><em class="k">지표</em></th>
-          <td class="num">
-            커밋 <b>209</b> · <code>components</code> 126 · <code>styles</code> 82 ·
-            <code>content</code> 29 · <code>assets</code> 31
-          </td>
-        </tr>
-        <tr>
-          <th><em class="k">제출물</em></th>
-          <td>② 플레이 영상 · ③ 게임 소개 문서 · ⑤ 팀원 롤 기술서</td>
+          <th><em class="k">담당 제출물</em></th>
+          <td>③ 게임 소개 문서 · ⑤ 팀원 롤 기술서</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <div class="box box--ex">
-    <span class="box__l">경계는 겹친다 — 일부러 그렇게 뒀다</span>
-    <p>
-      A가 <code>components</code>를 <strong>64회</strong>, B가 <code>engine</code>을
-      <strong>23회</strong> 건드렸다. 자기 층에서 시작한 작업이 상대 층에 닿을 때
-      넘기지 않고 끝까지 밀었다는 뜻이다. <strong>2인 팀에서 인수인계 대기는 곧 정지</strong>이기 때문이다.
-    </p>
-  </div>
-
-  <span class="page__no">3</span>
+  <span class="page__no">2</span>
 </section>
 
-<!-- ══ 3. 분업 경계 ════════════════════════ -->
+<!-- ══ 2. 협업·분업 방식 ═══════════════════ -->
 <section class="page">
-  <div class="page__head"><span>3. 분업 경계</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
+  <div class="page__head"><span>2. 협업·분업 방식</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
 
   <div class="chap">
-    <span class="chap__n">3</span><span class="chap__t">분업 경계</span>
-    <span class="chap__s">브랜치 이름에 박아 둔 소유권</span>
+    <span class="chap__n">2</span><span class="chap__t">협업·분업 방식</span>
+    <span class="chap__s">2인 팀이 같은 리포를 동시에 미는 법</span>
   </div>
 
   <div class="rule">
-    <div class="rule__h"><span class="rule__n">3.1</span><span class="rule__t">브랜치 이름이 곧 담당표다</span></div>
+    <div class="rule__h"><span class="rule__n">2.1</span><span class="rule__t">경계를 브랜치 이름에 박아 뒀다</span></div>
     <p>
       브랜치는 <code>&lt;type&gt;/&lt;scope&gt;-&lt;요약&gt;</code> 형식으로만 만든다.
       <strong>브랜치 이름만 보고 누구 작업인지 알 수 있어야 한다</strong>는 것이 규칙의 목적이다.
+      한 브랜치는 한 가지 일만 하고, 범위가 늘어나면 새 브랜치로 쪼갠다.
     </p>
-    <pre>feat/engine-refutation-order   <span class="c">→ A · 룰 엔진</span>
-feat/ui-table-view             <span class="c">→ B · 화면</span>
-fix/proxy-cors-origin          <span class="c">→ A · 프록시</span>
-docs/ai-tech-doc               <span class="c">→ B · 제출물</span></pre>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">3.2</span><span class="rule__t">scope 목록</span></div>
     <table>
       <thead>
         <tr><th style="width:22%">scope</th><th>범위</th><th style="width:16%">담당</th></tr>
@@ -573,125 +488,72 @@ docs/ai-tech-doc               <span class="c">→ B · 제출물</span></pre>
         <tr><th><code>infra</code></th><td>빌드·CI·배포 설정</td><td><em class="k">공동</em></td></tr>
       </tbody>
     </table>
-    <div class="box box--why">
-      <span class="box__l">한 브랜치는 한 가지 일만</span>
+    <div class="box box--ex">
+      <span class="box__l">경계는 겹친다 — 일부러 그렇게 뒀다</span>
       <p>
-        범위가 늘어나면 새 브랜치로 쪼갠다. 브랜치는 하루 이상 묵히지 않고,
-        길어지면 매일 <code>git pull --rebase origin main</code>으로 최신화한다.
-        병합된 브랜치는 바로 지운다.
+        자기 층에서 시작한 작업이 상대 층에 닿을 때 넘기지 않고 끝까지 밀었다.
+        <strong>2인 팀에서 인수인계 대기는 곧 정지</strong>이기 때문이다.
       </p>
     </div>
   </div>
 
-  <span class="page__no">4</span>
-</section>
-
-<!-- ══ 4. 협업 방식 ════════════════════════ -->
-<section class="page page--dense">
-  <div class="page__head"><span>4. 협업 방식</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
-
-  <div class="chap">
-    <span class="chap__n">4</span><span class="chap__t">협업 방식</span>
-    <span class="chap__s">두 사람이 같은 리포를 동시에 미는 법</span>
-  </div>
-
   <div class="rule">
-    <div class="rule__h"><span class="rule__n">4.1</span><span class="rule__t">푸시 = 배포</span></div>
+    <div class="rule__h"><span class="rule__n">2.2</span><span class="rule__t">푸시 = 배포이므로 합치는 절차를 고정했다</span></div>
     <p>
       <code>main</code>은 배포 브랜치다. 푸시하는 순간 심사용 링크가 바뀌므로
       <strong>직접 커밋하지 않는다.</strong> 작업은 각자 브랜치에서 하고,
       합치기 전에 <code>git pull --rebase origin main</code>으로 최신화한 뒤
-      <strong>합쳐진 상태에서 빌드를 다시 돌린다.</strong>
-      각자 브랜치에서 통과해도 합치면 깨질 수 있고, 그대로 올리면 라이브가 멈춘다.
+      <strong>합쳐진 상태에서 빌드를 다시 돌린다.</strong> 각자 브랜치에서 통과해도
+      합치면 깨질 수 있기 때문이다. main 통합은 <code>--no-ff</code>로 작업 단위를 기록에 남기고,
+      <code>--force</code> 푸시는 금지한다.
     </p>
   </div>
 
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">4.2</span><span class="rule__t">기록 남기기</span></div>
-    <p>
-      최신화는 <code>--rebase</code>(머지 커밋 노이즈 제거), main 통합은
-      <code>--no-ff</code>(작업 단위를 기록에 보존).
-    </p>
-    <div class="box box--warn">
-      <span class="box__l">--force 푸시는 금지</span>
-      <p>
-        상대의 커밋을 지우고 제출 요건인 커밋 기록을 훼손한다.
-        <strong>병합 커밋 128건이 그대로 남아 있는 이유다.</strong>
-      </p>
-    </div>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">4.3</span><span class="rule__t">결정 기록</span></div>
-    <p>
-      아키텍처·데이터 모델·외부 연동이 바뀌면 <code>docs/decisions/</code>에
-      <strong>한 파일 한 결정</strong>으로 남긴다. 맥락 / 선택 / 버린 대안 / 되돌리는 법을 적는다.
-      현재 <b>11건</b> — LLM 모델 선정, 프록시 상류, 폴백 범위, 밀담 횟수, 조기 고발 등.
-    </p>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">4.4</span><span class="rule__t">세션 인수인계</span></div>
-    <p>
-      대화·작업 맥락은 하루가 지나면 사라진다. 그래서 <code>session-resume/</code>에
-      <strong>「지금 어디까지 했고 다음에 어느 파일 몇 번째 줄부터 손대는가」</strong>를 남긴다.
-      막힌 것은 증상·시도한 것·남은 가설 순으로 적어 상대가 같은 벽에 다시 부딪히지 않게 한다.
-      현재 <b>31건</b>이며 두 사람 모두 작성한다.
-    </p>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">4.5</span><span class="rule__t">공유 규칙</span></div>
-    <p>
-      리포 루트 <code>CLAUDE.md</code>에 절대 규칙 6개(키 격리, 룰 엔진 순수성,
-      LLM 응답 렌더링 방식, 폴백 보존, 배포 경로, 개인 작업공간 분리)와
-      코드·커밋·브랜치 규약을 둔다.
-      <strong>문서와 충돌하는 구현은 코드가 아니라 문서를 먼저 고친다.</strong>
-    </p>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">4.6</span><span class="rule__t">검증 게이트</span></div>
-    <p>
-      <code>npm run typecheck</code> · <code>npm run worker:typecheck</code> ·
-      <code>vitest</code> · <code>npm run build</code>가 푸시 전 필수.
-      룰 엔진은 <strong>테스트를 먼저 쓰고 구현</strong>한다(564개).
-    </p>
-    <div class="box box--ex">
-      <span class="box__l">동작 확인은 배포 링크에서</span>
-      <p>
-        로컬 개발 서버가 아니라 <strong>배포 링크</strong>에서 확인한다 —
-        심사자가 보는 것이 배포본이고, <strong>로컬에서만 되는 것은 되는 게 아니기</strong> 때문이다.
-      </p>
-    </div>
-  </div>
-
-  <span class="page__no">5</span>
+  <span class="page__no">3</span>
 </section>
 
-<!-- ══ 5. 공동 작업 · 기술 스택 ════════════ -->
+<!-- ══ 2 계속 — 기록과 공동 구간 ═══════════ -->
 <section class="page">
-  <div class="page__head"><span>5. 공동 작업 구간 · 기술 스택</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
+  <div class="page__head"><span>2. 협업·분업 방식 (계속)</span><span>위증 PERJURY 팀원 롤 기술서</span></div>
 
-  <div class="chap">
-    <span class="chap__n">5</span><span class="chap__t">공동 작업 구간</span>
-    <span class="chap__s">둘이 같은 자리에 앉은 날</span>
+  <div class="rule">
+    <div class="rule__h"><span class="rule__n">2.3</span><span class="rule__t">맥락은 대화가 아니라 파일로 넘긴다</span></div>
+    <table>
+      <thead>
+        <tr><th style="width:26%">남기는 곳</th><th>무엇을</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th><code>CLAUDE.md</code></th>
+          <td>절대 규칙 6개(키 격리 · 룰 엔진 순수성 · LLM 응답 렌더링 · 폴백 보존 · 배포 경로 · 개인 작업공간)와 코드·커밋·브랜치 규약</td>
+        </tr>
+        <tr>
+          <th><code>docs/decisions/</code></th>
+          <td>아키텍처·데이터 모델·외부 연동이 바뀔 때 <b>한 파일 한 결정</b> — 맥락 / 선택 / 버린 대안 / 되돌리는 법</td>
+        </tr>
+        <tr>
+          <th><code>session-resume/</code></th>
+          <td>「지금 어디까지 했고 다음에 어느 파일 몇 번째 줄부터 손대는가」. 막힌 것은 증상·시도한 것·남은 가설 순으로 적는다</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <div class="rule">
+    <div class="rule__h"><span class="rule__n">2.4</span><span class="rule__t">둘이 같은 자리에 앉은 구간</span></div>
     <table>
       <thead>
-        <tr><th style="width:16%">구간</th><th style="width:40%">한 일</th><th>왜 함께 했나</th></tr>
+        <tr><th style="width:16%">구간</th><th style="width:38%">한 일</th><th>왜 함께 했나</th></tr>
       </thead>
       <tbody>
         <tr>
           <th>D1 <span class="num">(7/31)</span></th>
           <td>룰 확정 · 데이터 스키마 합의 · <b>배포 파이프라인 먼저 관통</b></td>
-          <td>빈 화면이라도 배포가 되는 것을 첫날 확인해야 마지막 날 배포 사고가 없다</td>
+          <td>빈 화면이라도 배포되는 것을 첫날 확인해야 마지막 날 사고가 없다</td>
         </tr>
         <tr>
           <th>D8 <span class="num">(8/7)</span></th>
-          <td>밸런싱 — 실제 플레이 반복, 회차·밀담 횟수 실측 조정</td>
+          <td>밸런싱 — 실제 플레이 반복, 회차·밀담 횟수 조정</td>
           <td>수치는 혼자 정할 수 없다. 한쪽은 엔진 근거를, 한쪽은 체감을 본다</td>
         </tr>
         <tr>
@@ -703,42 +565,7 @@ docs/ai-tech-doc               <span class="c">→ B · 제출물</span></pre>
     </table>
   </div>
 
-  <div class="chap" style="margin-top:9mm">
-    <span class="chap__n">6</span><span class="chap__t">기술 스택</span>
-    <span class="chap__s">의존성은 추가 전에 이유와 대안을 먼저 말한다</span>
-  </div>
-
-  <div class="rule">
-    <table>
-      <tbody>
-        <tr><th>프론트엔드</th><td>React 19 · TypeScript 7 (strict) · Vite 8 · Zustand 5</td></tr>
-        <tr><th>테스트</th><td>Vitest 4 — 룰 엔진은 TDD 필수, LLM을 호출하지 않는다</td></tr>
-        <tr><th>AI</th><td>Claude (<code>claude-sonnet-5</code>) — 스키마 강제 구조화 출력, 프리픽스 캐싱</td></tr>
-        <tr><th>백엔드</th><td>Cloudflare Workers — 키 격리 · 오리진 제한 · 호출 캡</td></tr>
-        <tr><th>배포</th><td>GitHub Pages + GitHub Actions (main 푸시 자동 배포)</td></tr>
-        <tr>
-          <th>UI 프레임워크</th>
-          <td><b>없음</b> — CSS 변수 + 자체 컴포넌트. 세계관을 남의 기본값에 맡기지 않는다</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="box box--why" style="margin-top:8mm">
-    <span class="box__l">지표 산출 방법</span>
-    <p>
-      커밋 수는 <code>git log --author=&lt;email&gt; --oneline | wc -l</code>,
-      디렉터리 수치는 <strong>커밋에서 그 디렉터리의 파일을 건드린 횟수</strong>(파일–커밋 쌍)이며
-      줄 수가 아니다. 코드 줄 수는 <code>src/</code>·<code>workers/</code>의
-      <code>.ts</code>·<code>.tsx</code>에서 테스트 파일을 제외한 값이다.
-    </p>
-    <p>
-      모든 수치는 <strong>2026-08-08 <code>main</code> 기준</strong>이며 리포에서 재현 가능하다.
-      <span class="tbd">〈팀명〉</span>은 제출 전에 채운다.
-    </p>
-  </div>
-
-  <span class="page__no">6</span>
+  <span class="page__no">4</span>
 </section>
 
 </body>
