@@ -1,0 +1,23 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Cap,Apple SD Gothic Neo,50,&H00FFFFFF,&H000000FF,&H40101010,&H96000000,1,0,0,0,100,100,1,0,3,14,0,2,120,120,46,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:02.70,0:00:07.80,Cap,,0,0,0,,1920년대 극장. 개막 십 분 전, 배우 한 명이 살해당했다
+Dialogue: 0,0:00:08.30,0:00:13.70,Cap,,0,0,0,,당신은 시민. 직업마다 능력이 다르고, 손패는 자기만 안다
+Dialogue: 0,0:00:17.50,0:00:20.00,Cap,,0,0,0,,반증되지 않은 카드가 정답이다
+Dialogue: 0,0:00:20.30,0:00:25.70,Cap,,0,0,0,,추리표를 채워가며 세 장을 고른다
+Dialogue: 0,0:00:26.30,0:00:30.70,Cap,,0,0,0,,반증할 카드를 쥔 AI가 추첨으로 정해진다
+Dialogue: 0,0:00:31.30,0:00:35.80,Cap,,0,0,0,,{\an8}AI는 없다고 잡아떼기도, 거짓으로 반증하기도 한다
+Dialogue: 0,0:00:36.00,0:00:40.70,Cap,,0,0,0,,{\an8}위증을 잡아내는 건 룰 엔진이다 — AI는 룰을 어길 수 없다
+Dialogue: 0,0:00:41.30,0:00:44.80,Cap,,0,0,0,,밀담에서는 하고 싶은 말을 직접 입력한다
+Dialogue: 0,0:00:45.30,0:00:50.70,Cap,,0,0,0,,AI는 자기 손패와 진영에 맞춰 답한다
+Dialogue: 0,0:00:51.30,0:00:59.40,Cap,,0,0,0,,고발이 빗나갔다. 이번엔 AI가 이겼다
