@@ -337,7 +337,7 @@ body { line-height: 1.55; }
     <div>1판 소요<br /><b>12~15분</b></div>
     <div>플랫폼<br /><b>웹 브라우저 · 설치 없음</b></div>
     <div>바로 하기<br /><b>rhantj.github.io/perjury</b></div>
-    <div style="grid-column:1/-1">플레이 영상<br /><b class="fill">［ 영상 URL — 제출 전 기입 ］</b></div>
+    <div style="grid-column:1/-1">플레이 영상<br /><b>youtube.com/watch?v=FMxYtOkhZDs</b></div>
   </div>
 </section>
 
@@ -966,8 +966,8 @@ body { line-height: 1.55; }
     </div>
     <div class="box box--ex">
       <span class="box__l">플레이 영상</span>
-      <p style="font-family:var(--display); font-size:13pt; line-height:1.5">
-        <span class="fill">［ 영상 URL — 제출 전 기입 ］</span>
+      <p style="font-family:var(--display); font-size:13pt; color:var(--lantern); line-height:1.5">
+        https://www.youtube.com/watch?v=FMxYtOkhZDs
       </p>
       <p>1판을 처음부터 끝까지 도는 화면 녹화다. 제안 → 반증 추첨 → 위증 → 이의제기 → 고발까지 한 번에 볼 수 있다.</p>
     </div>
@@ -984,21 +984,6 @@ body { line-height: 1.55; }
         <tr><th>저장</th><td>없음. 새로고침하면 새 판이 시작된다 — 시나리오와 카드 배분이 매번 다시 섞인다</td></tr>
       </tbody>
     </table>
-  </div>
-
-  <div class="rule">
-    <div class="rule__h"><span class="rule__n">9.3</span><span class="rule__t">직접 빌드해 보려면</span></div>
-    <pre>npm install       <span class="c"># Node 22 · npm 기준</span>
-npm run dev       <span class="c"># 개발 서버 (localhost:5173)</span>
-npm run build     <span class="c"># 타입 검사 + 프로덕션 빌드</span></pre>
-    <div class="box box--warn">
-      <span class="box__l">로컬에서는 AI가 다르게 움직인다</span>
-      <p>
-        AI 판단을 중계하는 서버는 허용된 주소에서만 응답한다. 로컬 개발 서버로 열면
-        <strong>사전 준비된 대사와 규칙 기반 판단</strong>으로 진행된다 —
-        <strong>게임은 처음부터 끝까지 정상으로 돌아가지만</strong>, AI의 실제 판단과 대사를 보시려면 위 배포 주소를 이용하시기 바란다.
-      </p>
-    </div>
   </div>
 
   <span class="page__no">12</span>
