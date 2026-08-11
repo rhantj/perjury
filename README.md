@@ -6,11 +6,11 @@
 
 **NAN 2026 — NHN Game × AI 해커톤 사전 과제**
 
-### ▶ [지금 플레이하기](https://rhantj.github.io/perjury/)
+### ▶ [지금 플레이하기](https://rhantj.github.io/perjury/) · [60초 데모 영상](https://youtu.be/FMxYtOkhZDs)
 
 설치도 로그인도 API 키도 필요 없다. 링크를 열면 바로 시작한다.
 
-![표지](docs/screenshots/01-landing.jpg)
+[![위증 PERJURY — 60초 데모 영상 (클릭하면 재생)](docs/screenshots/01-landing.jpg)](https://youtu.be/FMxYtOkhZDs)
 
 ---
 
