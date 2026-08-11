@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { participantLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import { PARLEY_LIMIT, parleysUsedIn } from '../engine/parley'
@@ -8,6 +8,19 @@ import type { GameView } from '../engine/view'
 
 /** 플레이어 입력 상한. 워커도 같은 값으로 막지만 **프론트는 위조 가능하므로 워커가 진짜 벽이다.** */
 const ASK_MAX = 200
+
+/**
+ * 질문을 쓸 수 있는 시간.
+ *
+ * **재는 것은 «쓰는 동안»뿐이다.** 상대를 고르는 것도, 답을 기다리고 읽는 것도 시간 밖이다.
+ * 응답 대기를 넣으면 LLM 지연이 플레이어 시간을 깎는다 — 회선이 느린 사람이 벌을 받고,
+ * 폴백으로 떨어진 라운드는 더 이상해진다. 사람이 통제할 수 있는 구간만 잰다.
+ *
+ * 20초인 것은 실측이 아니라 어림이다. 한국어 한 문장이 10~15초라 **고민할 여유는 거의
+ * 없는** 값이고, 그 압박이 이 자리의 의도다. 다만 처음 하는 사람은 예시 문구를 읽는 데만
+ * 몇 초를 쓰므로 **외부 플레이테스트에서 다시 정해야 한다**(고도화 계획 게이트 0).
+ */
+const ASK_SECONDS = 20
 
 interface ParleyProps {
   view: GameView
@@ -53,6 +66,37 @@ export default function Parley({
   const [reply, setReply] = useState('')
   /** 상대의 자기 신고. 화면에는 안 나온다 — 정보상만 결과로 받는다. */
   const [truthful, setTruthful] = useState<boolean | null>(null)
+  const [remaining, setRemaining] = useState(ASK_SECONDS)
+  /** 만료를 한 번만 처리한다. 렌더가 겹쳐도 onSkip이 두 번 불리면 안 된다. */
+  const expired = useRef(false)
+
+  /** 시간을 재는 구간. 질문을 쓰는 동안만이다. */
+  const writing = open && step === 'write'
+
+  /*
+   * 쓰기에 들어갈 때마다 다시 30초를 준다. 상대를 바꾸면 질문도 새로 쓰는 것이라
+   * 남은 시간을 물려받으면 두 번째 상대가 손해를 본다.
+   */
+  useEffect(() => {
+    if (!writing) return
+    expired.current = false
+    setRemaining(ASK_SECONDS)
+    const timer = window.setInterval(() => {
+      setRemaining((left) => (left > 0 ? left - 1 : 0))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [writing])
+
+  /*
+   * 만료되면 밀담을 닫는다. **회선은 닳지 않는다** — 판당 8회는 엔진이 실제 밀담 기록에서
+   * 세므로(engine/parley.ts), 시간을 넘겨도 잃는 것은 이번 라운드의 기회뿐이다.
+   * 자동 전송하지 않는 이유는 쓰다 만 문장이 그대로 나가면 그게 더 큰 벌이기 때문이다.
+   */
+  useEffect(() => {
+    if (!writing || remaining > 0 || expired.current) return
+    expired.current = true
+    onSkip()
+  }, [writing, remaining, onSkip])
 
   /*
    * 이번 라운드에 이미 이야기한 상대는 뺀다. 엔진이 거부하는 선택인데(engine/parley.ts)
@@ -144,6 +188,23 @@ export default function Parley({
       {step === 'write' && (
         <>
           <p className="parley__note">{josa(targetName, 'eul')} 불러 세웠다. 무슨 말을 하겠나.</p>
+          {/*
+            남은 시간. 막대는 scaleX로만 줄인다 — width를 건드리면 레이아웃이 매초 다시
+            잡히고, 그건 이 프로젝트가 애니메이션에 두는 제약 밖이다.
+            role="timer"에 aria-live를 걸지 않는 이유는 매초 읽어대면 입력을 방해해서다.
+          */}
+          <div
+            className={remaining <= 10 ? 'parley__clock parley__clock--tight' : 'parley__clock'}
+            role="timer"
+          >
+            <span className="parley__clock-num">{remaining}초</span>
+            <span className="parley__clock-rail">
+              <span
+                className="parley__clock-bar"
+                style={{ transform: `scaleX(${remaining / ASK_SECONDS})` }}
+              />
+            </span>
+          </div>
           <div className="parley__form">
             <input
               className="parley__input"

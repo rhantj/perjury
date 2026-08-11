@@ -1698,6 +1698,42 @@
   color: oklch(52% 0.012 80);
   font-variant-numeric: tabular-nums;
 }
+.parley__clock {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+}
+.parley__clock-num {
+  min-width: 2.6rem;
+  font-size: 0.74rem;
+  color: oklch(52% 0.012 80);
+  font-variant-numeric: tabular-nums;
+}
+.parley__clock-rail {
+  flex: 1 1 auto;
+  height: 2px;
+  background: var(--color-line);
+  /* 막대가 rail 밖으로 나가지 않게. scaleX가 1을 넘는 일은 없지만 경계를 명시해 둔다. */
+  overflow: hidden;
+}
+.parley__clock-bar {
+  display: block;
+  height: 100%;
+  background: var(--tone-key);
+  /* 왼쪽을 붙박아야 «줄어드는» 것으로 읽힌다. 가운데 기준이면 양쪽에서 오므라든다. */
+  transform-origin: left center;
+  transition: transform 1s linear;
+}
+.parley__clock--tight .parley__clock-num {
+  color: var(--tone-key);
+}
+/* 매초 기어가는 막대는 전정 자극이 된다. 숫자는 그대로 남으므로 정보를 잃지는 않는다. */
+@media (prefers-reduced-motion: reduce) {
+  .parley__clock-bar {
+    transition: none;
+  }
+}
 .parley__said {
   margin: 0;
   padding: 0.5rem 0.75rem;
