@@ -6,6 +6,104 @@
 
 **NAN 2026 — NHN Game × AI 해커톤 사전 과제**
 
+### ▶ [지금 플레이하기](https://rhantj.github.io/perjury/)
+
+설치도 로그인도 API 키도 필요 없다. 링크를 열면 바로 시작한다.
+
+![표지](docs/screenshots/01-landing.jpg)
+
+---
+
+## 30초 요약
+
+| | |
+|---|---|
+| **무엇** | 플레이어 1명 + LLM 에이전트 5명이 한 테이블에 앉는 싱글플레이 웹 추리게임 |
+| **핵심** | 클루의 반증 규칙에 **"거짓말해도 된다"** 한 줄을 더했다. 정보 게임이 심리 게임이 된다 |
+| **스택** | React 19 · TypeScript · Zustand · Vite / Cloudflare Workers / Claude Sonnet 5 |
+| **규모** | 2인 · 10일 · 커밋 424개 · 테스트 564개 |
+| **배포** | GitHub Pages 정적 호스팅. 푸시하면 자동 배포된다 |
+
+---
+
+## 화면
+
+| 사건 고르기 | 여섯 명의 이력 |
+|---|---|
+| ![사건 선택](docs/screenshots/02-scenario-select.jpg) | ![용의자](docs/screenshots/03-suspects.jpg) |
+| 시나리오 4종. 각각 용의자·수단·장소 구성이 다르다 | 각자 비밀과 동기가 있다. 시민도 감출 게 있다 |
+
+| 내 진영과 손패 | 테이블과 추리표 |
+|---|---|
+| ![브리핑](docs/screenshots/04-briefing.jpg) | ![테이블](docs/screenshots/05-table.jpg) |
+| 직업 10종 중 하나가 배정된다. 능력이 판을 흔든다 | 왼쪽에서 제안하고, 오른쪽에 소거법을 적는다 |
+
+---
+
+## 왜 이 스택인가
+
+배지를 나열하는 대신, 고른 이유를 적는다.
+
+| 고른 것 | 이유 | 버린 것 |
+|---|---|---|
+| **GitHub Pages 정적 배포** | 심사자가 링크 클릭만으로 플레이해야 한다. 서버 프로세스를 둘 수 없다 | Vercel·Netlify (계정 의존), Electron·Unity (`.exe` 제출 불가) |
+| **Cloudflare Workers 프록시** | 정적 호스팅에 API 키를 둘 수 없고 심사자에게 키를 요구할 수도 없다. 키 격리 + 레이트리밋 + 예산 캡을 한곳에서 한다 | 키를 프론트에 두기(유출), 심사자 BYOK(요건 위반) |
+| **순수 TS 룰 엔진** | `상태 + 행동 → 새 상태`. LLM이 게임 상태를 직접 못 바꾼다. **AI가 룰을 어기는 게 구조적으로 불가능**하다 | LLM에 판정을 맡기기(환각이 곧 룰 위반) |
+| **Zustand** | 화면 하나에 패널 전환뿐이라 라우터가 필요 없다. 스토어 1종으로 충분하다 | Redux(과함), Context(리렌더 범위 제어가 번거로움) |
+| **CSS 변수 + 자체 컴포넌트** | 1935년 경성이라는 톤을 프레임워크 기본값으로는 못 낸다 | Tailwind·MUI (템플릿 냄새) |
+| **Claude Sonnet 5** | 반증 판단 품질이 충분해 운영 모델로 정했다. 2026-08-03 실측 후 결정 (`docs/decisions/003-운영-llm-모델.md`) | Opus 5, Haiku |
+
+---
+
+## 구조
+
+```mermaid
+flowchart LR
+  subgraph B["브라우저 — GitHub Pages"]
+    UI["React UI"]
+    ENGINE["룰 엔진<br/>순수 함수"]
+    FALLBACK["사전생성 대사 풀"]
+    UI <--> ENGINE
+  end
+
+  subgraph CF["Cloudflare Workers"]
+    PROXY["프록시<br/>키 보관 · 레이트리밋 · 예산 캡"]
+  end
+
+  API["Anthropic API<br/>Claude Sonnet 5"]
+
+  UI -->|"행동 요청"| PROXY
+  PROXY -->|"구조화 출력"| API
+  API -.->|"장애 · 예산 소진"| FALLBACK
+  FALLBACK --> ENGINE
+  PROXY -->|"AI가 고른 행동"| ENGINE
+```
+
+**LLM이 정하는 것은 "무엇을 할지"뿐이고, 그 행동은 반드시 룰 엔진을 통과한다.**
+그래서 모델이 헛소리를 해도 게임 규칙은 깨지지 않는다.
+
+개발과 배포는 경로가 갈린다. 로컬은 `localhost:8787`, 배포본은 `*.workers.dev`를 부른다
+(`src/ai/proxy-url.ts`). **로컬에서 되는 것이 배포본에서 되는 것이 아니라서**, 동작 확인은 배포 링크에서 한다.
+
+---
+
+## 로컬 실행
+
+```bash
+git clone https://github.com/rhantj/perjury.git
+cd perjury
+npm install
+npm run dev          # http://localhost:5173
+```
+
+API 키 없이도 돌아간다. LLM 호출이 실패하면 사전생성 대사로 넘어가므로 게임은 끝까지 진행된다.
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm test             # vitest — 564개
+npm run build        # typecheck + vite build
+```
+
 ---
 
 ## 팀원용 — 어느 문서를 언제 보는가
@@ -157,9 +255,10 @@ LLM이 개입할 여지가 없고, 판정 결과는 아무에게도 보이지 �
 - **"없습니다" 선언은 이의제기 대상이 아니다.** "너는 그 카드를 갖고 있다"는 남의 손패를 볼 수 없으니 증명할 수 없다.
 - **라운드당 이의제기는 1회.** 한 번 제기되면 그 라운드는 닫힌다. (`src/engine/challenge.ts` — D8 밸런싱 대상)
 
-#### ④ 밀담 — 1:1 대화 **(미구현)**
+#### ④ 밀담 — 1:1 대화
 
-페이즈는 뚫려 있으나 엔진·UI 모두 비어 있다. 현재는 그냥 통과한다.
+라운드 끝에 열린다. 상대 하나를 골라 정보를 거래하거나 알리바이를 압박한다.
+판당 **8회**로 제한된다 (`src/engine/parley.ts` · `src/components/Parley.tsx`).
 
 ### 최종 고발 — 진영에 따라 주체가 다르다
 
