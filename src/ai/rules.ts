@@ -1,5 +1,6 @@
 import { cardKind, cardsOfKind } from '../engine/cards'
 import { createRng, pickOne } from '../engine/rng'
+import { isDiscredited, trustFrom } from '../engine/trust'
 import type { CardId, CardKind, Claim, PlayerId, Suggestion } from '../engine/types'
 import type { GameView } from '../engine/view'
 
@@ -33,19 +34,45 @@ const ALL_CARDS: readonly CardId[] = cardsOfKind('suspect')
   .map((c) => c.id)
 
 /**
+ * 위증이 «증명된» 좌석. 그 사람의 선언은 계산에서 뺀다.
+ *
+ * 근거를 세는 것은 engine/trust가 하고, 여기서는 그 결과를 쓸지만 정한다.
+ * 신뢰도를 무는 곳이 «소거»뿐인 것은 방향 때문이다 — 침묵으로 「없다」를 짚는
+ * deniedCards에까지 물리면 위증자의 침묵을 못 믿게 되어 accusationFrom의
+ * 「전원이 없다」가 영영 성립하지 않는다. **걸린 것이 오히려 안전해진다.**
+ */
+function discreditedSeats(view: GameView): Set<PlayerId> {
+  const trust = trustFrom(view)
+  const seats = new Set<PlayerId>()
+  for (const player of view.players) {
+    if (isDiscredited(trust.get(player.id))) seats.add(player.id)
+  }
+  return seats
+}
+
+/**
  * 지금까지 "누군가 갖고 있다"고 관측된 카드.
  *
  * 선언을 액면 그대로 믿는다. 이 순진함이 의도한 것이다 —
  * 위증이 통하는 이유가 여기다. 거짓 반증 하나가 이 집합을 오염시키고,
  * 특히 정답 카드로 위증하면 진짜 정답이 후보에서 지워진다.
+ *
+ * **단, 걸린 뒤에는 아니다.** 위증이 증명된 좌석의 선언은 판 전체에서 빠진다.
+ * 소급인 것이 핵심이다 — 「걸린 뒤부터」로 좁히면 판 초반의 거짓말이 영구히 남아
+ * 위증의 대가가 절반이 되고, 그러면 잡아도 판이 되돌아오지 않는다.
+ *
+ * 공개된 카드(revealed)는 이 할인을 받지 않는다. 말이 아니라 «까서 보여준 것»이라
+ * 거짓말할 여지가 없다.
  */
 function eliminated(view: GameView): Set<CardId> {
   const out = new Set<CardId>()
+  const liars = discreditedSeats(view)
 
   for (const card of me(view).hand ?? []) out.add(card)
   for (const player of view.players) for (const card of player.revealed) out.add(card)
   for (const round of view.rounds) {
     for (const declaration of round.declarations) {
+      if (liars.has(declaration.playerId)) continue
       /*
        * 비공개 반증이라 내가 제안자가 아니었던 라운드는 카드가 null이다.
        * 안 보이는 것은 소거할 수 없다 — 추측으로 메우면 AI만 아는 정보가 생긴다.
