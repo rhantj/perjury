@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
+import { suggestionFrom } from '../ai/rules'
 import { playBgm, playSfx, unlock } from '../audio/audio'
 import type { SfxName } from '../audio/audio'
 import { cardLabel, cardNames, participantLabel, seatSlot, subjectLabel } from '../content/labels'
@@ -47,6 +48,17 @@ function toSuggestion(picked: Picked): Suggestion | null {
   const { suspect, weapon, place } = picked
   return suspect && weapon && place ? { suspect, weapon, place } : null
 }
+
+/**
+ * 제안에 주는 시간. **밀담(20초)보다 훨씬 길다 — 재는 것이 다르기 때문이다.**
+ *
+ * 밀담은 «치는 속도»를 재지만 제안은 «판단»을 잰다. 클릭은 세 번이어도 그 앞에
+ * 추리표를 훑고 어느 칸을 확인할지 정하는 시간이 붙는다. 게다가 제안 버튼이
+ * 추리표의 행 라벨 자체라, 짧게 잡으면 사실상 표 읽는 시간에 제한을 거는 셈이 된다.
+ *
+ * 어림값이다. 테이블 화면 정리(고도화 계획 D-1·D-3) 뒤에 다시 재야 한다.
+ */
+const SUGGEST_SECONDS = 60
 
 /** 화면 전체 알림 한 건. round는 라운드가 넘어갈 때, myTurn은 내 제안 차례가 될 때 큐에 들어간다. */
 interface FlashEvent {
@@ -175,6 +187,20 @@ function cardArtFor(scenario: Scenario, id: CardId): string | undefined {
 export default function GameScreen() {
   const store = useGame()
   const [picked, setPicked] = useState<Picked>({})
+  const [suggestLeft, setSuggestLeft] = useState(SUGGEST_SECONDS)
+  /** 시간이 다 되어 «대신» 제안한 회차. 그 회차 동안만 그렇게 됐다고 알린다. */
+  const [autoRound, setAutoRound] = useState<number | null>(null)
+  /**
+   * 만료 시각. 남은 초를 여기서 계산한다.
+   *
+   * 숫자를 1씩 빼는 방식은 내 차례가 **여섯 회차마다 다시 오기 때문에** 못 쓴다 —
+   * 지난 차례에 0으로 끝났으면, 다음 차례가 열리는 렌더에서 「0초 남음」이 아직
+   * 지워지지 않은 채로 만료 판정에 걸려 곧바로 자동 제안이 나간다.
+   * 시각을 기준으로 두면 초기화가 한 박자 늦어도 만료로 읽히지 않는다.
+   */
+  const deadline = useRef(0)
+  /** 한 차례에 한 번만 대신 제안한다. */
+  const autoFired = useRef(false)
   /**
    * 조기 고발을 «고르는 중»인가.
    *
@@ -633,12 +659,62 @@ export default function GameScreen() {
     await callAccusation(store.accuseEarly)
   }
 
-  const submit = async (action: (s: Suggestion) => Promise<void>) => {
-    const suggestion = toSuggestion(picked)
+  /** override는 시간이 다 됐을 때만 온다 — 사람이 세 칸을 못 채웠어도 진행해야 하는 자리다. */
+  const submit = async (action: (s: Suggestion) => Promise<void>, override?: Suggestion) => {
+    const suggestion = override ?? toSuggestion(picked)
     if (!suggestion) return
     await action(suggestion)
     setPicked({})
   }
+
+  /*
+   * 제안 제한시간이 도는 구간.
+   *
+   * 조기 고발 중(accusing)에는 재지 않는다. 고발을 짜는 동안 제안이 대신 나가면
+   * 두 개의 다른 행동이 한 타이머에 묶인다. 탈락자는 제안 자체를 못 하므로 뺀다.
+   */
+  const timingSuggest =
+    view.phase === 'suggest' && myMove && !accusing && !iAmOut && !view.outcome
+
+  useEffect(() => {
+    if (!timingSuggest) return
+    deadline.current = Date.now() + SUGGEST_SECONDS * 1000
+    autoFired.current = false
+    setSuggestLeft(SUGGEST_SECONDS)
+    /* 250ms마다 보는 이유는 탭이 백그라운드에서 눌린 뒤 돌아왔을 때 숫자가 빨리 따라잡게 하려는 것이다. */
+    const timer = window.setInterval(() => {
+      setSuggestLeft(Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000)))
+    }, 250)
+    return () => window.clearInterval(timer)
+  }, [timingSuggest])
+
+  /*
+   * 만료. **회차를 버리지 않고 대신 제안한다.**
+   *
+   * 넘겨버리면 24회차 중 하나가 통째로 날아가고 그 회차의 정보까지 같이 잃는다.
+   * 제안은 판을 굴리는 유일한 능동 행위라 벌이 너무 무겁다. 대신 규칙 기반 에이전트가
+   * 쓰는 것과 같은 «남은 후보» 선택(ai/rules.ts)으로 채운다 — 최소한 소거는 진행된다.
+   *
+   * 사람이 이미 고른 칸은 남긴다. 두 칸을 골라두고 시간이 갔다면 그 둘은 의사 표시다.
+   *
+   * 의존성 배열을 두지 않는다. picked·submit·store가 전부 매 렌더 새로 만들어지는 값이라
+   * 나열해도 매번 다시 도는 것은 같은데, 빠뜨리면 한 박자 묵은 picked로 제안이 나간다.
+   * 실제 차단은 위 두 줄의 ref 가드가 한다.
+   */
+  useEffect(() => {
+    if (!timingSuggest || autoFired.current) return
+    if (suggestLeft > 0 || Date.now() < deadline.current) return
+    autoFired.current = true
+
+    const filled = suggestionFrom(view, `auto-${view.round}`)
+    setAutoRound(view.round)
+    fireActionFlash('suggest')
+    void submit(store.suggest, {
+      suspect: picked.suspect ?? filled.suspect,
+      weapon: picked.weapon ?? filled.weapon,
+      place: picked.place ?? filled.place,
+    })
+  })
 
   /** 반증 제출. 내 손패와 대조해 «지금 내가 거짓을 말하는지» 그 자리에서 판정한다 — 이건 남이 아니라 나만의 사실이다. */
   const handleRefute = (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => {
@@ -839,19 +915,43 @@ export default function GameScreen() {
             없어서 반증 페이즈에서 판이 영영 멈춘다 — 화면만의 소프트락이었다.
           */}
           {accusing || (iAmOut && view.phase !== 'refute') ? null : view.outcome ? null : !myMove ? (
-            <Waiting note={judging ? '고발을 가리는 중' : '다른 사람 추측중'} />
+            <Waiting
+              note={
+                judging
+                  ? '고발을 가리는 중'
+                  : /* 대신 나간 제안은 반드시 알린다. 안 고른 카드가 상에 올라간 이유가 여기밖에 없다. */
+                    autoRound === view.round
+                    ? '시간이 다 되어 남은 후보로 제안했다'
+                    : '다른 사람 추측중'
+              }
+            />
           ) : view.phase === 'suggest' ? (
-            <button
-              type="button"
-              className="btn btn--go"
-              disabled={!toSuggestion(picked)}
-              onClick={() => {
-                fireActionFlash('suggest')
-                submit(store.suggest)
-              }}
-            >
-              제안 확정
-            </button>
+            <>
+              {/* 막대는 scaleX만 쓴다 — width를 건드리면 매초 레이아웃이 다시 잡힌다. */}
+              <div
+                className={suggestLeft <= 15 ? 'turn-clock turn-clock--tight' : 'turn-clock'}
+                role="timer"
+              >
+                <span className="turn-clock__num">{suggestLeft}초</span>
+                <span className="turn-clock__rail">
+                  <span
+                    className="turn-clock__bar"
+                    style={{ transform: `scaleX(${suggestLeft / SUGGEST_SECONDS})` }}
+                  />
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn--go"
+                disabled={!toSuggestion(picked)}
+                onClick={() => {
+                  fireActionFlash('suggest')
+                  submit(store.suggest)
+                }}
+              >
+                제안 확정
+              </button>
+            </>
           ) : view.phase === 'refute' ? (
             <RefuteBar
               view={view}
