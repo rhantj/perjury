@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      아이콘을 여기 인라인으로 박는 이유가 둘이다.
+      1) 없으면 브라우저가 «도메인 루트»의 /favicon.ico를 찾는다. base가 '/perjury/'라 그 주소는
+         404이고 콘솔에 에러가 남는다. 링크를 명시해야 base 아래를 보게 된다.
+      2) 파일로 두려면 publicDir이 필요한데, 폴더를 옮기고 publicDir을 안 고쳐 아이콘이 빌드에서
+         통째로 빠진 전례가 있다(TROUBLESHOOTING TS-001). data URI는 문서에 그대로 실려 그 함정이 없다.
+      표지의 檢을 그대로 쓴다. 색은 --color-bg / --color-accent와 같은 계열이다.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23231c16'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='%23e08a52' font-family='serif'%3E%E6%AA%A2%3C/text%3E%3C/svg%3E"
+    />
     <title>위증 (PERJURY)</title>
     <meta
       name="description"
