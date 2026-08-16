@@ -561,6 +561,100 @@ export default function GameScreen() {
     })
   }, [view, stage, opening, enqueueFlash])
 
+  /* ================================================================
+   * 제안 제한시간 — **훅이므로 아래 조기 return보다 위에 있어야 한다**
+   *
+   * 예전에는 이 두 훅이 return 아래(원탁을 그리는 구역)에 있었다. 그러면 표지·브리핑
+   * 렌더에서는 훅이 여기까지만 돌고, 원탁으로 넘어가는 렌더에서만 두 개가 더 돈다 —
+   * React는 훅을 «순서와 개수»로 식별하므로 그 순간 «이전 렌더보다 훅이 많다»로 터졌다
+   * (Rules of Hooks 위반, minified React error #310). 착석하는 순간 화면이 통째로
+   * 검게 죽어 판을 시작조차 할 수 없었다.
+   *
+   * 그래서 훅이 쓰는 값들(myMove·iAmOut·submit)도 같이 올렸다. 아래에서 화면을 그릴 때도
+   * 같은 값을 쓰므로 여기서 한 번만 계산하고 아래는 그걸 읽는다.
+   *
+   * 대신 return이 해 주던 «원탁일 때만 돈다»를 timingSuggest가 직접 들고 있어야 한다.
+   * 안 그러면 브리핑을 보는 동안 제안 타이머가 혼자 돌아 만료된다.
+   * ================================================================ */
+
+  /**
+   * 사람이 지금 조작할 수 있는가. AI가 판단 중이면 false다.
+   *
+   * store는 이미 이 값을 내주고 있었지만 화면이 읽지 않아서, 유일한 잠금이
+   * store `apply`의 «조용히 삼키는» 가드뿐이었다. 눌러도 아무 일이 없으니
+   * 멈춘 것처럼 보이고, 판단이 끝나 버튼이 갈리는 순간 클릭이 엉뚱한 곳에 떨어졌다.
+   */
+  const myMove = store.awaitingHuman()
+  const iAmOut = view ? view.eliminated.includes(view.viewerId) : false
+
+  /** override는 시간이 다 됐을 때만 온다 — 사람이 세 칸을 못 채웠어도 진행해야 하는 자리다. */
+  const submit = async (action: (s: Suggestion) => Promise<void>, override?: Suggestion) => {
+    const suggestion = override ?? toSuggestion(picked)
+    if (!suggestion) return
+    await action(suggestion)
+    setPicked({})
+  }
+
+  /*
+   * 제한시간이 도는 구간.
+   *
+   * 조기 고발 중(accusing)에는 재지 않는다. 고발을 짜는 동안 제안이 대신 나가면
+   * 두 개의 다른 행동이 한 타이머에 묶인다. 탈락자는 제안 자체를 못 하므로 뺀다.
+   *
+   * 앞의 세 줄(view·stage·scenario)이 예전에 조기 return이 해 주던 몫이다.
+   */
+  const timingSuggest =
+    view !== null &&
+    stage === 'play' &&
+    scenario !== null &&
+    view.phase === 'suggest' &&
+    myMove &&
+    !accusing &&
+    !iAmOut &&
+    !view.outcome
+
+  useEffect(() => {
+    if (!timingSuggest) return
+    deadline.current = Date.now() + SUGGEST_SECONDS * 1000
+    autoFired.current = false
+    setSuggestLeft(SUGGEST_SECONDS)
+    /* 250ms마다 보는 이유는 탭이 백그라운드에서 눌린 뒤 돌아왔을 때 숫자가 빨리 따라잡게 하려는 것이다. */
+    const timer = window.setInterval(() => {
+      setSuggestLeft(Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000)))
+    }, 250)
+    return () => window.clearInterval(timer)
+  }, [timingSuggest])
+
+  /*
+   * 만료. **회차를 버리지 않고 대신 제안한다.**
+   *
+   * 넘겨버리면 24회차 중 하나가 통째로 날아가고 그 회차의 정보까지 같이 잃는다.
+   * 제안은 판을 굴리는 유일한 능동 행위라 벌이 너무 무겁다. 대신 규칙 기반 에이전트가
+   * 쓰는 것과 같은 «남은 후보» 선택(ai/rules.ts)으로 채운다 — 최소한 소거는 진행된다.
+   *
+   * 사람이 이미 고른 칸은 남긴다. 두 칸을 골라두고 시간이 갔다면 그 둘은 의사 표시다.
+   *
+   * 의존성 배열을 두지 않는다. picked·submit·store가 전부 매 렌더 새로 만들어지는 값이라
+   * 나열해도 매번 다시 도는 것은 같은데, 빠뜨리면 한 박자 묵은 picked로 제안이 나간다.
+   * 실제 차단은 아래 ref 가드가 한다.
+   */
+  useEffect(() => {
+    if (!timingSuggest || autoFired.current) return
+    if (suggestLeft > 0 || Date.now() < deadline.current) return
+    /* timingSuggest가 이미 보장하지만 타입은 그걸 모른다. */
+    if (!view) return
+    autoFired.current = true
+
+    const filled = suggestionFrom(view, `auto-${view.round}`)
+    setAutoRound(view.round)
+    fireActionFlash('suggest')
+    void submit(store.suggest, {
+      suspect: picked.suspect ?? filled.suspect,
+      weapon: picked.weapon ?? filled.weapon,
+      place: picked.place ?? filled.place,
+    })
+  })
+
   if (!store.state || !view)
     return <Landing seed={seed} onSeed={setSeed} onStart={() => open(newSeed())} />
 
@@ -584,14 +678,6 @@ export default function GameScreen() {
       />
     )
 
-  /**
-   * 사람이 지금 조작할 수 있는가. AI가 판단 중이면 false다.
-   *
-   * store는 이미 이 값을 내주고 있었지만 화면이 읽지 않아서, 유일한 잠금이
-   * store `apply`의 «조용히 삼키는» 가드뿐이었다. 눌러도 아무 일이 없으니
-   * 멈춘 것처럼 보이고, 판단이 끝나 버튼이 갈리는 순간 클릭이 엉뚱한 곳에 떨어졌다.
-   */
-  const myMove = store.awaitingHuman()
   // 이번 라운드에 이미 건 밀담 수. 회선이 둘인 좌석에서 패널을 다시 열 때 쓴다.
   const liveParleys = view.rounds[view.rounds.length - 1]?.parleys.length ?? 0
 
@@ -603,7 +689,6 @@ export default function GameScreen() {
    * 「판 종료·범인 승」과 「나만 탈락·판 계속」으로 갈려, 룰이 화면 배선에 따라 정해진다.
    * 엔진도 같은 이유로 막는다(engine/progress.ts의 accuseEarly).
    */
-  const iAmOut = view.eliminated.includes(view.viewerId)
   const canAccuseEarly = !iAmOut && !view.outcome && view.phase !== 'accuse' && view.phase !== 'over'
 
   const picking = ((view.phase === 'suggest' || view.phase === 'accuse') && myMove) || accusing
@@ -658,63 +743,6 @@ export default function GameScreen() {
     setAccusing(false)
     await callAccusation(store.accuseEarly)
   }
-
-  /** override는 시간이 다 됐을 때만 온다 — 사람이 세 칸을 못 채웠어도 진행해야 하는 자리다. */
-  const submit = async (action: (s: Suggestion) => Promise<void>, override?: Suggestion) => {
-    const suggestion = override ?? toSuggestion(picked)
-    if (!suggestion) return
-    await action(suggestion)
-    setPicked({})
-  }
-
-  /*
-   * 제안 제한시간이 도는 구간.
-   *
-   * 조기 고발 중(accusing)에는 재지 않는다. 고발을 짜는 동안 제안이 대신 나가면
-   * 두 개의 다른 행동이 한 타이머에 묶인다. 탈락자는 제안 자체를 못 하므로 뺀다.
-   */
-  const timingSuggest =
-    view.phase === 'suggest' && myMove && !accusing && !iAmOut && !view.outcome
-
-  useEffect(() => {
-    if (!timingSuggest) return
-    deadline.current = Date.now() + SUGGEST_SECONDS * 1000
-    autoFired.current = false
-    setSuggestLeft(SUGGEST_SECONDS)
-    /* 250ms마다 보는 이유는 탭이 백그라운드에서 눌린 뒤 돌아왔을 때 숫자가 빨리 따라잡게 하려는 것이다. */
-    const timer = window.setInterval(() => {
-      setSuggestLeft(Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000)))
-    }, 250)
-    return () => window.clearInterval(timer)
-  }, [timingSuggest])
-
-  /*
-   * 만료. **회차를 버리지 않고 대신 제안한다.**
-   *
-   * 넘겨버리면 24회차 중 하나가 통째로 날아가고 그 회차의 정보까지 같이 잃는다.
-   * 제안은 판을 굴리는 유일한 능동 행위라 벌이 너무 무겁다. 대신 규칙 기반 에이전트가
-   * 쓰는 것과 같은 «남은 후보» 선택(ai/rules.ts)으로 채운다 — 최소한 소거는 진행된다.
-   *
-   * 사람이 이미 고른 칸은 남긴다. 두 칸을 골라두고 시간이 갔다면 그 둘은 의사 표시다.
-   *
-   * 의존성 배열을 두지 않는다. picked·submit·store가 전부 매 렌더 새로 만들어지는 값이라
-   * 나열해도 매번 다시 도는 것은 같은데, 빠뜨리면 한 박자 묵은 picked로 제안이 나간다.
-   * 실제 차단은 위 두 줄의 ref 가드가 한다.
-   */
-  useEffect(() => {
-    if (!timingSuggest || autoFired.current) return
-    if (suggestLeft > 0 || Date.now() < deadline.current) return
-    autoFired.current = true
-
-    const filled = suggestionFrom(view, `auto-${view.round}`)
-    setAutoRound(view.round)
-    fireActionFlash('suggest')
-    void submit(store.suggest, {
-      suspect: picked.suspect ?? filled.suspect,
-      weapon: picked.weapon ?? filled.weapon,
-      place: picked.place ?? filled.place,
-    })
-  })
 
   /** 반증 제출. 내 손패와 대조해 «지금 내가 거짓을 말하는지» 그 자리에서 판정한다 — 이건 남이 아니라 나만의 사실이다. */
   const handleRefute = (claim: { kind: 'refute'; cardId: CardId } | { kind: 'pass' }) => {
