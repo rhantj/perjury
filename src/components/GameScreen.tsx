@@ -130,14 +130,25 @@ interface FlashEvent {
  * 큐에 «넣을 때»가 아니라 화면에 «뜰 때» 울려야 한다 — 앞선 알림이 대기 중이면
  * 소리만 몇 초 먼저 나가 엉뚱한 장면에 얹힌다. 그래서 runFlashQueue가 이걸 읽는다.
  *
- * caught에 위증 효과음을 같이 매는 이유는 그 컷이 «남의 위증이 드러나는» 순간이라서다.
- * perjury는 내가 거짓 반증을 낼 때만 뜨므로, 이것만 걸면 AI가 걸리는 쪽에는 소리가 없다.
+ * 알림 열 종류에 소리를 하나씩 물린다. 짝이 비면 그 컷만 무성영화가 되는데,
+ * 화면은 큰 사건이라고 말하는데 소리가 없으니 «덜 만든 연출»로 읽힌다.
+ *
+ * challengeCall과 caught를 갈라 놓은 이유는 둘이 한 사건의 두 박자여서다 —
+ * 지목은 위로 열리고(질문), 발각은 아래로 무너진다(대답). 같은 소리를 쓰면 박자가 안 진다.
+ * 예전에는 caught가 perjury 소리를 같이 썼는데, perjury는 «아직 아무도 모르는 한 수»라
+ * 일부러 잠잠하게 만든 소리라서 판에서 가장 큰 사건에 얹기에는 너무 작았다.
  */
 const SFX_FOR_FLASH: Partial<Record<FlashEvent['kind'], SfxName>> = {
+  round: 'round',
   suggest: 'suggest',
   refute: 'refute',
   perjury: 'perjury',
-  caught: 'perjury',
+  myTurn: 'myTurn',
+  caught: 'caught',
+  challengeCall: 'challenge',
+  wrongCall: 'wrongCall',
+  draw: 'draw',
+  ousted: 'ousted',
 }
 
 /**
@@ -560,6 +571,26 @@ export default function GameScreen() {
       ms: 1800,
     })
   }, [view, stage, opening, enqueueFlash])
+
+  /*
+   * 판이 끝나는 소리. 이것만 큐를 타지 않는다 — 결말은 화면 전체 알림이 아니라
+   * 눌러앉는 판정 패널(Verdict)이라, 큐에 넣으면 패널이 이미 떠 있는데 소리는
+   * 앞선 알림들이 다 빠질 때까지 기다렸다가 뒤늦게 울린다.
+   *
+   * 판을 다시 시작하면 outcome이 null로 돌아오므로 그때 잠금을 푼다.
+   * 켜진 채로 두면 두 번째 판의 결말이 조용히 지나간다.
+   */
+  const soundedOutcomeRef = useRef(false)
+  useEffect(() => {
+    const outcome = view?.outcome ?? null
+    if (!outcome) {
+      soundedOutcomeRef.current = false
+      return
+    }
+    if (soundedOutcomeRef.current) return
+    soundedOutcomeRef.current = true
+    playSfx(outcome.viewerWon ? 'win' : 'lose')
+  }, [view?.outcome])
 
   /* ================================================================
    * 제안 제한시간 — **훅이므로 아래 조기 return보다 위에 있어야 한다**
