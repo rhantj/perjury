@@ -126,7 +126,7 @@ npm run build        # typecheck + vite build
 | [session-resume/](session-resume/) | 세션별 진행 스냅샷 — 어디까지 했고 **다음에 어디부터** 손대는지 | **작업을 시작할 때 최신 파일부터.** 이어받는 지점이 여기 있다 |
 | `docs/decisions/` | 아키텍처·데이터 모델이 바뀐 이유 (한 파일 한 결정) | "왜 이렇게 돼 있지?" 싶을 때 |
 | [docs/api-contract.md](docs/api-contract.md) | 프록시 계약 — `/decide` 요청·응답 스키마, 에러 코드 9종, 입력 상한, 예산·CORS | 워커를 건드리거나 새 호출부를 붙일 때 |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | 막혔던 것 5선 — 증상·틀린 가설·해결·배운 점 | 비슷한 증상을 만났을 때, 같은 함정을 다시 밟기 전에 |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | 막혔던 것 6선 — 증상·틀린 가설·해결·배운 점 | 비슷한 증상을 만났을 때, 같은 함정을 다시 밟기 전에 |
 | [docs/retrospective.md](docs/retrospective.md) | 회고 — 알면서 남긴 부채, 다시 만든다면 다르게 할 것 | 이 프로젝트를 이어받거나 비슷한 것을 새로 시작할 때 |
 
 ### 문서를 나눈 기준
@@ -529,7 +529,7 @@ git clone → npm install → typecheck 통과 → 테스트 564개 통과 → b
 
 ## 막혔던 것
 
-10일 동안 붙잡았던 것 중 다섯 개를 **[docs/troubleshooting.md](docs/troubleshooting.md)** 에 정리했다.
+붙잡았던 것 중 여섯 개를 **[docs/troubleshooting.md](docs/troubleshooting.md)** 에 정리했다.
 실패한 시도를 지우지 않았다.
 
 | 무엇 | 왜 남길 만한가 |
