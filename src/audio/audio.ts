@@ -167,6 +167,21 @@ export function playBgm(name: BgmName): void {
 }
 
 /**
+ * 배경음을 멎게 한다. playBgm의 짝이다.
+ *
+ * 음소거와 다르다. 음소거는 «틀어 둔 채 볼륨만 0»이라 효과음까지 같이 잠기지만,
+ * 이건 곡 자체를 끊으므로 효과음은 그대로 들린다. 소리를 하나씩 확인할 때 필요하다.
+ * 다시 걸면 처음부터 시작한다 — 흐르던 자리를 지키고 싶으면 setMuted를 쓴다.
+ */
+export function stopBgm(): void {
+  pending = null
+  const track = current
+  if (!track) return
+  current = null
+  fade(track, 0, () => track.handle.stop())
+}
+
+/**
  * 효과음 한 방. 파일이 있으면 매번 새 Audio를 만든다 — 하나를 돌려 쓰면
  * 앞의 소리가 아직 울리는 중에 다음 것이 그것을 잘라먹기 때문이다.
  * 파일은 브라우저가 캐시하므로 새로 받지 않는다.
