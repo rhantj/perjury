@@ -32,39 +32,91 @@ function context(): AudioContext | null {
   return ctx
 }
 
-let bus: DynamicsCompressorNode | null = null
+let bus: GainNode | null = null
 
 /**
- * 모든 소리가 지나는 출구. 리미터를 한 겹 두는 이유는 한 효과음이 배음 대여섯 개를
- * 동시에 쌓기 때문이다 — 그냥 더하면 1.0을 넘겨 «지직»거리는 클리핑이 난다.
+ * 모든 소리가 지나는 출구. 여기 연결하면 아래 순서를 지나 스피커로 나간다.
+ *
+ *   [입력] → 트림 → 리미터 → 안전 클리퍼 → 스피커
+ *
+ * **순서가 이 함수의 전부다.** 앞선 판본은 포화기를 리미터 «앞»에 뒀는데, 그건 틀렸다.
+ * WaveShaper의 곡선은 입력 −1~1 구간만 정의되고 그 밖은 끝값으로 하드 클립된다.
+ * 효과음 하나가 겹을 스무 개씩 쌓으면 리미터에 닿기 전에 합이 1을 훌쩍 넘고,
+ * 포화기가 그걸 통째로 잘라 «지직»거렸다. 포화는 신호가 이미 눌린 뒤에 걸어야 안전하다.
+ *
+ * 트림을 앞에 두는 이유도 같다. 겹이 늘어날수록 합은 계속 커지는데 리미터만으로 누르면
+ * 눌리는 양이 커져 소리가 «펌핑»한다. 먼저 줄여서 들여보내면 리미터는 정말 튀는 것만 잡는다.
  */
 export function output(): AudioNode | null {
   const c = context()
   if (!c) return null
   if (bus) return bus
-  const comp = c.createDynamicsCompressor()
   const at = c.currentTime
-  comp.threshold.setValueAtTime(-14, at)
-  comp.knee.setValueAtTime(12, at)
-  comp.ratio.setValueAtTime(8, at)
-  comp.attack.setValueAtTime(0.003, at)
-  comp.release.setValueAtTime(0.25, at)
-  comp.connect(c.destination)
-  bus = comp
-  return comp
+
+  const trim = c.createGain()
+  trim.gain.setValueAtTime(MASTER_TRIM, at)
+
+  /*
+   * 문턱을 −3에서 −8로 내리고 비율을 완만하게(14 → 6) 했다.
+   *
+   * 문턱이 높고 비율이 세면 «큰 것만 세게 때리는» 리미터가 된다. 큰 소리는 못 커지고
+   * 작은 소리는 그대로라 전체가 조용한데 튀기만 한다. 문턱을 내리면 거의 모든 소리가
+   * 조금씩 눌리는 대신 트림으로 밀어 넣은 만큼이 평균 음량으로 남는다.
+   */
+  const limiter = c.createDynamicsCompressor()
+  limiter.threshold.setValueAtTime(-8, at)
+  limiter.knee.setValueAtTime(6, at)
+  limiter.ratio.setValueAtTime(6, at)
+  limiter.attack.setValueAtTime(0.003, at)
+  limiter.release.setValueAtTime(0.18, at)
+
+  const safety = c.createWaveShaper()
+  safety.curve = softClip()
+  /* 4배 오버샘플. 안 하면 포화가 만든 고배음이 접혀 내려와 그 자체로 «지직»거린다. */
+  safety.oversample = '4x'
+
+  /*
+   * **소리가 작았던 진짜 이유가 여기 있었다.**
+   *
+   * 안전 클리퍼의 곡선 x − 0.28x³ 은 입력 1에서 0.72를 낸다. 즉 아무리 세게 밀어 넣어도
+   * 출력이 0.72를 넘지 못하는데, 그걸 되올리는 단이 없어서 **최대치의 72%가 천장**이었다.
+   * 값을 아무리 키워도 «시스템 볼륨을 최대로 해야 들리는» 상태가 풀리지 않던 게 이것이다.
+   *
+   * 1/0.72 = 1.388. 이 값을 넘기면 안 된다 — 넘긴 만큼은 브라우저가 destination에서
+   * 각지게 자르므로, 둥글게 눌러 두고 되올린 의미가 사라진다.
+   */
+  const makeup = c.createGain()
+  makeup.gain.setValueAtTime(1.38, at)
+
+  trim.connect(limiter).connect(safety).connect(makeup).connect(c.destination)
+  bus = trim
+  return trim
 }
 
 let sfx: GainNode | null = null
 
+/**
+ * 합쳐진 소리를 스피커로 보내기 전에 줄이는 양.
+ *
+ * 겹이 스무 개 넘게 쌓이는 효과음이 여럿이라, 이게 없으면 리미터가 상시 최대로 일하며
+ * 소리가 출렁인다. 낮출수록 안전하지만 전체가 작아지므로, 큰 소리(발각·패배)가
+ * 리미터를 살짝 건드리는 정도로 맞춘 값이다.
+ *
+ * 1을 넘겨 리미터로 «밀어 넣는» 값이다. 리미터 앞이라 초과분은 각지게 잘리지 않고 눌리고,
+ * 그만큼 작은 소리와 큰 소리의 간격이 좁혀져 전체가 크게 들린다. 시스템 볼륨을 최대로
+ * 올려야 겨우 들린다는 지적 때문에 올렸다 — 더 올리면 리미터가 상시 일하며 소리가 출렁인다.
+ */
+const MASTER_TRIM = 2.2
+
 /** 효과음이 방에 젖는 정도. 배경음보다 낮다 — 도장·카드까지 흐려지면 조작감이 사라진다. */
-const SFX_ROOM = 0.32
+const SFX_ROOM = 0.24
 
 /**
- * 부드러운 포화 곡선. 큰 신호만 눌러 배음을 더한다.
+ * 부드러운 포화 곡선. 리미터 뒤에 놓여 «넘어온 것만» 둥글게 눌러 준다.
  *
- * x - 0.28x³ 은 작은 값에서는 기울기가 1이라 조용한 소리를 건드리지 않고,
- * 1에 가까워질수록 눌려 3차 배음이 생긴다. 타격의 «쨍» 하는 성분이 이것이다.
- * 순수 오실레이터만으로는 이 배음이 없어서 소리가 얇게 들린다.
+ * x − 0.28x³ 은 작은 값에서 기울기가 1이라 조용한 소리를 건드리지 않고,
+ * 1에 가까워질수록 눌려 3차 배음이 생긴다. 리미터가 놓친 순간적인 피크를
+ * 각지게 자르지 않고 둥글게 만드는 것이 목적이라, 이 자리에서는 음색이 아니라 안전장치다.
  */
 function softClip(): Float32Array<ArrayBuffer> {
   const n = 1024
@@ -88,14 +140,7 @@ function sfxBus(): GainNode | null {
   if (sfx) return sfx
   const node = c.createGain()
   node.gain.setValueAtTime(1, c.currentTime)
-
-  const shaper = c.createWaveShaper()
-  shaper.curve = softClip()
-  /* 4배 오버샘플. 안 하면 포화가 만든 고배음이 접혀 내려와 «지직»거린다. */
-  shaper.oversample = '4x'
-  node.connect(shaper).connect(out)
-
-  /* 잔향에는 포화 전 신호를 보낸다 — 방까지 찌그러지면 넓이가 아니라 소음이 된다. */
+  node.connect(out)
   sendToReverb(node, SFX_ROOM)
   sfx = node
   return node
@@ -342,12 +387,52 @@ export interface ToneSpec {
    */
   readonly fm?: { readonly ratio: number; readonly index: number }
   /**
-   * 꼬리의 음량을 흔든다. rate는 주기(Hz), depth는 흔드는 폭(음량 단위).
+   * 꼬리의 음량을 흔든다. rate는 주기(Hz), **depth는 0~1 비율**이다(0.3이면 최대 30% 파임).
    *
    * 매끈하게 잦아드는 소리는 «기계»로 들린다. 실제로 울리는 물체는 공기와 재질 때문에
    * 음량이 미세하게 요동치고, 귀는 그 불안정함을 «아직 무언가 남아 있다»로 읽는다.
+   *
+   * 절대값이 아니라 비율인 이유는, 봉투에 «더하면» 최대치가 gain을 넘어 소리가 터지고
+   * LFO가 음수로 내려갈 때 위상이 뒤집혀 거칠어지기 때문이다. 여기서는 전용 노드를 하나 더 두고
+   * 곱하므로, 아무리 깊게 흔들어도 원래 음량 위로는 올라가지 않는다.
    */
   readonly wobble?: { readonly rate: number; readonly depth: number }
+  /**
+   * 음정을 흔든다. rate는 주기(Hz), cents는 폭(100이 반음).
+   *
+   * wobble이 «음량»을 흔든다면 이쪽은 «음높이»다. **연주된 악기와 신디사이저를 가르는 것이
+   * 이 한 가지다** — 사람이 켜거나 부는 음은 절대 고정되지 않는다.
+   *
+   * 곧게 들어와 뒤에서 흔들린다. 국악의 농현이 실제로 그렇고, 처음부터 떨면 «전자음»이 된다.
+   * detune에 거는 이유는 frequency에 걸면 같은 폭이 음높이마다 다르게 들리기 때문이다(sustain과 같다).
+   */
+  readonly vibrato?: { readonly rate: number; readonly cents: number }
+}
+
+export interface VibratoSpec {
+  readonly rate: number
+  readonly cents: number
+}
+
+/** 음정 흔들림 한 벌. tone과 voice가 같은 방식으로 쓴다. */
+function vibrate(
+  c: AudioContext,
+  detune: AudioParam,
+  spec: VibratoSpec,
+  t0: number,
+  attack: number,
+  decay: number,
+  end: number,
+): void {
+  const lfo = c.createOscillator()
+  lfo.type = 'sine'
+  lfo.frequency.setValueAtTime(spec.rate, t0)
+  const depth = c.createGain()
+  depth.gain.setValueAtTime(0, t0)
+  depth.gain.linearRampToValueAtTime(spec.cents, t0 + attack + decay * 0.3)
+  lfo.connect(depth).connect(detune)
+  lfo.start(t0)
+  lfo.stop(end + 0.05)
 }
 
 /** 음 하나. 오실레이터는 일회용이라 끝나면 버린다(재사용이 규격상 금지돼 있다). */
@@ -368,9 +453,36 @@ export function tone(at: number, spec: ToneSpec): void {
 
   const gain = c.createGain()
   shape(gain.gain, t0, spec.gain, spec.attack, spec.decay)
+  gain.connect(out)
 
-  osc.connect(gain).connect(out)
+  /*
+   * 흔들림은 봉투 앞에 «곱하는» 노드를 하나 더 둬서 만든다.
+   * 기준값을 1−depth로 두고 LFO가 ±depth로 흔들리므로 결과는 [1−2·depth, 1] 안에 머문다.
+   * 봉투에 직접 더하던 앞선 방식은 최대치가 gain을 넘어 소리를 터뜨렸다.
+   */
+  let head: AudioNode = gain
+  if (spec.wobble) {
+    const depth = Math.min(0.9, Math.max(0, spec.wobble.depth))
+    const trem = c.createGain()
+    trem.gain.setValueAtTime(1 - depth, t0)
+
+    const lfo = c.createOscillator()
+    lfo.type = 'sine'
+    lfo.frequency.setValueAtTime(spec.wobble.rate, t0)
+    const amount = c.createGain()
+    amount.gain.setValueAtTime(depth, t0)
+    lfo.connect(amount).connect(trem.gain)
+    lfo.start(t0)
+    lfo.stop(end + 0.05)
+
+    trem.connect(gain)
+    head = trem
+  }
+
+  osc.connect(head)
   osc.start(t0)
+
+  if (spec.vibrato) vibrate(c, osc.detune, spec.vibrato, t0, spec.attack, spec.decay, end)
 
   if (spec.fm) {
     const mod = c.createOscillator()
@@ -382,18 +494,6 @@ export function tone(at: number, spec: ToneSpec): void {
     mod.connect(depth).connect(osc.frequency)
     mod.start(t0)
     mod.stop(end + 0.05)
-  }
-
-  if (spec.wobble) {
-    const lfo = c.createOscillator()
-    lfo.type = 'sine'
-    lfo.frequency.setValueAtTime(spec.wobble.rate, t0)
-    const depth = c.createGain()
-    /* 흔들림도 소리와 같이 잦아들어야 한다. 끝까지 같은 폭이면 «떨림»이 아니라 «신호»가 된다. */
-    shape(depth.gain, t0, spec.wobble.depth, spec.attack, spec.decay)
-    lfo.connect(depth).connect(gain.gain)
-    lfo.start(t0)
-    lfo.stop(end + 0.05)
   }
 
   /* 꼬리를 조금 남긴다. 곡선이 0.0001에 닿기 전에 끊으면 «툭» 하는 클릭이 들린다. */
@@ -529,6 +629,8 @@ export interface VoiceSpec {
   readonly delay?: number
   readonly pan?: number
   readonly target?: AudioNode
+  /** ToneSpec.vibrato와 같다. pitch가 있을 때만 걸린다 — 숨에는 흔들 음정이 없다. */
+  readonly vibrato?: VibratoSpec
 }
 
 /**
@@ -581,6 +683,7 @@ export function voice(at: number, spec: VoiceSpec): void {
       if (spec.toPitch !== undefined) {
         osc.frequency.exponentialRampToValueAtTime(Math.max(1, spec.toPitch), end)
       }
+      if (spec.vibrato) vibrate(c, osc.detune, spec.vibrato, t0, spec.attack, spec.decay, end)
       osc.connect(filter)
       osc.start(t0)
       osc.stop(end + 0.05)
