@@ -12,7 +12,7 @@
  *   sfx_win · sfx_lose  (전부 `src/assets/audio/<이름>.mp3`)
  */
 
-import { resume, setSfxGain } from './engine'
+import { resume, resumeAsync, setSfxGain } from './engine'
 import { playSynthSfx } from './synth'
 import { startDrone } from './drone'
 import type { SfxName } from './synth'
@@ -196,8 +196,22 @@ export function stopBgm(): void {
  * 앞의 소리가 아직 울리는 중에 다음 것이 그것을 잘라먹기 때문이다.
  * 파일은 브라우저가 캐시하므로 새로 받지 않는다.
  */
+/**
+ * 마지막으로 «판의 소리»가 난 시각. 조작음(ui*)은 여기 기록하지 않는다.
+ *
+ * ui-clicks.ts가 이 값을 보고 «방금 게임 소리가 났으면 조작음을 겹치지 않는다»를
+ * 판단한다. 제안·반증 버튼처럼 자기 소리를 이미 가진 자리에 «톡»을 더 얹지 않으려는 것이다.
+ */
+let lastGameSfxAt = Number.NEGATIVE_INFINITY
+
+/** 마지막 게임 소리로부터 지난 시간(ms). 한 번도 안 났으면 아주 큰 값. */
+export function sincePlaySfx(): number {
+  return performance.now() - lastGameSfxAt
+}
+
 export function playSfx(name: SfxName): void {
   if (muted || !unlocked) return
+  if (!name.startsWith('ui')) lastGameSfxAt = performance.now()
   const url = urlOf(`sfx_${name}`)
   if (url) {
     const el = new Audio(url)
@@ -206,6 +220,24 @@ export function playSfx(name: SfxName): void {
     return
   }
   playSynthSfx(name)
+}
+
+/**
+ * 조작 없이 열어본다. **열리면** 열고, 안 열리면 조용히 물러난다.
+ *
+ * 브라우저는 사용자가 페이지를 한 번도 건드리지 않은 상태의 재생을 막는다. 정책이라
+ * 우회할 수 없다 — 다만 **막느냐 마느냐가 방문자마다 다르다.** 그 사이트에서 소리를
+ * 들은 이력이 쌓인 재방문자에게는 허용된다(Chrome은 Media Engagement Index로 판단한다).
+ *
+ * 그래서 «되면 좋고»의 자리다. 열리면 표지에 들어서는 순간 곡이 올라오고, 막히면
+ * 아무 일도 일어나지 않은 채 첫 조작을 기다린다(ui-clicks.ts의 bindFirstGesture).
+ * **이것만 믿고 조작 대기를 걷어내면 처음 오는 사람은 소리를 못 듣는다.**
+ */
+export function tryUnlock(): void {
+  if (unlocked) return
+  void resumeAsync().then((running) => {
+    if (running) unlock()
+  })
 }
 
 /** 첫 클릭에서 부른다. 이걸 부르기 전에는 어떤 소리도 나지 않는다. */

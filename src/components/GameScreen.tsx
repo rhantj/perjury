@@ -4,8 +4,9 @@ import { createPortal } from 'react-dom'
 import type { FallbackReason } from '../ai/decider'
 import { llmDeciderForRound } from '../ai/llm-decider'
 import { suggestionFrom } from '../ai/rules'
-import { playBgm, playSfx, unlock } from '../audio/audio'
+import { playBgm, playSfx, tryUnlock, unlock } from '../audio/audio'
 import type { SfxName } from '../audio/audio'
+import { bindButtonSfx, bindFirstGesture } from '../audio/ui-clicks'
 import { cardLabel, cardNames, participantLabel, seatSlot, subjectLabel } from '../content/labels'
 import { josa } from '../content/josa'
 import { placeArtFor } from '../content/place-art'
@@ -379,6 +380,39 @@ export default function GameScreen() {
    * 나가 고발 실패 컷이 4.0초 뒤에 떴다(배포본 실측: draw 마운트 62893 → ousted 66891).
    * 내가 판에서 빠진 사건이 다음 라운드 진행보다 뒤에 오면 무슨 일이 일어난 건지 읽히지 않는다.
    */
+  /*
+   * 소리를 화면에 붙이는 두 가지. 마운트에서 한 번만 걸고 언마운트에서 뗀다.
+   *
+   * **버튼 조작음** — document에서 클릭을 한 번 받아 눌린 버튼의 성격대로 소리를 낸다.
+   * 버튼 서른여덟 개에 각각 다는 대신 여기 한 줄이다(ui-clicks.ts 참고).
+   *
+   * **표지 배경음** — 두 경로를 겹쳐 둔다. 하나로는 모든 방문자를 덮지 못한다.
+   *
+   *   1. 곡을 먼저 걸고 곧바로 열어본다(`tryUnlock`). 그 사이트에서 소리를 들은 이력이
+   *      쌓인 방문자에게는 브라우저가 허용하므로, **조작 없이 표지에서 바로 올라온다.**
+   *   2. 막히면 첫 조작을 기다린다(`bindFirstGesture`). 처음 오는 사람은 여기로 온다 —
+   *      브라우저 정책이라 우회할 수 없고, **이 폴백을 지우면 첫 방문자는 소리를 못 듣는다.**
+   *
+   * 순서가 중요하다. 아직 안 열린 동안 playBgm은 곡을 «예약»만 해 두고, 열리는 순간
+   * 그 예약이 실행된다. 그래서 걸어 두고 열어보는 순서여야 첫 소절을 놓치지 않는다.
+   *
+   * 이 컴포넌트는 표지에서 마운트되므로 여기서 거는 곡은 언제나 intro다.
+   * playBgm은 같은 곡이면 아무것도 하지 않으니 [게임 시작]의 호출과 겹쳐도 곡이 끊기지 않는다.
+   */
+  useEffect(() => {
+    const unbindClicks = bindButtonSfx()
+    playBgm('intro')
+    tryUnlock()
+    const unbindGesture = bindFirstGesture(() => {
+      unlock()
+      playBgm('intro')
+    })
+    return () => {
+      unbindClicks()
+      unbindGesture()
+    }
+  }, [])
+
   const seenOutRef = useRef<readonly string[] | null>(null)
   useEffect(() => {
     if (!view || stage !== 'play') return

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { isMuted, setMuted } from '../audio/audio'
+import { isMuted, playSfx, setMuted } from '../audio/audio'
 
 /**
  * 소리 스위치. 화면 모서리에 상시 떠 있다.
@@ -13,16 +13,27 @@ import { isMuted, setMuted } from '../audio/audio'
 export default function MuteButton() {
   const [muted, setLocal] = useState(isMuted)
 
+  /*
+   * 이 버튼만 조작음을 직접 낸다(다른 버튼은 ui-clicks.ts가 일괄로 붙인다).
+   *
+   * **순서가 전부다.** 소리를 끄면 그 뒤로는 어떤 소리도 나지 않으므로 «껐다»는
+   * 끄기 «전»에 내야 하고, 켤 때는 아직 잠겨 있으니 «켰다»는 켠 «뒤»에 내야 한다.
+   * 위임 리스너는 React onClick 다음에 돌기 때문에 이 순서를 만들 수 없다 —
+   * 그래서 data-sfx="none"으로 빼고 여기서 처리한다.
+   */
   const toggle = () => {
     const next = !muted
+    if (next) playSfx('uiToggleOff')
     setLocal(next)
     setMuted(next)
+    if (!next) playSfx('uiToggleOn')
   }
 
   return (
     <button
       type="button"
       className={`mute${muted ? ' mute--off' : ''}`}
+      data-sfx="none"
       onClick={toggle}
       aria-pressed={muted}
       aria-label={muted ? '소리 켜기' : '소리 끄기'}
