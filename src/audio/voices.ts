@@ -64,7 +64,8 @@ export function metal(
     attack: 0.003,
     decay,
     fm: { ratio: at2.ratio ?? 2.76, index },
-    wobble: at2.wobble === undefined ? undefined : { rate: 6.3, depth: gain * at2.wobble },
+    /* depth는 0~1 비율이다. gain을 곱하던 앞선 방식은 봉투 최대치를 넘겨 소리를 터뜨렸다. */
+    wobble: at2.wobble === undefined ? undefined : { rate: 6.3, depth: at2.wobble },
     delay: at2.delay,
     pan: at2.pan,
   })
@@ -239,7 +240,7 @@ export function bell(at: number, root: number, gain: number, length: number): vo
       decay: length * p.decay,
       fm: { ratio: 1.41, index: hz * p.fm * 0.12 },
       /* 배음마다 다른 속도로 흔들린다. 같은 속도면 전체가 한 덩어리로 떨려 «오르간»이 된다. */
-      wobble: { rate: p.wob, depth: level * 0.22 },
+      wobble: { rate: p.wob, depth: 0.22 },
       pan: p.pan,
     })
   }
