@@ -52,6 +52,15 @@
 import { now } from './engine'
 import { challenge, draw, myTurn, perjury, refute, suggest } from './sfx-actions'
 import { caught, lose, ousted, round, win, wrongCall } from './sfx-outcomes'
+import {
+  uiBack,
+  uiConfirm,
+  uiHeavy,
+  uiPaper,
+  uiTap,
+  uiToggleOff,
+  uiToggleOn,
+} from './sfx-ui'
 
 export type SfxName =
   /** 제안 접수 — 도장 */
@@ -76,6 +85,25 @@ export type SfxName =
   | 'ousted'
   | 'win'
   | 'lose'
+  /*
+   * 아래 일곱은 판의 사건이 아니라 **화면 조작음**이다(sfx-ui.ts).
+   * 위 열두 개와 층이 달라서 배치표에 넣지 않는다 — 전부 0.1초 남짓, 아주 작다.
+   * 버튼에 다는 방법은 ui-clicks.ts에 있다.
+   */
+  /** 기본 버튼 — 톡 */
+  | 'uiTap'
+  /** 무겁게 짚는 자리 — 툭. 시나리오 카드가 쓴다 */
+  | 'uiHeavy'
+  /** 커서가 카드에 올라왔다 — 종이가 스친다. 누르는 소리가 아니라 «닿았다»다 */
+  | 'uiPaper'
+  /** 진행·확정 — 화면이 넘어간다 */
+  | 'uiConfirm'
+  /** 취소·뒤로·닫기 */
+  | 'uiBack'
+  /** 켜기 */
+  | 'uiToggleOn'
+  /** 끄기 */
+  | 'uiToggleOff'
 
 type Recipe = (at: number) => void
 
@@ -96,6 +124,13 @@ const RECIPES: Record<SfxName, Recipe> = {
   ousted,
   win,
   lose,
+  uiTap,
+  uiHeavy,
+  uiPaper,
+  uiConfirm,
+  uiBack,
+  uiToggleOn,
+  uiToggleOff,
 }
 
 /**

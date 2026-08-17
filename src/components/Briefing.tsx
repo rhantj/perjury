@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
+import { playSfx } from '../audio/audio'
 import { SCENARIOS, pickScenario } from '../content/scenarios'
 import type { Scenario } from '../content/scenarios'
 import { cardLabel, suspectNameAt, suspectTitleFull } from '../content/labels'
@@ -148,6 +149,26 @@ function ScenarioBackdrop({ activeId }: { activeId: string | null }) {
   )
 }
 
+/**
+ * 커서가 카드에 닿을 때 종이가 스치는 소리. 이 화면에서만 쓴다.
+ *
+ * **간격을 두는 것이 핵심이다.** 카드 넷 위를 빠르게 훑으면 지나가는 동안 enter가
+ * 연달아 터지고, 그대로 내보내면 종이 소리가 아니라 «드르륵»이 된다. 클릭할 때도
+ * 겹친다 — 버튼은 눌리는 순간 포커스를 받으므로 focus가 한 번 더 오기 때문이다.
+ *
+ * 70ms는 «사람이 두 번으로 세는 최소 간격»쯤이다. 이보다 촘촘한 것은 손이 지나간
+ * 자국이지 «카드를 짚었다»가 아니라서 버린다.
+ */
+let lastRustleAt = Number.NEGATIVE_INFINITY
+const RUSTLE_GAP_MS = 70
+
+function rustle(): void {
+  const at = performance.now()
+  if (at - lastRustleAt < RUSTLE_GAP_MS) return
+  lastRustleAt = at
+  playSfx('uiPaper')
+}
+
 /** 1막. 사건 넷 중 하나를 고른다. */
 function PickAct({
   seed,
@@ -171,12 +192,23 @@ function PickAct({
       <ul className="picker" onMouseLeave={() => onHover(null)}>
         {SCENARIOS.map((item, i) => (
           <li key={item.id} className="picker__item" style={{ '--i': i } as CSSProperties}>
+            {/*
+              조작음을 클래스명(`case`)에서 읽으면 기본 「톡」이 나는데, 조서를 고르는
+              자리에는 가볍다. 여기만 둔탁한 쪽으로 덮어쓴다 — ui-clicks.ts의 NAMED 참고.
+            */}
             <button
               type="button"
               className="case"
+              data-sfx="heavy"
               onClick={() => onChoose(item)}
-              onMouseEnter={() => onHover(item.id)}
-              onFocus={() => onHover(item.id)}
+              onMouseEnter={() => {
+                rustle()
+                onHover(item.id)
+              }}
+              onFocus={() => {
+                rustle()
+                onHover(item.id)
+              }}
               onBlur={() => onHover(null)}
             >
               <span className="case__hanja">{item.hanja}</span>

@@ -187,6 +187,23 @@ export function resume(): void {
   void c.resume().catch(() => {})
 }
 
+/**
+ * 깨우기를 시도하고 **실제로 깨어났는지** 알려준다. 조작 없이 소리를 걸어볼 때 쓴다.
+ *
+ * `resume()`과 달리 결과를 돌려주는 이유는, 자동재생이 막혔는지 아닌지를 부르는 쪽이
+ * 알아야 해서다. 막힌 경우 **약속이 거부되지 않고 그냥 suspended로 남는 브라우저가
+ * 있어서**, 거부만 잡으면 «성공했다»고 잘못 읽는다. 그래서 상태를 다시 확인한다.
+ */
+export function resumeAsync(): Promise<boolean> {
+  const c = context()
+  if (!c) return Promise.resolve(false)
+  if (c.state === 'running') return Promise.resolve(true)
+  return c
+    .resume()
+    .then(() => c.state === 'running')
+    .catch(() => false)
+}
+
 let noise: AudioBuffer | null = null
 
 /** 백색잡음 2초. 타격·마찰음의 재료다. 매번 채우면 프레임이 끊기므로 한 번만 만든다. */
